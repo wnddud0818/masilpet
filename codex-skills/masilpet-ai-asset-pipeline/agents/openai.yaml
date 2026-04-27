@@ -1,0 +1,4 @@
+interface:
+  display_name: "MasilPet AI Asset Pipeline"
+  short_description: "Generate, slice, verify, and commit MasilPet AI pet assets."
+  default_prompt: "Use this skill to generate MasilPet pet asset sheets, save them under assets/_incoming, slice them into assets/pets, verify outputs, and commit/push the result."

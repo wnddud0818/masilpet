@@ -27,4 +27,18 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/pets/
+    - assets/pets/wave_naru/actions/
+    - assets/pets/wave_naru/emotions/
+    - assets/pets/wave_naru/growth/
+    - assets/pets/harbor_maru/actions/
+    - assets/pets/harbor_maru/emotions/
+    - assets/pets/harbor_maru/growth/
+    - assets/pets/film_bori/actions/
+    - assets/pets/film_bori/emotions/
+    - assets/pets/film_bori/growth/
+    - assets/pets/spring_dami/actions/
+    - assets/pets/spring_dami/emotions/
+    - assets/pets/spring_dami/growth/
+    - assets/pets/story_goun/actions/
+    - assets/pets/story_goun/emotions/
+    - assets/pets/story_goun/growth/

@@ -50,8 +50,9 @@ If there is no reference image:
 
 Generation prompt rules:
 
-- Ask for clean 2D pixel-art-style mobile game pet sprites, cute-first chibi redesign, head about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny smiling mouth, short squat body, very tiny bean-shaped hands and feet, soft rounded cheeks, rounded accessories, thick dark outline, flat colors, limited bright cute palette, transparent or plain background, no text/logo/UI.
-- It is acceptable for the prompt to say `64x64 pixel style` as a visual style cue, but the slicing pipeline exports 256x256 PNG files by default for cleaner app scaling.
+- Ask for clean 2D actual low-resolution 64x64 pixel art mobile game pet sprites, cute-first chibi redesign, head about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny smiling mouth, short squat body, very tiny bean-shaped hands and feet, soft rounded cheeks, rounded accessories, thick 1 pixel dark outline at 64x64 scale, flat colors, limited bright cute palette, visible square pixels, stair-stepped pixel edges, transparent or plain background, no text/logo/UI.
+- Do not rely on weak wording like `pixel-art-style` alone. Specify that each sprite must be drawn as true 64x64 pixel art first, and if the generated sheet is larger, it must look nearest-neighbor upscaled from the 64x64 sprite so the blocky pixel structure remains visible.
+- Explicitly reject high-resolution illustrations with a pixel-art filter, smooth curves, antialiased edges, subpixel lines, gradients, blended shading, glossy shading, airbrush shading, and vector/painterly smoothing.
 - Include a negative prompt against realism, 3D, plush/clay render, vector illustration, watercolor, gradients, anti-aliasing, text, watermark, cropped body, inconsistent character, extra limbs, different character identities per frame, exact reference copy, narrow face, small eyes, long limbs, tall thin silhouette, stiff mascot pose, and mature proportions.
 - For animation sheets, specify equal-sized frames in a single row, consistent feet position, consistent character size, and subtle motion only.
 

@@ -42,6 +42,14 @@ flutter:
     - assets/pets/story_goun/actions/
     - assets/pets/story_goun/emotions/
     - assets/pets/story_goun/growth/
+    - assets/pets/autumn_leaf_sprite/actions/
+    - assets/pets/autumn_leaf_sprite/emotions/
+    - assets/pets/autumn_leaf_sprite/growth/
+    - assets/pets/autumn_leaf_sprite/animations/
+    - assets/pets/wink_yellow_pup/actions/
+    - assets/pets/wink_yellow_pup/emotions/
+    - assets/pets/wink_yellow_pup/growth/
+    - assets/pets/wink_yellow_pup/animations/
     - assets/pets/bandana_tanuki/actions/
     - assets/pets/bandana_tanuki/emotions/
     - assets/pets/bandana_tanuki/growth/

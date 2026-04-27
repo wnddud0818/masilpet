@@ -1,0 +1,59 @@
+{
+  "petId": "wink_yellow_pup",
+  "sourceSheets": {
+    "actions": "assets/pets/wink_yellow_pup/source/action_poses_sheet.png",
+    "emotions": "assets/pets/wink_yellow_pup/source/emotions_sheet.png",
+    "growth": "assets/pets/wink_yellow_pup/source/growth_sheet.png",
+    "idle_animation": "assets/pets/wink_yellow_pup/source/idle_animation_sheet.png",
+    "walk_animation": "assets/pets/wink_yellow_pup/source/walk_animation_sheet.png",
+    "sleep_animation": "assets/pets/wink_yellow_pup/source/sleep_animation_sheet.png",
+    "eat_animation": "assets/pets/wink_yellow_pup/source/eat_animation_sheet.png",
+    "greet_animation": "assets/pets/wink_yellow_pup/source/greet_animation_sheet.png"
+  },
+  "assets": {
+    "actions": [
+      "assets/pets/wink_yellow_pup/actions/idle.png",
+      "assets/pets/wink_yellow_pup/actions/walking.png",
+      "assets/pets/wink_yellow_pup/actions/jumping.png",
+      "assets/pets/wink_yellow_pup/actions/eating.png",
+      "assets/pets/wink_yellow_pup/actions/sleeping.png",
+      "assets/pets/wink_yellow_pup/actions/greeting.png"
+    ],
+    "emotions": [
+      "assets/pets/wink_yellow_pup/emotions/neutral.png",
+      "assets/pets/wink_yellow_pup/emotions/happy.png",
+      "assets/pets/wink_yellow_pup/emotions/excited.png",
+      "assets/pets/wink_yellow_pup/emotions/sad.png",
+      "assets/pets/wink_yellow_pup/emotions/surprised.png",
+      "assets/pets/wink_yellow_pup/emotions/sleepy.png"
+    ],
+    "growth": [
+      "assets/pets/wink_yellow_pup/growth/baby.png",
+      "assets/pets/wink_yellow_pup/growth/grown.png",
+      "assets/pets/wink_yellow_pup/growth/evolved.png"
+    ],
+    "animations": [
+      "assets/pets/wink_yellow_pup/animations/idle_01.png",
+      "assets/pets/wink_yellow_pup/animations/idle_02.png",
+      "assets/pets/wink_yellow_pup/animations/idle_03.png",
+      "assets/pets/wink_yellow_pup/animations/idle_04.png",
+      "assets/pets/wink_yellow_pup/animations/walk_01.png",
+      "assets/pets/wink_yellow_pup/animations/walk_02.png",
+      "assets/pets/wink_yellow_pup/animations/walk_03.png",
+      "assets/pets/wink_yellow_pup/animations/walk_04.png",
+      "assets/pets/wink_yellow_pup/animations/sleep_01.png",
+      "assets/pets/wink_yellow_pup/animations/sleep_02.png",
+      "assets/pets/wink_yellow_pup/animations/sleep_03.png",
+      "assets/pets/wink_yellow_pup/animations/sleep_04.png",
+      "assets/pets/wink_yellow_pup/animations/eat_01.png",
+      "assets/pets/wink_yellow_pup/animations/eat_02.png",
+      "assets/pets/wink_yellow_pup/animations/eat_03.png",
+      "assets/pets/wink_yellow_pup/animations/eat_04.png",
+      "assets/pets/wink_yellow_pup/animations/greet_01.png",
+      "assets/pets/wink_yellow_pup/animations/greet_02.png",
+      "assets/pets/wink_yellow_pup/animations/greet_03.png",
+      "assets/pets/wink_yellow_pup/animations/greet_04.png"
+    ]
+  },
+  "updatedAt": "2026-04-27T08:40:34+00:00"
+}

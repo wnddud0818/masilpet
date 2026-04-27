@@ -1,0 +1,59 @@
+{
+  "petId": "autumn_leaf_sprite",
+  "sourceSheets": {
+    "actions": "assets/pets/autumn_leaf_sprite/source/action_poses_sheet.png",
+    "emotions": "assets/pets/autumn_leaf_sprite/source/emotions_sheet.png",
+    "growth": "assets/pets/autumn_leaf_sprite/source/growth_sheet.png",
+    "idle_animation": "assets/pets/autumn_leaf_sprite/source/idle_animation_sheet.png",
+    "walk_animation": "assets/pets/autumn_leaf_sprite/source/walk_animation_sheet.png",
+    "sleep_animation": "assets/pets/autumn_leaf_sprite/source/sleep_animation_sheet.png",
+    "eat_animation": "assets/pets/autumn_leaf_sprite/source/eat_animation_sheet.png",
+    "greet_animation": "assets/pets/autumn_leaf_sprite/source/greet_animation_sheet.png"
+  },
+  "assets": {
+    "actions": [
+      "assets/pets/autumn_leaf_sprite/actions/idle.png",
+      "assets/pets/autumn_leaf_sprite/actions/walking.png",
+      "assets/pets/autumn_leaf_sprite/actions/jumping.png",
+      "assets/pets/autumn_leaf_sprite/actions/eating.png",
+      "assets/pets/autumn_leaf_sprite/actions/sleeping.png",
+      "assets/pets/autumn_leaf_sprite/actions/greeting.png"
+    ],
+    "emotions": [
+      "assets/pets/autumn_leaf_sprite/emotions/neutral.png",
+      "assets/pets/autumn_leaf_sprite/emotions/happy.png",
+      "assets/pets/autumn_leaf_sprite/emotions/excited.png",
+      "assets/pets/autumn_leaf_sprite/emotions/sad.png",
+      "assets/pets/autumn_leaf_sprite/emotions/surprised.png",
+      "assets/pets/autumn_leaf_sprite/emotions/sleepy.png"
+    ],
+    "growth": [
+      "assets/pets/autumn_leaf_sprite/growth/baby.png",
+      "assets/pets/autumn_leaf_sprite/growth/grown.png",
+      "assets/pets/autumn_leaf_sprite/growth/evolved.png"
+    ],
+    "animations": [
+      "assets/pets/autumn_leaf_sprite/animations/idle_01.png",
+      "assets/pets/autumn_leaf_sprite/animations/idle_02.png",
+      "assets/pets/autumn_leaf_sprite/animations/idle_03.png",
+      "assets/pets/autumn_leaf_sprite/animations/idle_04.png",
+      "assets/pets/autumn_leaf_sprite/animations/walk_01.png",
+      "assets/pets/autumn_leaf_sprite/animations/walk_02.png",
+      "assets/pets/autumn_leaf_sprite/animations/walk_03.png",
+      "assets/pets/autumn_leaf_sprite/animations/walk_04.png",
+      "assets/pets/autumn_leaf_sprite/animations/sleep_01.png",
+      "assets/pets/autumn_leaf_sprite/animations/sleep_02.png",
+      "assets/pets/autumn_leaf_sprite/animations/sleep_03.png",
+      "assets/pets/autumn_leaf_sprite/animations/sleep_04.png",
+      "assets/pets/autumn_leaf_sprite/animations/eat_01.png",
+      "assets/pets/autumn_leaf_sprite/animations/eat_02.png",
+      "assets/pets/autumn_leaf_sprite/animations/eat_03.png",
+      "assets/pets/autumn_leaf_sprite/animations/eat_04.png",
+      "assets/pets/autumn_leaf_sprite/animations/greet_01.png",
+      "assets/pets/autumn_leaf_sprite/animations/greet_02.png",
+      "assets/pets/autumn_leaf_sprite/animations/greet_03.png",
+      "assets/pets/autumn_leaf_sprite/animations/greet_04.png"
+    ]
+  },
+  "updatedAt": "2026-04-27T08:57:19+00:00"
+}

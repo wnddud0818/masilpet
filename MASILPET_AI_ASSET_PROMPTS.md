@@ -25,7 +25,7 @@
 
 ```text
 Create a cute collectible companion pet character for a mobile location-based tourism game called MasilPet.
-Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm and friendly, cute-first chibi redesign, head takes about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny gentle smile, smaller compact body, short squat limbs, tiny bean-shaped hands and feet, round soft silhouette, soft rounded cheeks with subtle blush-like color accents, simplified rounded accessories, simple readable silhouette, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, clear cute facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+Style: clean cute actual 64x64 low-resolution pixel art sprite, Korean regional mascot-inspired, warm and friendly, cute-first chibi redesign, head takes about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny gentle smile, smaller compact body, short squat limbs, tiny bean-shaped hands and feet, round soft silhouette, soft rounded cheeks with subtle blush-like color accents, simplified rounded accessories, simple readable silhouette, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no painterly or vector smoothing, no pixel-art filter over a high-resolution illustration, clear cute facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset. If the final image is larger than 64x64 per sprite, upscale only with nearest-neighbor so the blocky 64x64 pixel structure remains visible.
 ```
 
 ## 공통 캐릭터 정체성 규칙
@@ -72,14 +72,21 @@ Cute style rules:
 
 ```text
 Pixel art rules:
-- 64x64 pixel style for each character sprite
-- thick 1 pixel dark outline
+- actual low-resolution 64x64 pixel art for each character sprite, not a high-resolution illustration
+- draw every sprite as if it was hand-placed on a 64x64 pixel canvas first
+- visible square pixels and clearly stair-stepped/jagged pixel edges
+- if the output image is larger than 64x64 per sprite, it must look nearest-neighbor upscaled from 64x64
+- thick 1 pixel dark outline at the original 64x64 sprite scale
 - limited palette, 16 to 24 colors
-- flat colors
+- flat colors and solid color clusters
 - no gradients
 - no anti-aliasing
+- no smooth curves
+- no subpixel lines
+- no blended shading
 - no soft blur
 - no too many colors
+- no pixel-art filter applied to smooth high-resolution artwork
 - clean game asset style
 - transparent background or plain solid background
 ```
@@ -87,7 +94,7 @@ Pixel art rules:
 ## 공통 네거티브 프롬프트
 
 ```text
-realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, high-resolution illustration, vector illustration, anime illustration, painterly style, oil painting, watercolor, smooth vector art, detailed background, complex scenery, text, letters, labels, watermark, logo, UI, decorative symbols, exclamation marks, Z symbols, motion lines, multiple characters, human character, scary, violent, overly detailed, cropped body, blurry, soft blur, anti-aliasing, anti-aliased illustration, gradient shading, too many colors, noisy pixels, messy pixel art, inconsistent character, inconsistent proportions, inconsistent colors, different character in each frame, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, tall body, long limbs, sharp hat, serious expression, adult proportions, exact copy of the reference, realistic anatomy, narrow face, tiny face, small eyes, stiff mascot pose, mature mascot proportions, tall thin silhouette
+realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, high-resolution illustration, vector illustration, anime illustration, painterly style, oil painting, watercolor, smooth vector art, detailed background, complex scenery, text, letters, labels, watermark, logo, UI, decorative symbols, exclamation marks, Z symbols, motion lines, multiple characters, human character, scary, violent, overly detailed, cropped body, blurry, soft blur, anti-aliasing, anti-aliased illustration, antialiased edges, gradient shading, blended shading, soft cel shading, airbrush shading, glossy shading, smooth curves, subpixel lines, pixel-filtered illustration, high-resolution art pretending to be pixel art, AI-upscaled illustration, too many colors, noisy pixels, messy pixel art, inconsistent character, inconsistent proportions, inconsistent colors, different character in each frame, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, tall body, long limbs, sharp hat, serious expression, adult proportions, exact copy of the reference, realistic anatomy, narrow face, tiny face, small eyes, stiff mascot pose, mature mascot proportions, tall thin silhouette
 ```
 
 ## 레퍼런스가 있는 경우
@@ -128,7 +135,7 @@ Cute style rules:
 - no sharp or tall body proportions
 - avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
-Style: clean cute 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, Korean regional mascot-inspired, warm and friendly, game-ready asset.
+Style: clean cute actual 64x64 low-resolution pixel art sprite, full body, transparent background, centered, simple readable shape, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, no pixel-art filter over a high-resolution illustration, Korean regional mascot-inspired, warm and friendly, game-ready asset. If the final image is larger than 64x64 per sprite, upscale only with nearest-neighbor so the blocky pixel structure remains visible.
 
 Do not copy text, logos, or official marks from the reference.
 Do not make it realistic, tall, long-limbed, narrow-faced, small-eyed, sharp, stiff, mature, or serious.
@@ -141,7 +148,7 @@ Using the provided MasilPet character reference, create a cute 64x64 MasilPet pi
 
 Layout: 2 rows x 3 columns, 6 sprites total.
 Target sprite size: 64x64 pixels per sprite.
-The output should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
+Strict pixel execution: draw each sprite as true low-resolution 64x64 pixel art first, then upscale with nearest-neighbor only if the final sheet is larger. The pixels must be visibly blocky; outlines must be stair-stepped, not smooth curves. Do not create a high-resolution illustration with a pixel-art filter.
 
 Character identity rules:
 - use the provided reference image as identity inspiration, not as an exact copy target
@@ -178,7 +185,7 @@ Expressions:
 5. surprised
 6. sleepy
 
-Style: clean cute 64x64 pixel art, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
+Style: clean cute actual 64x64 low-resolution pixel art, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no tall body, no long limbs, no sharp accessories, no serious expression.
 ```
@@ -197,6 +204,9 @@ Layout: 3 rows x 4 columns, 12 sprites total.
 Each cell contains the same character with a different expression.
 The character must remain identical across all cells:
 same body shape, same colors, same accessories, same proportions.
+
+Target sprite size: 64x64 pixels per sprite.
+Strict pixel execution: draw each sprite as true low-resolution 64x64 pixel art first, then upscale with nearest-neighbor only if the final sheet is larger. The pixels must be visibly blocky; outlines must be stair-stepped, not smooth curves. Do not create a high-resolution illustration with a pixel-art filter.
 
 Cute style rules:
 - cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
@@ -218,7 +228,7 @@ Cute style rules:
 Expressions:
 neutral, happy, excited, sad, angry, surprised, shy, tired, sleepy, hungry, curious, proud.
 
-Style: clean cute 64x64 pixel art per sprite, transparent background, centered full body, simple readable silhouette, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, cute mobile game asset, Korean regional mascot-inspired.
+Style: clean cute actual 64x64 low-resolution pixel art per sprite, transparent background, centered full body, simple readable silhouette, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, cute mobile game asset, Korean regional mascot-inspired.
 
 Do not copy text, logos, or official marks from the reference.
 No text, no labels, no background, no watermark, no tall body, no long limbs, no sharp accessories, no serious expression.
@@ -234,6 +244,9 @@ Stages:
 1. egg form
 2. baby pet form
 3. evolved companion form
+
+Target sprite size: 64x64 pixels per stage.
+Strict pixel execution: draw each stage as true low-resolution 64x64 pixel art first, then upscale with nearest-neighbor only if the final sheet is larger. The pixels must be visibly blocky; outlines must be stair-stepped, not smooth curves. Do not create a high-resolution illustration with a pixel-art filter.
 
 Maintain visual continuity across all stages:
 same color identity, same symbolic motif, same regional inspiration.
@@ -257,7 +270,7 @@ Cute style rules:
 - no sharp or tall body proportions
 - avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
-Style: cute Korean tourism mascot-inspired 64x64 pixel art per sprite, transparent background, centered, game-ready, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, no text, no background.
+Style: cute Korean tourism mascot-inspired actual 64x64 low-resolution pixel art per sprite, transparent background, centered, game-ready, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, no text, no background.
 ```
 
 ### 행동 대표 포즈 시트
@@ -270,6 +283,7 @@ Create one representative pose for each action.
 
 Layout: 2 rows x 3 columns, 6 sprites total.
 Target sprite size: 64x64 pixels per sprite.
+Strict pixel execution: draw each sprite as true low-resolution 64x64 pixel art first, then upscale with nearest-neighbor only if the final sheet is larger. The pixels must be visibly blocky; outlines must be stair-stepped, not smooth curves. Do not create a high-resolution illustration with a pixel-art filter.
 
 Character identity rules:
 - use the provided reference image as identity inspiration, not as an exact copy target
@@ -307,7 +321,7 @@ same body shape, same colors, same proportions, same accessories.
 Only the action pose may change.
 Do not create a different character in each cell.
 
-Style: clean cute 64x64 pixel art, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
+Style: clean cute actual 64x64 low-resolution pixel art, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no sharp hat, no tall body, no long limbs, no serious expression.
 ```
@@ -322,7 +336,7 @@ Using the provided MasilPet character reference, create one 64x64 pixel-art anim
 Action: [idle / walk / sleep / eat / greet]
 Layout: 1 row x 4 columns, 4 frames total.
 Target sprite size: 64x64 pixels per frame.
-The final image should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
+Strict pixel execution: draw each frame as true low-resolution 64x64 pixel art first, then upscale with nearest-neighbor only if the final sheet is larger. The pixels must be visibly blocky; outlines must be stair-stepped, not smooth curves. Do not create a high-resolution illustration with a pixel-art filter.
 
 Character identity rules:
 - use the provided reference image as identity inspiration, not as an exact copy target
@@ -364,10 +378,10 @@ Animation rules:
 - every frame must be centered inside an equal-sized cell
 - do not create a different character in each frame
 
-Style: clean cute 64x64 pixel art, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
+Style: clean cute actual 64x64 low-resolution pixel art, thick 1 pixel dark outline at 64x64 scale, limited palette of 16 to 24 colors, flat colors only, visible square pixels, stair-stepped pixel edges, no gradients, no anti-aliasing, no smooth curves, no subpixel lines, no blended shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no decorative effects.
-Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, detailed illustration, tall body, long limbs, sharp accessories, or serious expression.
+Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, detailed illustration, antialiased, smoothly curved, pixel-filtered, tall body, long limbs, sharp accessories, or serious expression.
 ```
 
 ### 애니메이션별 추천 프롬프트

@@ -25,13 +25,33 @@
 
 ```text
 Create a cute collectible companion pet character for a mobile location-based tourism game called MasilPet.
-Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm and friendly, chibi proportions, bigger head, smaller body, short tiny limbs, round soft silhouette, oversized eyes, tiny mouth, simplified tail and accessories, simple readable silhouette, limited color palette, crisp pixel edges, simple shading, clear facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, plush toy-like mascot, warm and friendly, baby chibi proportions, head takes about 60% of total body height, bigger head, smaller compact body, short tiny limbs, tiny bean-shaped hands and feet, round soft silhouette, oversized dot eyes, tiny gentle smile, soft rounded cheeks, simplified accessories, pastel-friendly color palette, simple readable silhouette, crisp pixel edges, simple soft shading, clear cute facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+```
+
+## 공통 귀여움 스타일 규칙
+
+각 프롬프트에 아래 규칙을 함께 넣으면 캐릭터가 지나치게 성숙하거나 길쭉하게 변하는 것을 줄일 수 있다.
+
+```text
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
 ```
 
 ## 공통 네거티브 프롬프트
 
 ```text
-realistic, 3D render, high-resolution illustration, painterly style, smooth vector art, complex background, text, letters, labels, watermark, logo, decorative symbols, exclamation marks, Z symbols, motion lines, human character, scary, violent, overly detailed, blurry, inconsistent limbs, extra eyes, extra arms, cropped body, noisy pixels, anti-aliased illustration, photo style
+realistic, 3D render, high-resolution illustration, painterly style, smooth vector art, complex background, text, letters, labels, watermark, logo, decorative symbols, exclamation marks, Z symbols, motion lines, human character, scary, violent, overly detailed, blurry, inconsistent limbs, extra eyes, extra arms, cropped body, noisy pixels, anti-aliased illustration, photo style, tall body, long limbs, sharp hat, serious expression, adult proportions
 ```
 
 ## 레퍼런스가 있는 경우
@@ -52,10 +72,24 @@ Keep the core identity from the reference:
 Convert it into a cute pixel art companion pet for a mobile tourism game.
 The character should feel like a small pet that can grow, travel, and emotionally interact with the user.
 
-Style: clean 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, chibi proportions, Korean regional mascot-inspired, warm and friendly, game-ready asset.
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
+Style: clean cute 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, crisp pixel edges, simple soft shading, Korean regional mascot-inspired, warm and friendly, game-ready asset.
 
 Do not copy text, logos, or official marks from the reference.
-Do not make it realistic.
+Do not make it realistic, tall, long-limbed, sharp, or serious.
 ```
 
 ### 감정표현 6종 스프라이트 시트
@@ -70,16 +104,19 @@ Each sprite must be inside an equal-sized cell.
 Use the exact same character design, colors, proportions, and accessories in every cell.
 Only the facial expression and small body pose should change.
 
-Make the character cuter and simpler than the reference:
-- bigger head
-- smaller body
-- short tiny limbs
-- round soft silhouette
-- oversized eyes
-- tiny mouth
-- simplified tail
-- fewer details
-- chibi proportions
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
 
 Expressions:
 1. neutral
@@ -89,9 +126,9 @@ Expressions:
 5. surprised
 6. sleepy
 
-Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
+Style: clean cute 64x64 pixel art, crisp pixel edges, limited pastel color palette, simple soft shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
 
-No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
+No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no tall body, no long limbs, no sharp accessories, no serious expression.
 ```
 
 ### 감정표현 12종 스프라이트 시트
@@ -107,13 +144,27 @@ Each cell contains the same character with a different expression.
 The character must remain identical across all cells:
 same body shape, same colors, same accessories, same proportions.
 
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
 Expressions:
 neutral, happy, excited, sad, angry, surprised, shy, tired, sleepy, hungry, curious, proud.
 
-Style: clean 64x64 pixel art per sprite, transparent background, centered full body, simple readable silhouette, cute mobile game asset, Korean regional mascot-inspired.
+Style: clean cute 64x64 pixel art per sprite, transparent background, centered full body, simple readable silhouette, limited pastel color palette, simple soft shading, cute mobile game asset, Korean regional mascot-inspired.
 
 Do not copy text, logos, or official marks from the reference.
-No text, no labels, no background, no watermark.
+No text, no labels, no background, no watermark, no tall body, no long limbs, no sharp accessories, no serious expression.
 ```
 
 ### 성장 단계 3종
@@ -130,7 +181,19 @@ Stages:
 Maintain visual continuity across all stages:
 same color identity, same symbolic motif, same regional inspiration.
 
-Style: cute Korean tourism mascot-inspired 64x64 pixel art per sprite, transparent background, centered, game-ready, no text, no background.
+Cute style rules:
+- plush toy-like mascot feeling across all stages
+- baby chibi proportions from baby stage onward
+- smaller compact body
+- tiny bean-shaped hands and feet from baby stage onward
+- soft rounded cheeks from baby stage onward
+- gentle happy expression from baby stage onward
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
+Style: cute Korean tourism mascot-inspired 64x64 pixel art per sprite, transparent background, centered, game-ready, crisp pixel edges, simple soft shading, no text, no background.
 ```
 
 ### 행동 대표 포즈 시트
@@ -152,13 +215,27 @@ Actions:
 - sleeping
 - greeting
 
+Make the character much cuter than the reference:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- slightly shorter and rounder head accessory
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
 Keep the character design consistent in every cell:
 same body shape, same colors, same proportions, same accessories.
 Only the action pose may change.
 
-Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
+Style: clean cute 64x64 pixel art, crisp pixel edges, limited pastel color palette, simple soft shading, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
 
-No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
+No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no sharp hat, no tall body, no long limbs, no serious expression.
 ```
 
 ### 애니메이션 프레임 시트
@@ -178,8 +255,22 @@ Keep the same character identity in every frame:
 - same colors
 - same proportions
 - same accessories
-- same headband detail
-- same tail design
+- same head accessory detail
+- same tail design if the character has one
+
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
 
 Animation rules:
 - show a smooth, readable motion loop across 4 frames
@@ -189,10 +280,10 @@ Animation rules:
 - every frame must show the full body
 - every frame must be centered inside an equal-sized cell
 
-Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
+Style: clean cute 64x64 pixel art, crisp pixel edges, limited pastel color palette, simple soft shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no decorative effects.
-Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, or detailed illustration.
+Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, detailed illustration, tall body, long limbs, sharp accessories, or serious expression.
 ```
 
 ### 애니메이션별 추천 프롬프트
@@ -203,7 +294,8 @@ Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, or 
 Action: idle breathing loop.
 Create 4 frames where the MasilPet gently bobs up and down while breathing.
 The face stays calm and cute.
-Only tiny body movement, ear movement, and tail movement should change.
+Keep plush toy-like baby chibi proportions consistent in every frame.
+Only tiny body movement, head accessory movement, ear movement, or tail movement should change.
 No walking, no jumping, no effects.
 ```
 
@@ -212,8 +304,9 @@ No walking, no jumping, no effects.
 ```text
 Action: walking loop.
 Create 4 frames of a cute side-or-front walking cycle.
-The feet alternate clearly, the body bobs slightly, and the tail follows the motion.
+The feet alternate clearly, the body bobs slightly, and the head accessory or tail follows the motion if the character has one.
 Keep the character centered and aligned so it can loop smoothly in a mobile game.
+Keep the body compact, the head large, and the hands and feet bean-shaped across all frames.
 No dust, no speed lines, no background.
 ```
 
@@ -224,6 +317,7 @@ Action: sleeping loop.
 Create 4 frames where the MasilPet sleeps in a small curled or seated pose.
 Use closed eyes and gentle breathing motion.
 The body should subtly rise and fall across frames.
+Keep the sleeping pose compact, plush-like, and softly rounded.
 Do not include Z letters, bubbles, symbols, or text.
 ```
 
@@ -234,6 +328,7 @@ Action: eating loop.
 Create 4 frames where the MasilPet eats a tiny simple food item.
 Use small mouth and hand movement only.
 The food item should be very simple and should not distract from the character.
+Keep the character compact, plush-like, and gently happy.
 No crumbs, no text, no decorative effects.
 ```
 
@@ -244,6 +339,7 @@ Action: greeting loop.
 Create 4 frames where the MasilPet waves one small paw.
 The body should remain mostly stable while the paw moves.
 The expression should be friendly and welcoming.
+Keep the character compact, plush-like, with a large face and tiny bean-shaped hands.
 No exclamation marks, no motion lines, no text.
 ```
 
@@ -335,7 +431,21 @@ Design a cute collectible pet that feels naturally connected to this region.
 It should not look like an existing commercial character.
 It should be simple enough to work as a small mobile game sprite.
 
-Style: clean 64x64 pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified accessories or tail if the character has one
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
+Style: clean cute 64x64 pixel art, full body, transparent background, centered, crisp pixel edges, simple soft shading, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 예시: 제주 마실펫
@@ -349,7 +459,22 @@ Personality: curious, cheerful, slightly mischievous
 Element motif: small volcanic stone pet with tangerine-colored ears and wave-shaped tail
 
 Design a cute collectible pet that feels naturally connected to Jeju.
-Style: clean 64x64 pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+
+Cute style rules:
+- plush toy-like mascot
+- baby chibi proportions
+- head takes about 60% of total body height
+- smaller compact body
+- tiny bean-shaped hands and feet
+- soft rounded cheeks
+- gentle happy expression
+- slightly oversized face
+- simplified wave-shaped tail
+- pastel-friendly tangerine and volcanic-stone colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
+Style: clean cute 64x64 pixel art, full body, transparent background, centered, crisp pixel edges, simple soft shading, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 감정표현 세트
@@ -370,8 +495,14 @@ Rules:
 - expression must be clear even at small size
 - full body visible
 - no text or labels
+- plush toy-like baby chibi proportions
+- head takes about 60% of total body height
+- compact body and tiny bean-shaped hands and feet
+- soft rounded cheeks and gentle cute expressions
+- pastel-friendly colors
+- no sharp or tall body proportions
 
-Style: clean 64x64 pixel art, transparent background, evenly spaced grid, mobile game-ready asset.
+Style: clean cute 64x64 pixel art, transparent background, evenly spaced grid, crisp pixel edges, limited pastel color palette, simple soft shading, mobile game-ready asset.
 ```
 
 ### 성장 단계
@@ -390,7 +521,18 @@ Stages:
 3. evolved companion form, more expressive and regionally distinctive
 
 All stages must feel like the same character growing over time.
-Style: clean 64x64 pixel art, transparent background, centered, game-ready sprite, no text.
+
+Cute style rules:
+- plush toy-like mascot feeling across all stages
+- baby chibi proportions from baby stage onward
+- compact body and tiny bean-shaped hands and feet from baby stage onward
+- soft rounded cheeks from baby stage onward
+- gentle happy expression from baby stage onward
+- pastel-friendly colors
+- soft rounded silhouette
+- no sharp or tall body proportions
+
+Style: clean cute 64x64 pixel art, transparent background, centered, crisp pixel edges, simple soft shading, game-ready sprite, no text.
 ```
 
 ## 감정 키워드 매핑

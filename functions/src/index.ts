@@ -1,0 +1,816 @@
+import {initializeApp} from 'firebase-admin/app';
+import {FieldValue, Timestamp, getFirestore} from 'firebase-admin/firestore';
+import {HttpsError, onCall} from 'firebase-functions/v2/https';
+import {logger} from 'firebase-functions';
+import {defineSecret} from 'firebase-functions/params';
+
+initializeApp();
+
+const db = getFirestore();
+const functionRegion = 'asia-northeast3';
+const checkInRadiusMeters = 150;
+const tourApiKey = defineSecret('TOUR_API_KEY');
+
+type PoiCategory =
+  | 'nature'
+  | 'food'
+  | 'festival'
+  | 'culture'
+  | 'history'
+  | 'shopping'
+  | 'other';
+
+type GrowthStats = {
+  exp: number;
+  mood: number;
+  knowledge: number;
+  affinity: number;
+};
+
+type PoiDoc = {
+  title: string;
+  regionId: string;
+  category: PoiCategory;
+  lat: number;
+  lng: number;
+  tourApiContentId?: string;
+};
+
+type PetStage = 'baby' | 'grown' | 'evolved';
+
+type PetDoc = {
+  templateId: string;
+  name: string;
+  stage: PetStage;
+  level: number;
+  stats: GrowthStats;
+  originRegionId: string;
+};
+
+type EggDoc = {
+  templateId: string;
+  originRegionId: string;
+  progress: number;
+  requiredSteps: number;
+  status: 'incubating' | 'hatchable' | 'hatched';
+};
+
+const busanRegionSeed = {
+  name: '부산광역시',
+  areaCode: '6',
+  center: {lat: 35.1796, lng: 129.0756},
+  pilotEnabled: true,
+};
+
+const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
+  {
+    id: 'busan-haeundae-beach',
+    tourApiContentId: 'demo-001',
+    title: '해운대 해수욕장',
+    regionId: 'busan',
+    category: 'nature',
+    lat: 35.1587,
+    lng: 129.1604,
+    shortDescription: '부산의 바다 경험을 대표하는 자연 POI',
+  },
+  {
+    id: 'busan-gwangalli',
+    tourApiContentId: 'demo-002',
+    title: '광안리 해변',
+    regionId: 'busan',
+    category: 'nature',
+    lat: 35.1532,
+    lng: 129.1187,
+    shortDescription: '광안대교를 배경으로 걷는 부산 야경 코스',
+  },
+  {
+    id: 'busan-gamcheon',
+    tourApiContentId: 'demo-003',
+    title: '감천문화마을',
+    regionId: 'busan',
+    category: 'culture',
+    lat: 35.0975,
+    lng: 129.0107,
+    shortDescription: '골목, 색채, 지역 이야기를 담은 문화 POI',
+  },
+  {
+    id: 'busan-biff',
+    tourApiContentId: 'demo-004',
+    title: 'BIFF 광장',
+    regionId: 'busan',
+    category: 'culture',
+    lat: 35.0985,
+    lng: 129.0286,
+    shortDescription: '영화 도시 부산의 상징적인 문화 거점',
+  },
+  {
+    id: 'busan-jagalchi',
+    tourApiContentId: 'demo-005',
+    title: '자갈치시장',
+    regionId: 'busan',
+    category: 'food',
+    lat: 35.0969,
+    lng: 129.0305,
+    shortDescription: '부산 식문화와 시장 활기를 만나는 음식 POI',
+  },
+  {
+    id: 'busan-gukje-market',
+    tourApiContentId: 'demo-006',
+    title: '국제시장',
+    regionId: 'busan',
+    category: 'shopping',
+    lat: 35.1016,
+    lng: 129.0284,
+    shortDescription: '오래된 상권과 골목 탐험이 연결되는 시장 POI',
+  },
+  {
+    id: 'busan-beomeosa',
+    tourApiContentId: 'demo-007',
+    title: '범어사',
+    regionId: 'busan',
+    category: 'history',
+    lat: 35.2836,
+    lng: 129.0686,
+    shortDescription: '역사와 산책 동선을 함께 담은 역사 POI',
+  },
+  {
+    id: 'busan-museum',
+    tourApiContentId: 'demo-008',
+    title: '부산박물관',
+    regionId: 'busan',
+    category: 'culture',
+    lat: 35.1282,
+    lng: 129.092,
+    shortDescription: '부산의 역사와 문화를 학습하는 문화시설',
+  },
+  {
+    id: 'busan-cinema-center',
+    tourApiContentId: 'demo-009',
+    title: '영화의전당',
+    regionId: 'busan',
+    category: 'culture',
+    lat: 35.171,
+    lng: 129.127,
+    shortDescription: '영화제와 지역 문화 이벤트의 중심지',
+  },
+  {
+    id: 'busan-fireworks',
+    tourApiContentId: 'demo-010',
+    title: '부산불꽃축제',
+    regionId: 'busan',
+    category: 'festival',
+    lat: 35.1532,
+    lng: 129.1187,
+    shortDescription: '기분 지표 보상에 특화된 축제 POI',
+  },
+  {
+    id: 'busan-spa-land',
+    tourApiContentId: 'demo-011',
+    title: '해운대 온천권',
+    regionId: 'busan',
+    category: 'other',
+    lat: 35.1632,
+    lng: 129.1636,
+    shortDescription: '휴식과 회복 콘셉트의 기타 POI',
+  },
+  {
+    id: 'busan-dongbaek',
+    tourApiContentId: 'demo-012',
+    title: '동백섬',
+    regionId: 'busan',
+    category: 'nature',
+    lat: 35.1527,
+    lng: 129.1522,
+    shortDescription: '해안 산책과 재방문 친밀도에 적합한 자연 POI',
+  },
+];
+
+const busanPetTemplateSeed = [
+  {
+    id: 'wave-naru',
+    name: '파도나루',
+    regionId: 'busan',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '바다 산책을 좋아하고 새로운 길을 먼저 살핀다.',
+    colorValue: 0x0ea5e9,
+    initials: 'PN',
+    assetKey: 'wave_naru',
+  },
+  {
+    id: 'harbor-maru',
+    name: '항구마루',
+    regionId: 'busan',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '시장과 골목의 소리에 민감하고 먹거리 이야기에 밝다.',
+    colorValue: 0xf97316,
+    initials: 'HM',
+    assetKey: 'harbor_maru',
+  },
+  {
+    id: 'film-bori',
+    name: '필름보리',
+    regionId: 'busan',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '장면과 대사를 기억하며 문화 공간에서 활발해진다.',
+    colorValue: 0x7c3aed,
+    initials: 'FB',
+    assetKey: 'film_bori',
+  },
+  {
+    id: 'spring-dami',
+    name: '온천다미',
+    regionId: 'busan',
+    rarity: 'rare',
+    primaryCategory: 'other',
+    basePersonality: '차분하고 회복을 좋아하며 긴 산책 뒤에 힘을 낸다.',
+    colorValue: 0x14b8a6,
+    initials: 'OD',
+    assetKey: 'spring_dami',
+  },
+  {
+    id: 'story-goun',
+    name: '설화고운',
+    regionId: 'busan',
+    rarity: 'epic',
+    primaryCategory: 'history',
+    basePersonality: '오래된 장소의 이름과 이야기를 차근차근 알려준다.',
+    colorValue: 0x8b5cf6,
+    initials: 'SG',
+    assetKey: 'story_goun',
+  },
+];
+
+const dialogueSeed = [
+  {
+    id: 'wave-naru-default',
+    templateId: 'wave-naru',
+    trigger: 'default',
+    text: '오늘 바람은 해운대 쪽에서 불어와. 가까운 산책길부터 살펴보자.',
+  },
+  {
+    id: 'harbor-maru-food',
+    templateId: 'harbor-maru',
+    trigger: 'food',
+    text: '자갈치 쪽은 늘 활기가 있어. 기분이 확 올라간다.',
+  },
+  {
+    id: 'film-bori-culture',
+    templateId: 'film-bori',
+    trigger: 'culture',
+    text: '문화 공간을 다녀오니 기억할 장면이 늘었어. 지식도 조금 자란 것 같아.',
+  },
+  {
+    id: 'story-goun-history',
+    templateId: 'story-goun',
+    trigger: 'history',
+    text: '역사 명소를 걸으면 기억이 깊어진다. 내 지식도 함께 자랐어.',
+  },
+];
+
+export const seedBusanPilotData = onCall({region: functionRegion}, async (request) => {
+  requireAuth(request.auth?.uid);
+
+  const batch = db.batch();
+  batch.set(db.collection('regions').doc('busan'), busanRegionSeed, {merge: true});
+
+  for (const poi of busanPoiSeed) {
+    const {id, ...data} = poi;
+    batch.set(db.collection('pois').doc(id), data, {merge: true});
+  }
+
+  for (const template of busanPetTemplateSeed) {
+    const {id, ...data} = template;
+    batch.set(db.collection('petTemplates').doc(id), data, {merge: true});
+  }
+
+  for (const dialogue of dialogueSeed) {
+    const {id, ...data} = dialogue;
+    batch.set(db.collection('dialogueSets').doc(id), data, {merge: true});
+  }
+
+  await batch.commit();
+  return {
+    regionCount: 1,
+    poiCount: busanPoiSeed.length,
+    petTemplateCount: busanPetTemplateSeed.length,
+    dialogueCount: dialogueSeed.length,
+  };
+});
+
+export const ensureUserBootstrap = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const userRef = db.collection('users').doc(uid);
+  const now = Timestamp.now();
+
+  await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    if (userSnap.exists) {
+      transaction.set(userRef, {lastLoginAt: now}, {merge: true});
+      return;
+    }
+
+    const starterPetId = 'pet-starter-wave-naru';
+    transaction.set(userRef, {
+      activePetId: starterPetId,
+      createdAt: now,
+      displayName: '부산 여행자',
+      homeTheme: 'busan-basic',
+      lastLoginAt: now,
+    });
+    transaction.set(userRef.collection('pets').doc(starterPetId), {
+      templateId: 'wave-naru',
+      name: '파도나루',
+      stage: 'baby',
+      level: 1,
+      stats: {exp: 20, mood: 20, knowledge: 5, affinity: 8},
+      originRegionId: 'busan',
+      hatchedAt: now,
+      lastInteractedAt: null,
+    });
+    transaction.set(userRef.collection('eggs').doc('egg-harbor-maru'), {
+      templateId: 'harbor-maru',
+      originRegionId: 'busan',
+      progress: 1200,
+      requiredSteps: 3500,
+      status: 'incubating',
+      createdAt: now,
+    });
+  });
+
+  return {success: true};
+});
+
+export const syncBusanPois = onCall({region: functionRegion, secrets: [tourApiKey]}, async (request) => {
+  requireAuth(request.auth?.uid);
+
+  const serviceKey = tourApiKey.value();
+  if (!serviceKey) {
+    throw new HttpsError('failed-precondition', 'TOUR_API_KEY is not configured.');
+  }
+
+  const url = new URL('https://apis.data.go.kr/B551011/KorService2/areaBasedList2');
+  url.searchParams.set('serviceKey', serviceKey);
+  url.searchParams.set('MobileOS', 'ETC');
+  url.searchParams.set('MobileApp', 'MasilPet');
+  url.searchParams.set('_type', 'json');
+  url.searchParams.set('areaCode', '6');
+  url.searchParams.set('numOfRows', '100');
+  url.searchParams.set('pageNo', '1');
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new HttpsError('unavailable', `TourAPI request failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as TourApiResponse;
+  const items = normalizeTourApiItems(payload);
+  const batch = db.batch();
+  let count = 0;
+
+  for (const item of items) {
+    if (!item.contentid || !item.title || !item.mapx || !item.mapy) {
+      continue;
+    }
+    const poiRef = db.collection('pois').doc(`tourapi-${item.contentid}`);
+    batch.set(
+      poiRef,
+      {
+        tourApiContentId: item.contentid,
+        title: item.title,
+        regionId: 'busan',
+        category: mapTourCategory(item.cat1, item.contenttypeid),
+        lat: Number(item.mapy),
+        lng: Number(item.mapx),
+        sourceUpdatedAt: FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+    );
+    count += 1;
+  }
+
+  await batch.commit();
+  logger.info('Synced Busan POIs', {count});
+  return {count};
+});
+
+export const getNearbyPois = onCall({region: functionRegion}, async (request) => {
+  requireAuth(request.auth?.uid);
+  const lat = Number(request.data?.lat);
+  const lng = Number(request.data?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new HttpsError('invalid-argument', 'lat and lng are required.');
+  }
+
+  const snapshot = await db
+    .collection('pois')
+    .where('regionId', '==', 'busan')
+    .limit(250)
+    .get();
+
+  const pois = snapshot.docs
+    .map((doc) => ({id: doc.id, ...(doc.data() as PoiDoc)}))
+    .map((poi) => ({
+      ...poi,
+      distanceMeters: distanceMeters(lat, lng, poi.lat, poi.lng),
+    }))
+    .sort((left, right) => left.distanceMeters - right.distanceMeters)
+    .slice(0, 30);
+
+  return {pois};
+});
+
+export const attemptCheckIn = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const poiId = String(request.data?.poiId ?? '');
+  const lat = Number(request.data?.lat);
+  const lng = Number(request.data?.lng);
+  if (!poiId || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new HttpsError('invalid-argument', 'poiId, lat and lng are required.');
+  }
+
+  const poiRef = db.collection('pois').doc(poiId);
+  const poiSnap = await poiRef.get();
+  if (!poiSnap.exists) {
+    throw new HttpsError('not-found', 'POI not found.');
+  }
+
+  const poi = poiSnap.data() as PoiDoc;
+  const distance = distanceMeters(lat, lng, poi.lat, poi.lng);
+  if (distance > checkInRadiusMeters) {
+    throw new HttpsError('failed-precondition', 'User is outside check-in radius.', {
+      distanceMeters: Math.round(distance),
+    });
+  }
+
+  const now = Timestamp.now();
+  const dayStart = startOfLocalDay(new Date());
+  const checkinsRef = db.collection('users').doc(uid).collection('checkins');
+  const duplicate = await checkinsRef
+    .where('poiId', '==', poiId)
+    .where('createdAt', '>=', Timestamp.fromDate(dayStart))
+    .limit(1)
+    .get();
+  if (!duplicate.empty) {
+    throw new HttpsError('already-exists', 'Already checked in to this POI today.');
+  }
+
+  const reward = rewardFor(poi.category);
+  const userRef = db.collection('users').doc(uid);
+  let updatedPet: {id: string; stats: GrowthStats; level: number; stage: PetStage} | null = null;
+
+  await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const activePetId = String(userSnap.data()?.activePetId ?? '');
+    const activePetRef = activePetId ? userRef.collection('pets').doc(activePetId) : null;
+    const activePetSnap = activePetRef ? await transaction.get(activePetRef) : null;
+    const openEggs = await transaction.get(
+      userRef.collection('eggs').where('status', 'in', ['incubating', 'hatchable']).limit(3),
+    );
+    const todayCheckins = await transaction.get(
+      checkinsRef.where('createdAt', '>=', Timestamp.fromDate(dayStart)).limit(1),
+    );
+
+    const checkinRef = checkinsRef.doc();
+    transaction.set(checkinRef, {
+      poiId,
+      regionId: poi.regionId,
+      category: poi.category,
+      lat,
+      lng,
+      distanceMeters: distance,
+      rewardApplied: true,
+      createdAt: now,
+    });
+
+    if (activePetId && activePetRef && activePetSnap?.exists) {
+      const pet = activePetSnap.data() as PetDoc;
+      const stats = addStats(pet.stats, reward);
+      const level = levelFor(stats);
+      const stage = stageFor(level, stats, pet.stage);
+      transaction.set(
+        activePetRef,
+        {
+          stats,
+          level,
+          stage,
+          lastInteractedAt: now,
+        },
+        {merge: true},
+      );
+      updatedPet = {id: activePetId, stats, level, stage};
+    }
+
+    for (const egg of openEggs.docs) {
+      const eggData = egg.data() as EggDoc;
+      if (eggData.status === 'hatchable') {
+        continue;
+      }
+      const progress = Math.min(eggData.requiredSteps, eggData.progress + eggProgressFor(poi.category));
+      transaction.set(
+        egg.ref,
+        {
+          progress,
+          status: progress >= eggData.requiredSteps ? 'hatchable' : 'incubating',
+        },
+        {merge: true},
+      );
+    }
+
+    if (openEggs.empty && (todayCheckins.empty || poi.category === 'history' || poi.category === 'festival')) {
+      const templateId = templateForCategory(poi.category);
+      transaction.set(userRef.collection('eggs').doc(`egg-${templateId}-${now.toMillis()}`), {
+        templateId,
+        originRegionId: poi.regionId,
+        progress: 0,
+        requiredSteps: 3500,
+        status: 'incubating',
+        createdAt: now,
+      });
+    }
+
+    transaction.set(
+      userRef,
+      {
+        lastCheckInAt: now,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+  });
+
+  return {
+    success: true,
+    distanceMeters: Math.round(distance),
+    reward,
+    updatedPet,
+  };
+});
+
+export const hatchEgg = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const eggId = String(request.data?.eggId ?? '');
+  if (!eggId) {
+    throw new HttpsError('invalid-argument', 'eggId is required.');
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const eggRef = userRef.collection('eggs').doc(eggId);
+  const now = Timestamp.now();
+  let hatchedPetId = '';
+
+  await db.runTransaction(async (transaction) => {
+    const eggSnap = await transaction.get(eggRef);
+    if (!eggSnap.exists) {
+      throw new HttpsError('not-found', 'Egg not found.');
+    }
+
+    const egg = eggSnap.data() as EggDoc;
+    if (egg.status !== 'hatchable') {
+      throw new HttpsError('failed-precondition', 'Egg is not hatchable yet.');
+    }
+
+    const template = busanPetTemplateSeed.find((item) => item.id === egg.templateId);
+    if (!template) {
+      throw new HttpsError('failed-precondition', 'Pet template not found.');
+    }
+
+    hatchedPetId = `pet-${egg.templateId}-${now.toMillis()}`;
+    transaction.set(userRef.collection('pets').doc(hatchedPetId), {
+      templateId: egg.templateId,
+      name: template.name,
+      stage: 'baby',
+      level: 1,
+      stats: {exp: 10, mood: 15, knowledge: 5, affinity: 10},
+      originRegionId: egg.originRegionId,
+      hatchedAt: now,
+      lastInteractedAt: null,
+    });
+    transaction.delete(eggRef);
+    transaction.set(
+      userRef,
+      {
+        activePetId: hatchedPetId,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+  });
+
+  return {petId: hatchedPetId};
+});
+
+export const applyStepProgress = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const stepDelta = Math.max(0, Number(request.data?.stepDelta ?? 0));
+  if (!Number.isFinite(stepDelta) || stepDelta <= 0) {
+    throw new HttpsError('invalid-argument', 'stepDelta must be positive.');
+  }
+
+  const eggs = await db.collection('users').doc(uid).collection('eggs').get();
+  const batch = db.batch();
+  let hatchableCount = 0;
+
+  for (const egg of eggs.docs) {
+    const data = egg.data();
+    if (data.status === 'hatched') {
+      continue;
+    }
+    const requiredSteps = Number(data.requiredSteps ?? 3500);
+    const progress = Math.min(requiredSteps, Number(data.progress ?? 0) + stepDelta);
+    const status = progress >= requiredSteps ? 'hatchable' : 'incubating';
+    if (status === 'hatchable') {
+      hatchableCount += 1;
+    }
+    batch.update(egg.ref, {progress, status});
+  }
+
+  await batch.commit();
+  return {hatchableCount};
+});
+
+export const interactWithPet = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const petId = String(request.data?.petId ?? '');
+  const actionType = String(request.data?.actionType ?? '');
+  if (!petId || !['talk', 'feed'].includes(actionType)) {
+    throw new HttpsError('invalid-argument', 'petId and valid actionType are required.');
+  }
+
+  const reward = actionType === 'talk'
+    ? {exp: 2, mood: 4, knowledge: 0, affinity: 1}
+    : {exp: 3, mood: 8, knowledge: 0, affinity: 2};
+
+  const petRef = db.collection('users').doc(uid).collection('pets').doc(petId);
+  let updatedPet: {stats: GrowthStats; level: number; stage: PetStage} | null = null;
+
+  await db.runTransaction(async (transaction) => {
+    const petSnap = await transaction.get(petRef);
+    if (!petSnap.exists) {
+      throw new HttpsError('not-found', 'Pet not found.');
+    }
+
+    const pet = petSnap.data() as PetDoc;
+    const stats = addStats(pet.stats, reward);
+    const level = levelFor(stats);
+    const stage = stageFor(level, stats, pet.stage);
+    transaction.set(
+      petRef,
+      {
+        stats,
+        level,
+        stage,
+        lastInteractedAt: FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+    );
+    updatedPet = {stats, level, stage};
+  });
+
+  return {reward, updatedPet};
+});
+
+function requireAuth(uid: string | undefined): string {
+  if (!uid) {
+    throw new HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  return uid;
+}
+
+function rewardFor(category: PoiCategory): GrowthStats {
+  switch (category) {
+    case 'food':
+      return {exp: 18, mood: 16, knowledge: 1, affinity: 5};
+    case 'festival':
+      return {exp: 24, mood: 22, knowledge: 3, affinity: 8};
+    case 'culture':
+      return {exp: 20, mood: 5, knowledge: 18, affinity: 6};
+    case 'history':
+      return {exp: 22, mood: 4, knowledge: 22, affinity: 8};
+    case 'nature':
+      return {exp: 18, mood: 8, knowledge: 4, affinity: 12};
+    case 'shopping':
+      return {exp: 16, mood: 10, knowledge: 4, affinity: 6};
+    case 'other':
+      return {exp: 14, mood: 8, knowledge: 4, affinity: 5};
+  }
+}
+
+function eggProgressFor(category: PoiCategory): number {
+  switch (category) {
+    case 'festival':
+      return 820;
+    case 'history':
+      return 760;
+    case 'culture':
+      return 700;
+    case 'nature':
+      return 680;
+    case 'food':
+      return 620;
+    case 'shopping':
+      return 600;
+    case 'other':
+      return 540;
+  }
+}
+
+function templateForCategory(category: PoiCategory): string {
+  const matched = busanPetTemplateSeed.find((template) => template.primaryCategory === category);
+  return matched?.id ?? 'wave-naru';
+}
+
+function addStats(left: GrowthStats, right: GrowthStats): GrowthStats {
+  return {
+    exp: Number(left.exp ?? 0) + right.exp,
+    mood: Number(left.mood ?? 0) + right.mood,
+    knowledge: Number(left.knowledge ?? 0) + right.knowledge,
+    affinity: Number(left.affinity ?? 0) + right.affinity,
+  };
+}
+
+function levelFor(stats: GrowthStats): number {
+  return Math.max(1, Math.floor(stats.exp / 100) + 1);
+}
+
+function stageFor(level: number, stats: GrowthStats, currentStage: PetStage): PetStage {
+  if (level >= 5 && stats.affinity >= 100 && stats.knowledge >= 50) {
+    return 'evolved';
+  }
+  if (level >= 3) {
+    return 'grown';
+  }
+  return currentStage;
+}
+
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const radius = 6371000;
+  const dLat = radians(lat2 - lat1);
+  const dLng = radians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(radians(lat1)) *
+      Math.cos(radians(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function radians(degrees: number): number {
+  return degrees * Math.PI / 180;
+}
+
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function mapTourCategory(cat1?: string, contentTypeId?: string): PoiCategory {
+  if (contentTypeId === '39') {
+    return 'food';
+  }
+  if (contentTypeId === '15') {
+    return 'festival';
+  }
+  if (contentTypeId === '14') {
+    return 'culture';
+  }
+  if (contentTypeId === '38') {
+    return 'shopping';
+  }
+  if (cat1 === 'A01') {
+    return 'nature';
+  }
+  if (cat1 === 'A02') {
+    return 'history';
+  }
+  return 'other';
+}
+
+function normalizeTourApiItems(payload: TourApiResponse): TourApiItem[] {
+  const items = payload.response?.body?.items?.item;
+  if (!items) {
+    return [];
+  }
+  return Array.isArray(items) ? items : [items];
+}
+
+type TourApiResponse = {
+  response?: {
+    body?: {
+      items?: {
+        item?: TourApiItem[] | TourApiItem;
+      };
+    };
+  };
+};
+
+type TourApiItem = {
+  contentid?: string;
+  contenttypeid?: string;
+  title?: string;
+  cat1?: string;
+  mapx?: string;
+  mapy?: string;
+};

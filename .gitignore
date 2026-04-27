@@ -15,6 +15,10 @@ functions/lib/
 functions/node_modules/
 functions/.runtimeconfig.json
 
+# Python tooling
+__pycache__/
+*.pyc
+
 # IDE
 .idea/
 .vscode/

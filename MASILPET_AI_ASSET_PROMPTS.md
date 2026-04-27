@@ -25,7 +25,7 @@
 
 ```text
 Create a cute collectible companion pet character for a mobile location-based tourism game called MasilPet.
-Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm and friendly, baby chibi proportions, head takes about 60% of total body height, bigger head, smaller compact body, short tiny limbs, tiny bean-shaped hands and feet, round soft silhouette, oversized dot eyes, tiny gentle smile, soft rounded cheeks, simplified accessories, simple readable silhouette, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, clear cute facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm and friendly, cute-first chibi redesign, head takes about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny gentle smile, smaller compact body, short squat limbs, tiny bean-shaped hands and feet, round soft silhouette, soft rounded cheeks with subtle blush-like color accents, simplified rounded accessories, simple readable silhouette, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, clear cute facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
 ```
 
 ## 공통 캐릭터 정체성 규칙
@@ -34,13 +34,13 @@ Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm 
 
 ```text
 Character identity rules:
-- use the provided reference image as the main character identity
-- preserve the reference character's main silhouette
-- preserve the main colors
-- preserve the face shape and key features
+- use the provided reference image as identity inspiration, not as an exact copy target
+- preserve only the most recognizable motifs, representative colors, face shape hints, and symbolic features
+- it is acceptable to round, shorten, shrink, enlarge, or simplify reference details if it makes the character cuter
+- prioritize a lovable companion pet silhouette over strict reference fidelity
 - preserve the character's cute mascot feeling
-- do not redesign the character into a different creature
-- simplify details only so it works as a 64x64 pixel game sprite
+- do not redesign the character into a completely unrelated creature
+- simplify details so it works as a 64x64 pixel game sprite
 ```
 
 ## 공통 귀여움 스타일 규칙
@@ -49,18 +49,21 @@ Character identity rules:
 
 ```text
 Cute style rules:
+- cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 ```
 
 ## 공통 픽셀아트 규칙
@@ -84,7 +87,7 @@ Pixel art rules:
 ## 공통 네거티브 프롬프트
 
 ```text
-realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, high-resolution illustration, vector illustration, anime illustration, painterly style, oil painting, watercolor, smooth vector art, detailed background, complex scenery, text, letters, labels, watermark, logo, UI, decorative symbols, exclamation marks, Z symbols, motion lines, multiple characters, human character, scary, violent, overly detailed, cropped body, blurry, soft blur, anti-aliasing, anti-aliased illustration, gradient shading, too many colors, noisy pixels, messy pixel art, inconsistent character, inconsistent proportions, inconsistent colors, different character in each frame, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, tall body, long limbs, sharp hat, serious expression, adult proportions
+realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, high-resolution illustration, vector illustration, anime illustration, painterly style, oil painting, watercolor, smooth vector art, detailed background, complex scenery, text, letters, labels, watermark, logo, UI, decorative symbols, exclamation marks, Z symbols, motion lines, multiple characters, human character, scary, violent, overly detailed, cropped body, blurry, soft blur, anti-aliasing, anti-aliased illustration, gradient shading, too many colors, noisy pixels, messy pixel art, inconsistent character, inconsistent proportions, inconsistent colors, different character in each frame, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, tall body, long limbs, sharp hat, serious expression, adult proportions, exact copy of the reference, realistic anatomy, narrow face, tiny face, small eyes, stiff mascot pose, mature mascot proportions, tall thin silhouette
 ```
 
 ## 레퍼런스가 있는 경우
@@ -96,35 +99,39 @@ realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, hi
 ```text
 Using the provided reference image, create a MasilPet version of this character.
 
-Keep the core identity from the reference:
-- main silhouette
+Keep only the recognizable identity cues from the reference:
 - representative colors
-- face shape and key features
 - symbolic features
+- soft hint of the face shape and key features
 - friendly mascot feeling
-- do not redesign the character into a different creature
+- do not turn it into a completely unrelated creature
 
 Convert it into a cute pixel art companion pet for a mobile tourism game.
 The character should feel like a small pet that can grow, travel, and emotionally interact with the user.
+Prioritize cuteness over exact reference fidelity: make the silhouette shorter, rounder, softer, and more pet-like.
+Shrink, soften, or remove details that make it look stiff, mature, sharp, or too close to the source.
 
 Cute style rules:
+- cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: clean cute 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, Korean regional mascot-inspired, warm and friendly, game-ready asset.
 
 Do not copy text, logos, or official marks from the reference.
-Do not make it realistic, tall, long-limbed, sharp, or serious.
+Do not make it realistic, tall, long-limbed, narrow-faced, small-eyed, sharp, stiff, mature, or serious.
 ```
 
 ### 감정표현 6종 스프라이트 시트
@@ -137,27 +144,31 @@ Target sprite size: 64x64 pixels per sprite.
 The output should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
 
 Character identity rules:
-- use the provided reference image as the main character identity
-- preserve the main silhouette, main colors, face shape, and key features
-- do not redesign the character into a different creature
+- use the provided reference image as identity inspiration, not as an exact copy target
+- preserve the recognizable motifs, main colors, face shape hints, and key features
+- keep the same cute chibi redesign across all cells
+- do not redesign the character into a completely unrelated creature
 
 Each sprite must be inside an equal-sized cell.
 Use the exact same character design, colors, proportions, and accessories in every cell.
 Only the facial expression and small body pose should change.
 
 Cute style rules:
+- cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Expressions:
 1. neutral
@@ -177,9 +188,10 @@ No text, no letters, no labels, no background, no logo, no watermark, no exclama
 ```text
 Using the provided MasilPet character reference, create a consistent emotion sprite sheet.
 
-Keep the character identity from the reference:
-main silhouette, core colors, symbolic features, and friendly mascot feeling.
-Do not redesign the character into a different creature.
+Keep the recognizable identity cues from the reference:
+core colors, symbolic features, a soft hint of the face shape, and friendly mascot feeling.
+Prioritize a cute chibi pet version over exact reference fidelity.
+Do not redesign the character into a completely unrelated creature.
 
 Layout: 3 rows x 4 columns, 12 sprites total.
 Each cell contains the same character with a different expression.
@@ -187,18 +199,21 @@ The character must remain identical across all cells:
 same body shape, same colors, same accessories, same proportions.
 
 Cute style rules:
+- cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Expressions:
 neutral, happy, excited, sad, angry, surprised, shy, tired, sleepy, hungry, curious, proud.
@@ -222,20 +237,25 @@ Stages:
 
 Maintain visual continuity across all stages:
 same color identity, same symbolic motif, same regional inspiration.
-Preserve the reference character's main silhouette, colors, face shape, key features, and cute mascot feeling from baby stage onward.
-Do not redesign the character into a different creature.
+Preserve only the recognizable reference cues, colors, symbolic features, and cute mascot feeling from baby stage onward.
+It is acceptable to make each stage shorter, rounder, and more pet-like than the reference.
+Do not redesign the character into a completely unrelated creature.
 
 Cute style rules:
+- cute-first redesign across all stages, even if exact source fidelity is reduced
 - soft mascot-like cute proportions across all stages, not fabric or 3D plush material
 - baby chibi proportions from baby stage onward
-- smaller compact body
-- tiny bean-shaped hands and feet from baby stage onward
-- soft rounded cheeks from baby stage onward
-- gentle happy expression from baby stage onward
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height from baby stage onward
+- extra-large rounded face with oversized dot eyes from baby stage onward
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet from baby stage onward
+- soft rounded cheeks with subtle blush-like color accents from baby stage onward
+- gentle happy expression by default from baby stage onward
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: cute Korean tourism mascot-inspired 64x64 pixel art per sprite, transparent background, centered, game-ready, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, no text, no background.
 ```
@@ -252,10 +272,10 @@ Layout: 2 rows x 3 columns, 6 sprites total.
 Target sprite size: 64x64 pixels per sprite.
 
 Character identity rules:
-- use the provided reference image as the main character identity
-- preserve the main silhouette, main colors, face shape, and key features
+- use the provided reference image as identity inspiration, not as an exact copy target
+- preserve the recognizable motifs, main colors, face shape hints, and key features
 - preserve the character's cute mascot feeling
-- do not redesign the character into a different creature
+- do not redesign the character into a completely unrelated creature
 
 Actions:
 - idle
@@ -266,18 +286,21 @@ Actions:
 - greeting
 
 Make the character much cuter than the reference:
+- cute-first redesign: prioritize a lovable chibi pet over exact reference fidelity
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- slightly shorter and rounder head accessory
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- shorter, rounder, cuter head accessory
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Keep the character design consistent in every cell:
 same body shape, same colors, same proportions, same accessories.
@@ -302,10 +325,10 @@ Target sprite size: 64x64 pixels per frame.
 The final image should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
 
 Character identity rules:
-- use the provided reference image as the main character identity
-- preserve the main silhouette, main colors, face shape, and key features
+- use the provided reference image as identity inspiration, not as an exact copy target
+- preserve the recognizable motifs, main colors, face shape hints, and key features
 - preserve the character's cute mascot feeling
-- do not redesign the character into a different creature
+- do not redesign the character into a completely unrelated creature
 
 Keep the same character identity in every frame:
 - same body shape
@@ -316,18 +339,21 @@ Keep the same character identity in every frame:
 - same tail design if the character has one
 
 Cute style rules:
+- cute-first redesign: make the character noticeably cuter than the reference, even if exact source fidelity is reduced
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Animation rules:
 - show a smooth, readable motion loop across 4 frames
@@ -485,23 +511,27 @@ Regional keywords: [설화 / 특산물 / 자연 / 역사 / 축제 / 상징물]
 Personality: [성격 키워드]
 Element motif: [바다 / 산 / 꽃 / 돌 / 별 / 음식 / 전설 동물 등]
 
-Design a cute collectible pet that feels naturally connected to this region.
+Design a very cute collectible pet that feels naturally connected to this region.
 It should not look like an existing commercial character.
 It should be simple enough to work as a small mobile game sprite.
+Prioritize an instantly lovable chibi pet silhouette over complex originality or detailed regional symbolism.
 
 Cute style rules:
+- cute-first design: make the character feel adorable at first glance
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified accessories or tail if the character has one
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified accessories or tail if the character has one, made shorter, rounder, and cuter
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: clean cute 64x64 pixel art, full body, transparent background, centered, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
@@ -516,21 +546,25 @@ Regional keywords: volcanic stone, tangerine, sea breeze, haenyeo culture
 Personality: curious, cheerful, slightly mischievous
 Element motif: small volcanic stone pet with tangerine-colored ears and wave-shaped tail
 
-Design a cute collectible pet that feels naturally connected to Jeju.
+Design a very cute collectible pet that feels naturally connected to Jeju.
+Prioritize an instantly lovable chibi pet silhouette over complex originality or detailed regional symbolism.
 
 Cute style rules:
+- cute-first design: make the character feel adorable at first glance
 - soft mascot-like cute proportions, not fabric or 3D plush material
 - baby chibi proportions
-- head takes about 60% of total body height
-- smaller compact body
-- tiny bean-shaped hands and feet
-- soft rounded cheeks
-- gentle happy expression
-- slightly oversized face
-- simplified wave-shaped tail
-- limited cute tangerine and volcanic-stone colors, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- smaller compact body, short and squat
+- very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents
+- gentle happy expression by default
+- simplified wave-shaped tail, made shorter, rounder, and cuter
+- limited bright tangerine and volcanic-stone colors, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: clean cute 64x64 pixel art, full body, transparent background, centered, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
@@ -550,15 +584,19 @@ neutral, happy, excited, sad, surprised, sleepy.
 Rules:
 - same character design across all expressions
 - same colors and proportions
+- keep the same cute chibi design across all expressions
 - expression must be clear even at small size
 - full body visible
 - no text or labels
-- soft mascot-like baby chibi proportions, not fabric or 3D plush material
-- head takes about 60% of total body height
-- compact body and tiny bean-shaped hands and feet
-- soft rounded cheeks and gentle cute expressions
-- limited cute color palette, 16 to 24 colors
+- cute-first design with soft mascot-like baby chibi proportions, not fabric or 3D plush material
+- head takes about 65% to 70% of total body height
+- extra-large rounded face with oversized dot eyes
+- tiny nose and tiny smiling mouth
+- compact short body and very tiny bean-shaped hands and feet
+- soft rounded cheeks with subtle blush-like color accents and gentle cute expressions
+- limited bright cute color palette, 16 to 24 colors
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: clean cute 64x64 pixel art, transparent background, evenly spaced grid, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, mobile game-ready asset.
 ```
@@ -579,16 +617,21 @@ Stages:
 3. evolved companion form, more expressive and regionally distinctive
 
 All stages must feel like the same character growing over time.
+Prioritize a cute, round, pet-like silhouette in every stage over complex originality.
 
 Cute style rules:
+- cute-first design across all stages
 - soft mascot-like cute proportions across all stages, not fabric or 3D plush material
 - baby chibi proportions from baby stage onward
-- compact body and tiny bean-shaped hands and feet from baby stage onward
-- soft rounded cheeks from baby stage onward
-- gentle happy expression from baby stage onward
-- limited cute color palette, 16 to 24 colors
-- soft rounded silhouette
+- head takes about 65% to 70% of total body height from baby stage onward
+- extra-large rounded face with oversized dot eyes from baby stage onward
+- compact short body and very tiny bean-shaped hands and feet from baby stage onward
+- soft rounded cheeks with subtle blush-like color accents from baby stage onward
+- gentle happy expression by default from baby stage onward
+- limited bright cute color palette, 16 to 24 colors
+- soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
+- avoid realistic anatomy, long limbs, narrow faces, or mature proportions
 
 Style: clean cute 64x64 pixel art, transparent background, centered, thick 1 pixel dark outline, limited palette of 16 to 24 colors, flat colors, no gradients, no anti-aliasing, crisp pixel edges, game-ready sprite, no text.
 ```

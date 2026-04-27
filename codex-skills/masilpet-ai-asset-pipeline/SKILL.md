@@ -1,6 +1,6 @@
 ---
 name: masilpet-ai-asset-pipeline
-description: Use when creating MasilPet AI pet assets from a reference image or text concept, generating sprite sheets, saving generated images under assets/_incoming, slicing them into assets/pets/[pet_id] with tools/slice_sprite_sheet.py, validating the outputs, and committing/pushing the resulting Flutter asset folders.
+description: Use when creating MasilPet AI pet assets from a reference image or text concept, applying cute-first MasilPet prompt rules from MASILPET_AI_ASSET_PROMPTS.md, generating sprite sheets, saving generated images under assets/_incoming, slicing them into assets/pets/[pet_id] with tools/slice_sprite_sheet.py, validating the outputs, and committing/pushing the resulting Flutter asset folders.
 ---
 
 # MasilPet AI Asset Pipeline
@@ -32,26 +32,30 @@ Current MVP guidance: keep `growth/` as static stage assets and use common anima
 
 ## Prompting
 
+Treat `MASILPET_AI_ASSET_PROMPTS.md` as the canonical source for prompt blocks and style rules. Read it before composing prompts when it exists. If this skill summary and that file disagree, follow `MASILPET_AI_ASSET_PROMPTS.md`.
+
 If the user provides a reference image:
 
-- Use the image as the main character identity.
-- Preserve silhouette, main colors, face shape, key features, and mascot personality.
-- Do not redesign it into a different creature.
-- Simplify only enough to work as a small mobile game pet asset.
+- Use the image as identity inspiration, not as an exact copy target.
+- Preserve only the most recognizable motifs, representative colors, face-shape hints, symbolic features, and mascot personality.
+- Prioritize a lovable chibi companion pet silhouette over strict reference fidelity.
+- It is acceptable to round, shorten, shrink, enlarge, or simplify reference details if it makes the character cuter.
+- Do not redesign it into a completely unrelated creature.
 
 If there is no reference image:
 
 - Ask for or infer the regional/location theme, motif, color direction, and personality.
+- Prioritize an instantly lovable chibi pet silhouette over complex originality or detailed regional symbolism.
 - Keep the design simple enough to remain readable as a compact mascot sprite.
 
 Generation prompt rules:
 
-- Ask for clean 2D pixel-art-style mobile game pet sprites, chibi proportions, large expressive eyes, small rounded body, thick dark outline, flat colors, limited palette, transparent or plain background, no text/logo/UI.
+- Ask for clean 2D pixel-art-style mobile game pet sprites, cute-first chibi redesign, head about 65% to 70% of total body height, extra-large rounded face, oversized dot eyes, tiny nose, tiny smiling mouth, short squat body, very tiny bean-shaped hands and feet, soft rounded cheeks, rounded accessories, thick dark outline, flat colors, limited bright cute palette, transparent or plain background, no text/logo/UI.
 - It is acceptable for the prompt to say `64x64 pixel style` as a visual style cue, but the slicing pipeline exports 256x256 PNG files by default for cleaner app scaling.
-- Include a negative prompt against realism, 3D, plush/clay render, vector illustration, watercolor, gradients, anti-aliasing, text, watermark, cropped body, inconsistent character, extra limbs, and different character identities per frame.
+- Include a negative prompt against realism, 3D, plush/clay render, vector illustration, watercolor, gradients, anti-aliasing, text, watermark, cropped body, inconsistent character, extra limbs, different character identities per frame, exact reference copy, narrow face, small eyes, long limbs, tall thin silhouette, stiff mascot pose, and mature proportions.
 - For animation sheets, specify equal-sized frames in a single row, consistent feet position, consistent character size, and subtle motion only.
 
-Use `MASILPET_AI_ASSET_PROMPTS.md` as the source for exact prompt blocks when available, then tailor the sheet contents and reference/no-reference identity section.
+Use exact prompt blocks from `MASILPET_AI_ASSET_PROMPTS.md` when available, then tailor only the sheet contents, action/expression list, and reference/no-reference identity section.
 
 ## Save Generated Sheets
 

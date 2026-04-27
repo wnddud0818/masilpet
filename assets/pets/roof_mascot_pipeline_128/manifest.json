@@ -1,0 +1,59 @@
+{
+  "petId": "roof_mascot_pipeline_128",
+  "sourceSheets": {
+    "actions": "assets/pets/roof_mascot_pipeline_128/source/action_poses_sheet.png",
+    "emotions": "assets/pets/roof_mascot_pipeline_128/source/emotions_sheet.png",
+    "growth": "assets/pets/roof_mascot_pipeline_128/source/growth_sheet.png",
+    "idle_animation": "assets/pets/roof_mascot_pipeline_128/source/idle_animation_sheet.png",
+    "walk_animation": "assets/pets/roof_mascot_pipeline_128/source/walk_animation_sheet.png",
+    "sleep_animation": "assets/pets/roof_mascot_pipeline_128/source/sleep_animation_sheet.png",
+    "eat_animation": "assets/pets/roof_mascot_pipeline_128/source/eat_animation_sheet.png",
+    "greet_animation": "assets/pets/roof_mascot_pipeline_128/source/greet_animation_sheet.png"
+  },
+  "assets": {
+    "actions": [
+      "assets/pets/roof_mascot_pipeline_128/actions/idle.png",
+      "assets/pets/roof_mascot_pipeline_128/actions/walking.png",
+      "assets/pets/roof_mascot_pipeline_128/actions/jumping.png",
+      "assets/pets/roof_mascot_pipeline_128/actions/eating.png",
+      "assets/pets/roof_mascot_pipeline_128/actions/sleeping.png",
+      "assets/pets/roof_mascot_pipeline_128/actions/greeting.png"
+    ],
+    "emotions": [
+      "assets/pets/roof_mascot_pipeline_128/emotions/neutral.png",
+      "assets/pets/roof_mascot_pipeline_128/emotions/happy.png",
+      "assets/pets/roof_mascot_pipeline_128/emotions/excited.png",
+      "assets/pets/roof_mascot_pipeline_128/emotions/sad.png",
+      "assets/pets/roof_mascot_pipeline_128/emotions/surprised.png",
+      "assets/pets/roof_mascot_pipeline_128/emotions/sleepy.png"
+    ],
+    "growth": [
+      "assets/pets/roof_mascot_pipeline_128/growth/baby.png",
+      "assets/pets/roof_mascot_pipeline_128/growth/grown.png",
+      "assets/pets/roof_mascot_pipeline_128/growth/evolved.png"
+    ],
+    "animations": [
+      "assets/pets/roof_mascot_pipeline_128/animations/idle_01.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/idle_02.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/idle_03.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/idle_04.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/walk_01.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/walk_02.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/walk_03.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/walk_04.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/sleep_01.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/sleep_02.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/sleep_03.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/sleep_04.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/eat_01.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/eat_02.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/eat_03.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/eat_04.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/greet_01.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/greet_02.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/greet_03.png",
+      "assets/pets/roof_mascot_pipeline_128/animations/greet_04.png"
+    ]
+  },
+  "updatedAt": "2026-04-27T06:58:02+00:00"
+}

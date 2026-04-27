@@ -6,7 +6,8 @@
 
 - 한 번에 여러 에셋을 생성할 수 있지만, 품질 유지를 위해 **한 캐릭터의 파생 상태 묶음**으로 제한한다.
 - 서로 다른 마실펫 여러 종을 한 번에 최종본으로 뽑으면 형태와 스타일 일관성이 떨어질 수 있다.
-- 최종 에셋은 `기준 캐릭터 1장 -> 감정 6종 -> 추가 감정 6종 -> 성장 3단계 -> 행동 4~6프레임` 순서로 나누는 것을 권장한다.
+- 최종 에셋은 `기준 캐릭터 1장 -> 감정 6종 -> 추가 감정 6종 -> 성장 3단계 -> 행동 대표 포즈 6종 -> 핵심 애니메이션 프레임 시트` 순서로 나누는 것을 권장한다.
+- 애니메이션은 모든 행동을 한 장에 몰아넣지 않고, `idle`, `walk`, `sleep`처럼 행동 하나당 1행 4프레임 시트로 분리한다.
 - 지자체 마스코트나 공공누리 캐릭터를 사용할 때는 텍스트, 로고, 공식 마크를 복제하지 않는다.
 
 ## 권장 묶음 크기
@@ -15,7 +16,8 @@
 | --- | ---: | ---: |
 | 감정표현 | 6개 | 12개 |
 | 성장 단계 | 3개 | 3개 |
-| 행동 애니메이션 | 4~6프레임 | 6프레임 |
+| 행동 대표 포즈 | 6개 | 6개 |
+| 단일 애니메이션 프레임 시트 | 4프레임 | 6프레임 |
 | 아이템, 먹이, 장식 | 9~16개 | 16개 |
 | 서로 다른 마실펫 캐릭터 | 1~2종 | 컨셉 시안 4종 |
 
@@ -23,13 +25,13 @@
 
 ```text
 Create a cute collectible companion pet character for a mobile location-based tourism game called MasilPet.
-Style: clean pixel art sprite, Korean regional mascot-inspired, warm and friendly, simple readable silhouette, small mobile game asset, 32x32 or 64x64 sprite scale, consistent proportions, soft color palette, clear facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+Style: clean low-resolution pixel art sprite, true 32x32 game sprite scale, Korean regional mascot-inspired, warm and friendly, chibi proportions, bigger head, smaller body, tiny short limbs, round soft silhouette, oversized eyes, tiny mouth, simplified tail and accessories, simple readable silhouette, limited color palette, crisp hard pixel edges, simple shading, clear facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
 ```
 
 ## 공통 네거티브 프롬프트
 
 ```text
-realistic, 3D render, complex background, text, watermark, logo, human character, scary, violent, overly detailed, blurry, inconsistent limbs, extra eyes, extra arms, cropped body, noisy pixels, anti-aliased illustration, photo style
+realistic, 3D render, high-resolution illustration, painterly style, smooth vector art, complex background, text, letters, labels, watermark, logo, decorative symbols, exclamation marks, Z symbols, motion lines, human character, scary, violent, overly detailed, blurry, inconsistent limbs, extra eyes, extra arms, cropped body, noisy pixels, anti-aliased illustration, photo style
 ```
 
 ## 레퍼런스가 있는 경우
@@ -50,7 +52,7 @@ Keep the core identity from the reference:
 Convert it into a cute pixel art companion pet for a mobile tourism game.
 The character should feel like a small pet that can grow, travel, and emotionally interact with the user.
 
-Style: clean 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, Korean regional mascot-inspired, warm and friendly, game-ready asset.
+Style: clean 32x32 low-resolution pixel art sprite, full body, transparent background, centered, simple readable shape, chibi proportions, Korean regional mascot-inspired, warm and friendly, game-ready asset.
 
 Do not copy text, logos, or official marks from the reference.
 Do not make it realistic.
@@ -59,12 +61,25 @@ Do not make it realistic.
 ### 감정표현 6종 스프라이트 시트
 
 ```text
-Using the provided MasilPet character reference, create a consistent emotion sprite sheet.
+Using the provided MasilPet character reference, create a cute low-resolution MasilPet pixel-art emotion sprite sheet.
 
 Layout: 2 rows x 3 columns, 6 sprites total.
+Target sprite size: 32x32 pixels per sprite.
+The output should look like true low-resolution game pixel art, not a high-resolution illustration with a pixel filter.
 Each sprite must be inside an equal-sized cell.
 Use the exact same character design, colors, proportions, and accessories in every cell.
 Only the facial expression and small body pose should change.
+
+Make the character cuter and simpler than the reference:
+- bigger head
+- smaller body
+- short tiny limbs
+- round soft silhouette
+- oversized eyes
+- tiny mouth
+- simplified tail
+- fewer details
+- chibi proportions
 
 Expressions:
 1. neutral
@@ -74,9 +89,9 @@ Expressions:
 5. surprised
 6. sleepy
 
-Style: cute Korean regional mascot-inspired pixel art, 64x64 per sprite, transparent background, centered full body, readable silhouette, mobile game-ready asset.
+Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
 
-No text, no labels, no background, no logo, no watermark.
+No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
 ```
 
 ### 감정표현 12종 스프라이트 시트
@@ -95,7 +110,7 @@ same body shape, same colors, same accessories, same proportions.
 Expressions:
 neutral, happy, excited, sad, angry, surprised, shy, tired, sleepy, hungry, curious, proud.
 
-Style: clean 64x64 pixel art per sprite, transparent background, centered full body, simple readable silhouette, cute mobile game asset, Korean regional mascot-inspired.
+Style: clean 32x32 low-resolution pixel art per sprite, transparent background, centered full body, simple readable silhouette, cute mobile game asset, Korean regional mascot-inspired.
 
 Do not copy text, logos, or official marks from the reference.
 No text, no labels, no background, no watermark.
@@ -115,13 +130,19 @@ Stages:
 Maintain visual continuity across all stages:
 same color identity, same symbolic motif, same regional inspiration.
 
-Style: cute Korean tourism mascot-inspired pixel art, 64x64 per sprite, transparent background, centered, game-ready, no text, no background.
+Style: cute Korean tourism mascot-inspired 32x32 low-resolution pixel art per sprite, transparent background, centered, game-ready, no text, no background.
 ```
 
-### 행동 애니메이션
+### 행동 대표 포즈 시트
 
 ```text
-Using the provided MasilPet character reference, create a pixel art animation sprite sheet.
+Using the provided MasilPet character reference, create a pixel art action pose sprite sheet.
+
+This is not an animation frame sheet.
+Create one representative pose for each action.
+
+Layout: 2 rows x 3 columns, 6 sprites total.
+Target sprite size: 32x32 pixels per sprite.
 
 Actions:
 - idle
@@ -130,10 +151,170 @@ Actions:
 - eating
 - sleeping
 - greeting
-- discovering a tourist spot
 
-Keep the character design consistent in every frame.
-Style: clean 64x64 pixel art, transparent background, evenly spaced sprite sheet, simple readable motion, mobile game-ready.
+Keep the character design consistent in every cell:
+same body shape, same colors, same proportions, same accessories.
+Only the action pose may change.
+
+Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
+
+No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
+```
+
+### 애니메이션 프레임 시트
+
+실제 애니메이션은 행동 하나를 여러 프레임으로 쪼갠 시트다. 한 장에 `idle`, `walk`, `sleep`을 모두 넣지 않고, 행동별로 `1 row x 4 frames`를 따로 생성한다. 이 방식이 캐릭터 일관성, 프레임 가독성, 후처리 자동화 측면에서 가장 안정적이다.
+
+```text
+Using the provided MasilPet character reference, create one low-resolution pixel-art animation frame sheet for a single action.
+
+Action: [idle / walk / sleep / eat / greet]
+Layout: 1 row x 4 columns, 4 frames total.
+Target sprite size: 32x32 pixels per frame.
+The final image should look like true low-resolution game pixel art, not a high-resolution illustration with a pixel filter.
+
+Keep the same character identity in every frame:
+- same body shape
+- same colors
+- same proportions
+- same accessories
+- same headband detail
+- same tail design
+
+Animation rules:
+- show a smooth, readable motion loop across 4 frames
+- frame 1 and frame 4 should connect naturally when looped
+- keep the feet and body roughly aligned so the sprite does not jitter
+- only small pose changes should occur between frames
+- every frame must show the full body
+- every frame must be centered inside an equal-sized cell
+
+Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
+
+No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no decorative effects.
+Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, or detailed illustration.
+```
+
+### 애니메이션별 추천 프롬프트
+
+#### Idle 4프레임
+
+```text
+Action: idle breathing loop.
+Create 4 frames where the MasilPet gently bobs up and down while breathing.
+The face stays calm and cute.
+Only tiny body movement, ear movement, and tail movement should change.
+No walking, no jumping, no effects.
+```
+
+#### Walk 4프레임
+
+```text
+Action: walking loop.
+Create 4 frames of a cute side-or-front walking cycle.
+The feet alternate clearly, the body bobs slightly, and the tail follows the motion.
+Keep the character centered and aligned so it can loop smoothly in a mobile game.
+No dust, no speed lines, no background.
+```
+
+#### Sleep 4프레임
+
+```text
+Action: sleeping loop.
+Create 4 frames where the MasilPet sleeps in a small curled or seated pose.
+Use closed eyes and gentle breathing motion.
+The body should subtly rise and fall across frames.
+Do not include Z letters, bubbles, symbols, or text.
+```
+
+#### Eat 4프레임
+
+```text
+Action: eating loop.
+Create 4 frames where the MasilPet eats a tiny simple food item.
+Use small mouth and hand movement only.
+The food item should be very simple and should not distract from the character.
+No crumbs, no text, no decorative effects.
+```
+
+#### Greet 4프레임
+
+```text
+Action: greeting loop.
+Create 4 frames where the MasilPet waves one small paw.
+The body should remain mostly stable while the paw moves.
+The expression should be friendly and welcoming.
+No exclamation marks, no motion lines, no text.
+```
+
+## 효율적 생성 전략
+
+- `기본 캐릭터`는 3~5장 생성해 가장 좋은 1장을 기준 레퍼런스로 고정한다.
+- `감정표현`은 한 장에 6종을 묶는다. 12종은 최종 스타일이 안정된 뒤에만 생성한다.
+- `성장 단계`는 한 장에 3단계를 묶는다.
+- `행동 대표 포즈`는 한 장에 6종을 묶어도 된다. 이 시트는 기획 확인용 또는 정적 UI용으로 사용한다.
+- `애니메이션 프레임 시트`는 행동 하나당 4프레임으로 따로 생성한다. `idle`, `walk`, `sleep`을 MVP 우선순위로 둔다.
+- 6개 행동을 각각 4프레임으로 한 장에 넣는 `6 actions x 4 frames = 24 sprites` 방식은 비추천한다. 셀 수가 많아지면 캐릭터 형태, 표정, 위치 정렬이 쉽게 흔들린다.
+- 후처리 자동화를 위해 프롬프트에 항상 `Layout`, `Target sprite size`, `equal-sized cells`, `centered full body`, `no text`, `no symbols`를 명시한다.
+
+## 에셋 분리 기준
+
+스프라이트 시트는 생성 후 고정 레이아웃으로 자른다. 생성 이미지의 실제 픽셀 크기가 32px 배수가 아니더라도, 시트 전체를 행과 열 기준으로 균등 분할한 뒤 각 셀을 32x32 또는 64x64로 리사이즈해 사용한다.
+
+| 시트 유형 | 레이아웃 | 분리 결과 |
+| --- | --- | --- |
+| 감정표현 6종 | 2 rows x 3 columns | `neutral`, `happy`, `excited`, `sad`, `surprised`, `sleepy` |
+| 감정표현 12종 | 3 rows x 4 columns | `neutral`, `happy`, `excited`, `sad`, `angry`, `surprised`, `shy`, `tired`, `sleepy`, `hungry`, `curious`, `proud` |
+| 성장 단계 | 1 row x 3 columns | `egg`, `baby`, `evolved` |
+| 행동 대표 포즈 | 2 rows x 3 columns | `idle`, `walking`, `jumping`, `eating`, `sleeping`, `greeting` |
+| Idle 애니메이션 | 1 row x 4 columns | `idle_01`, `idle_02`, `idle_03`, `idle_04` |
+| Walk 애니메이션 | 1 row x 4 columns | `walk_01`, `walk_02`, `walk_03`, `walk_04` |
+| Sleep 애니메이션 | 1 row x 4 columns | `sleep_01`, `sleep_02`, `sleep_03`, `sleep_04` |
+
+추천 저장 구조:
+
+```text
+assets/masilpets/[pet_id]/
+  source/
+    base.png
+    emotions_sheet.png
+    evolution_sheet.png
+    action_poses_sheet.png
+    idle_animation_sheet.png
+    walk_animation_sheet.png
+    sleep_animation_sheet.png
+  emotions/
+    neutral.png
+    happy.png
+    excited.png
+    sad.png
+    surprised.png
+    sleepy.png
+  evolution/
+    egg.png
+    baby.png
+    evolved.png
+  actions/
+    idle.png
+    walking.png
+    jumping.png
+    eating.png
+    sleeping.png
+    greeting.png
+  animations/
+    idle_01.png
+    idle_02.png
+    idle_03.png
+    idle_04.png
+    walk_01.png
+    walk_02.png
+    walk_03.png
+    walk_04.png
+    sleep_01.png
+    sleep_02.png
+    sleep_03.png
+    sleep_04.png
+  manifest.json
 ```
 
 ## 레퍼런스가 없는 경우
@@ -154,7 +335,7 @@ Design a cute collectible pet that feels naturally connected to this region.
 It should not look like an existing commercial character.
 It should be simple enough to work as a small mobile game sprite.
 
-Style: clean 64x64 pixel art, full body, transparent background, centered, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+Style: clean 32x32 low-resolution pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 예시: 제주 마실펫
@@ -168,7 +349,7 @@ Personality: curious, cheerful, slightly mischievous
 Element motif: small volcanic stone pet with tangerine-colored ears and wave-shaped tail
 
 Design a cute collectible pet that feels naturally connected to Jeju.
-Style: clean 64x64 pixel art, full body, transparent background, centered, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+Style: clean 32x32 low-resolution pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 감정표현 세트
@@ -190,7 +371,7 @@ Rules:
 - full body visible
 - no text or labels
 
-Style: clean 64x64 pixel art, transparent background, evenly spaced grid, mobile game-ready asset.
+Style: clean 32x32 low-resolution pixel art, transparent background, evenly spaced grid, mobile game-ready asset.
 ```
 
 ### 성장 단계
@@ -209,7 +390,7 @@ Stages:
 3. evolved companion form, more expressive and regionally distinctive
 
 All stages must feel like the same character growing over time.
-Style: clean 64x64 pixel art, transparent background, centered, game-ready sprite, no text.
+Style: clean 32x32 low-resolution pixel art, transparent background, centered, game-ready sprite, no text.
 ```
 
 ## 감정 키워드 매핑
@@ -237,8 +418,10 @@ proud: chest out, confident smile
 3. 해당 레퍼런스로 감정표현 6종 생성
 4. 필요 시 추가 감정표현 6종 생성
 5. 같은 레퍼런스로 성장 3단계 생성
-6. 같은 레퍼런스로 행동 애니메이션 4~6프레임 생성
-7. 최종 선택본만 앱 에셋 번들에 포함
+6. 같은 레퍼런스로 행동 대표 포즈 6종 생성
+7. MVP 핵심 애니메이션을 행동별 4프레임 시트로 생성
+8. 우선순위는 idle -> walk -> sleep -> eat -> greet 순서로 둔다
+9. 최종 선택본만 앱 에셋 번들에 포함
 ```
 
 ## 제안서용 설명 문장

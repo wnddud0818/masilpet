@@ -25,7 +25,7 @@
 
 ```text
 Create a cute collectible companion pet character for a mobile location-based tourism game called MasilPet.
-Style: clean low-resolution pixel art sprite, true 32x32 game sprite scale, Korean regional mascot-inspired, warm and friendly, chibi proportions, bigger head, smaller body, tiny short limbs, round soft silhouette, oversized eyes, tiny mouth, simplified tail and accessories, simple readable silhouette, limited color palette, crisp hard pixel edges, simple shading, clear facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
+Style: clean cute 64x64 pixel art sprite, Korean regional mascot-inspired, warm and friendly, chibi proportions, bigger head, smaller body, short tiny limbs, round soft silhouette, oversized eyes, tiny mouth, simplified tail and accessories, simple readable silhouette, limited color palette, crisp pixel edges, simple shading, clear facial expression, no text, no logo, transparent background, centered character, full body, game-ready asset.
 ```
 
 ## 공통 네거티브 프롬프트
@@ -52,7 +52,7 @@ Keep the core identity from the reference:
 Convert it into a cute pixel art companion pet for a mobile tourism game.
 The character should feel like a small pet that can grow, travel, and emotionally interact with the user.
 
-Style: clean 32x32 low-resolution pixel art sprite, full body, transparent background, centered, simple readable shape, chibi proportions, Korean regional mascot-inspired, warm and friendly, game-ready asset.
+Style: clean 64x64 pixel art sprite, full body, transparent background, centered, simple readable shape, chibi proportions, Korean regional mascot-inspired, warm and friendly, game-ready asset.
 
 Do not copy text, logos, or official marks from the reference.
 Do not make it realistic.
@@ -61,11 +61,11 @@ Do not make it realistic.
 ### 감정표현 6종 스프라이트 시트
 
 ```text
-Using the provided MasilPet character reference, create a cute low-resolution MasilPet pixel-art emotion sprite sheet.
+Using the provided MasilPet character reference, create a cute 64x64 MasilPet pixel-art emotion sprite sheet.
 
 Layout: 2 rows x 3 columns, 6 sprites total.
-Target sprite size: 32x32 pixels per sprite.
-The output should look like true low-resolution game pixel art, not a high-resolution illustration with a pixel filter.
+Target sprite size: 64x64 pixels per sprite.
+The output should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
 Each sprite must be inside an equal-sized cell.
 Use the exact same character design, colors, proportions, and accessories in every cell.
 Only the facial expression and small body pose should change.
@@ -89,7 +89,7 @@ Expressions:
 5. surprised
 6. sleepy
 
-Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
+Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, centered full body, readable silhouette, mobile game-ready asset.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
 ```
@@ -110,7 +110,7 @@ same body shape, same colors, same accessories, same proportions.
 Expressions:
 neutral, happy, excited, sad, angry, surprised, shy, tired, sleepy, hungry, curious, proud.
 
-Style: clean 32x32 low-resolution pixel art per sprite, transparent background, centered full body, simple readable silhouette, cute mobile game asset, Korean regional mascot-inspired.
+Style: clean 64x64 pixel art per sprite, transparent background, centered full body, simple readable silhouette, cute mobile game asset, Korean regional mascot-inspired.
 
 Do not copy text, logos, or official marks from the reference.
 No text, no labels, no background, no watermark.
@@ -130,7 +130,7 @@ Stages:
 Maintain visual continuity across all stages:
 same color identity, same symbolic motif, same regional inspiration.
 
-Style: cute Korean tourism mascot-inspired 32x32 low-resolution pixel art per sprite, transparent background, centered, game-ready, no text, no background.
+Style: cute Korean tourism mascot-inspired 64x64 pixel art per sprite, transparent background, centered, game-ready, no text, no background.
 ```
 
 ### 행동 대표 포즈 시트
@@ -142,7 +142,7 @@ This is not an animation frame sheet.
 Create one representative pose for each action.
 
 Layout: 2 rows x 3 columns, 6 sprites total.
-Target sprite size: 32x32 pixels per sprite.
+Target sprite size: 64x64 pixels per sprite.
 
 Actions:
 - idle
@@ -156,7 +156,7 @@ Keep the character design consistent in every cell:
 same body shape, same colors, same proportions, same accessories.
 Only the action pose may change.
 
-Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
+Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, transparent background, evenly spaced sprite sheet, simple readable pose, mobile game-ready.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines.
 ```
@@ -166,12 +166,12 @@ No text, no letters, no labels, no background, no logo, no watermark, no exclama
 실제 애니메이션은 행동 하나를 여러 프레임으로 쪼갠 시트다. 한 장에 `idle`, `walk`, `sleep`을 모두 넣지 않고, 행동별로 `1 row x 4 frames`를 따로 생성한다. 이 방식이 캐릭터 일관성, 프레임 가독성, 후처리 자동화 측면에서 가장 안정적이다.
 
 ```text
-Using the provided MasilPet character reference, create one low-resolution pixel-art animation frame sheet for a single action.
+Using the provided MasilPet character reference, create one 64x64 pixel-art animation frame sheet for a single action.
 
 Action: [idle / walk / sleep / eat / greet]
 Layout: 1 row x 4 columns, 4 frames total.
-Target sprite size: 32x32 pixels per frame.
-The final image should look like true low-resolution game pixel art, not a high-resolution illustration with a pixel filter.
+Target sprite size: 64x64 pixels per frame.
+The final image should look like cute simplified game pixel art with clear facial details, not an overly tiny sprite and not a high-resolution illustration with a pixel filter.
 
 Keep the same character identity in every frame:
 - same body shape
@@ -189,7 +189,7 @@ Animation rules:
 - every frame must show the full body
 - every frame must be centered inside an equal-sized cell
 
-Style: clean 32x32 pixel art, crisp hard pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
+Style: clean 64x64 pixel art, crisp pixel edges, limited color palette, simple shading, cute Korean regional mascot-inspired companion pet, transparent background, evenly spaced frame sheet, mobile game-ready.
 
 No text, no letters, no labels, no background, no logo, no watermark, no exclamation marks, no Z symbols, no motion lines, no decorative effects.
 Do not make it realistic, 3D, high-resolution, painterly, smooth vector art, or detailed illustration.
@@ -259,7 +259,7 @@ No exclamation marks, no motion lines, no text.
 
 ## 에셋 분리 기준
 
-스프라이트 시트는 생성 후 고정 레이아웃으로 자른다. 생성 이미지의 실제 픽셀 크기가 32px 배수가 아니더라도, 시트 전체를 행과 열 기준으로 균등 분할한 뒤 각 셀을 32x32 또는 64x64로 리사이즈해 사용한다.
+스프라이트 시트는 생성 후 고정 레이아웃으로 자른다. 생성 이미지의 실제 픽셀 크기가 64px 배수가 아니더라도, 시트 전체를 행과 열 기준으로 균등 분할한 뒤 각 셀을 64x64로 리사이즈해 사용한다.
 
 | 시트 유형 | 레이아웃 | 분리 결과 |
 | --- | --- | --- |
@@ -335,7 +335,7 @@ Design a cute collectible pet that feels naturally connected to this region.
 It should not look like an existing commercial character.
 It should be simple enough to work as a small mobile game sprite.
 
-Style: clean 32x32 low-resolution pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+Style: clean 64x64 pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 예시: 제주 마실펫
@@ -349,7 +349,7 @@ Personality: curious, cheerful, slightly mischievous
 Element motif: small volcanic stone pet with tangerine-colored ears and wave-shaped tail
 
 Design a cute collectible pet that feels naturally connected to Jeju.
-Style: clean 32x32 low-resolution pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
+Style: clean 64x64 pixel art, full body, transparent background, centered, chibi proportions, warm and friendly, Korean regional mascot-inspired, readable silhouette, game-ready asset, no text, no logo.
 ```
 
 ### 감정표현 세트
@@ -371,7 +371,7 @@ Rules:
 - full body visible
 - no text or labels
 
-Style: clean 32x32 low-resolution pixel art, transparent background, evenly spaced grid, mobile game-ready asset.
+Style: clean 64x64 pixel art, transparent background, evenly spaced grid, mobile game-ready asset.
 ```
 
 ### 성장 단계
@@ -390,7 +390,7 @@ Stages:
 3. evolved companion form, more expressive and regionally distinctive
 
 All stages must feel like the same character growing over time.
-Style: clean 32x32 low-resolution pixel art, transparent background, centered, game-ready sprite, no text.
+Style: clean 64x64 pixel art, transparent background, centered, game-ready sprite, no text.
 ```
 
 ## 감정 키워드 매핑

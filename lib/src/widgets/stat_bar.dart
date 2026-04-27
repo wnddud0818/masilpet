@@ -33,7 +33,7 @@ class StatBar extends StatelessWidget {
           child: LinearProgressIndicator(
             minHeight: 8,
             value: ratio,
-            backgroundColor: color.withOpacity(0.14),
+            backgroundColor: color.withValues(alpha: 0.14),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),

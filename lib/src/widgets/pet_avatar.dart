@@ -29,9 +29,9 @@ class PetAvatar extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.14),
+        color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.55), width: 1.5),
+        border: Border.all(color: color.withValues(alpha: 0.55), width: 1.5),
       ),
       child: Padding(
         padding: EdgeInsets.all(size * 0.08),

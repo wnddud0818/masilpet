@@ -1,0 +1,59 @@
+{
+  "petId": "bandana_tanuki",
+  "sourceSheets": {
+    "actions": "assets/pets/bandana_tanuki/source/action_poses_sheet.png",
+    "emotions": "assets/pets/bandana_tanuki/source/emotions_sheet.png",
+    "growth": "assets/pets/bandana_tanuki/source/growth_sheet.png",
+    "idle_animation": "assets/pets/bandana_tanuki/source/idle_animation_sheet.png",
+    "walk_animation": "assets/pets/bandana_tanuki/source/walk_animation_sheet.png",
+    "sleep_animation": "assets/pets/bandana_tanuki/source/sleep_animation_sheet.png",
+    "eat_animation": "assets/pets/bandana_tanuki/source/eat_animation_sheet.png",
+    "greet_animation": "assets/pets/bandana_tanuki/source/greet_animation_sheet.png"
+  },
+  "assets": {
+    "actions": [
+      "assets/pets/bandana_tanuki/actions/idle.png",
+      "assets/pets/bandana_tanuki/actions/walking.png",
+      "assets/pets/bandana_tanuki/actions/jumping.png",
+      "assets/pets/bandana_tanuki/actions/eating.png",
+      "assets/pets/bandana_tanuki/actions/sleeping.png",
+      "assets/pets/bandana_tanuki/actions/greeting.png"
+    ],
+    "emotions": [
+      "assets/pets/bandana_tanuki/emotions/neutral.png",
+      "assets/pets/bandana_tanuki/emotions/happy.png",
+      "assets/pets/bandana_tanuki/emotions/excited.png",
+      "assets/pets/bandana_tanuki/emotions/sad.png",
+      "assets/pets/bandana_tanuki/emotions/surprised.png",
+      "assets/pets/bandana_tanuki/emotions/sleepy.png"
+    ],
+    "growth": [
+      "assets/pets/bandana_tanuki/growth/baby.png",
+      "assets/pets/bandana_tanuki/growth/grown.png",
+      "assets/pets/bandana_tanuki/growth/evolved.png"
+    ],
+    "animations": [
+      "assets/pets/bandana_tanuki/animations/idle_01.png",
+      "assets/pets/bandana_tanuki/animations/idle_02.png",
+      "assets/pets/bandana_tanuki/animations/idle_03.png",
+      "assets/pets/bandana_tanuki/animations/idle_04.png",
+      "assets/pets/bandana_tanuki/animations/walk_01.png",
+      "assets/pets/bandana_tanuki/animations/walk_02.png",
+      "assets/pets/bandana_tanuki/animations/walk_03.png",
+      "assets/pets/bandana_tanuki/animations/walk_04.png",
+      "assets/pets/bandana_tanuki/animations/sleep_01.png",
+      "assets/pets/bandana_tanuki/animations/sleep_02.png",
+      "assets/pets/bandana_tanuki/animations/sleep_03.png",
+      "assets/pets/bandana_tanuki/animations/sleep_04.png",
+      "assets/pets/bandana_tanuki/animations/eat_01.png",
+      "assets/pets/bandana_tanuki/animations/eat_02.png",
+      "assets/pets/bandana_tanuki/animations/eat_03.png",
+      "assets/pets/bandana_tanuki/animations/eat_04.png",
+      "assets/pets/bandana_tanuki/animations/greet_01.png",
+      "assets/pets/bandana_tanuki/animations/greet_02.png",
+      "assets/pets/bandana_tanuki/animations/greet_03.png",
+      "assets/pets/bandana_tanuki/animations/greet_04.png"
+    ]
+  },
+  "updatedAt": "2026-04-27T09:05:36+00:00"
+}

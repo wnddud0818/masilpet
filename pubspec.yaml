@@ -42,3 +42,7 @@ flutter:
     - assets/pets/story_goun/actions/
     - assets/pets/story_goun/emotions/
     - assets/pets/story_goun/growth/
+    - assets/pets/bandana_tanuki/actions/
+    - assets/pets/bandana_tanuki/emotions/
+    - assets/pets/bandana_tanuki/growth/
+    - assets/pets/bandana_tanuki/animations/

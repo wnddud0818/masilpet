@@ -3,7 +3,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models.dart';
 
 abstract class MasilPetBackend {
-  Future<void> seedBusanPilotData();
+  Future<void> seedStarterRegionData();
 
   Future<void> ensureUserBootstrap();
 
@@ -32,8 +32,8 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
   final FirebaseFunctions _functions;
 
   @override
-  Future<void> seedBusanPilotData() async {
-    await _functions.httpsCallable('seedBusanPilotData').call();
+  Future<void> seedStarterRegionData() async {
+    await _functions.httpsCallable('seedStarterRegionData').call();
   }
 
   @override

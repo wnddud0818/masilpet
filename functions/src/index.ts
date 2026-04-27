@@ -270,7 +270,7 @@ const dialogueSeed = [
   },
 ];
 
-export const seedBusanPilotData = onCall({region: functionRegion}, async (request) => {
+export const seedStarterRegionData = onCall({region: functionRegion}, async (request) => {
   requireAuth(request.auth?.uid);
 
   const batch = db.batch();

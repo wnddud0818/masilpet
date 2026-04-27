@@ -32,7 +32,7 @@ class ProfileScreen extends ConsumerWidget {
                         label: '실행 모드',
                         value: state.firebaseReady ? 'Firebase 준비' : '데모 모드',
                       ),
-                      _InfoRow(label: '파일럿 지역', value: state.region.name),
+                      _InfoRow(label: '첫 탐험 지역', value: state.region.name),
                       _InfoRow(label: '오늘 체크인', value: '${state.todayCheckInCount}회'),
                       _InfoRow(label: '보유 마실펫', value: '${state.pets.length}종'),
                       _InfoRow(label: '보유 알', value: '${state.eggs.length}개'),
@@ -60,7 +60,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: state.isBusy ? null : controller.seedRemotePilotData,
+                onPressed: state.isBusy ? null : controller.seedRemoteStarterRegionData,
                 icon: const Icon(Icons.cloud_upload_outlined),
                 label: const Text('서버 시드 준비'),
               ),

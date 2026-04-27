@@ -20,7 +20,7 @@ class DexScreen extends ConsumerWidget {
           sliver: ResponsiveSliverList(
             children: [
               Text(
-                '파일럿 마실펫',
+                '마실펫 도감',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),

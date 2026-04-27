@@ -62,7 +62,7 @@ class OnboardingScreen extends ConsumerWidget {
                 child: FilledButton.icon(
                   onPressed: controller.completeOnboarding,
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('부산 파일럿 시작'),
+                  label: const Text('마실펫 시작'),
                 ),
               ),
             ],

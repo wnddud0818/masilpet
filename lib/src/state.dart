@@ -185,7 +185,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   void completeOnboarding() {
     state = state.copyWith(
       onboardingComplete: true,
-      statusMessage: '부산 파일럿 탐험을 시작합니다.',
+      statusMessage: '마실펫 탐험을 시작합니다.',
     );
   }
 
@@ -223,21 +223,21 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
   }
 
-  Future<void> seedRemotePilotData() async {
+  Future<void> seedRemoteStarterRegionData() async {
     final backend = _backend;
     if (backend == null) {
       state = state.copyWith(statusMessage: 'Firebase 설정 후 서버 시드를 호출할 수 있습니다.');
       return;
     }
 
-    state = state.copyWith(isBusy: true, statusMessage: '부산 파일럿 서버 데이터를 준비하는 중입니다.');
+    state = state.copyWith(isBusy: true, statusMessage: '마실펫 첫 지역 서버 데이터를 준비하는 중입니다.');
     try {
-      await backend.seedBusanPilotData();
+      await backend.seedStarterRegionData();
       await backend.ensureUserBootstrap();
       await refreshRemoteProgress(silent: true);
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '서버에 부산 파일럿 데이터와 사용자 초기화를 반영했습니다.',
+        statusMessage: '서버에 마실펫 첫 지역 데이터와 사용자 초기화를 반영했습니다.',
       );
     } on Object {
       state = state.copyWith(

@@ -81,9 +81,30 @@ assets/_incoming/[pet_id]/greet_animation_sheet.png
 
 Only slice sheets that actually exist. Do not fabricate missing generated files.
 
+## Human QC Before Slicing
+
+Before invoking the slicer, run through the full checklist in `MASILPET_AI_ASSET_PROMPTS.md` -> "사람 검수 체크리스트". Key gates that the slicer cannot recover from automatically:
+
+- All cells contain the same character (same face, body, accessories).
+- No grid lines, panel borders, captions, or numbering.
+- Background is uniform (preferred: solid white) or transparent.
+- Character size and feet baseline are consistent across cells.
+- No reference text/logo copied from public mascot sources.
+- Egg cell of a `growth`/`evolution` sheet has no face.
+
+If any item fails, regenerate the sheet instead of slicing.
+
+For visual verification of cell boundaries before committing to a slice, write a preview overlay:
+
+```powershell
+python tools\slice_sprite_sheet.py --pet-id [pet_id] --sheet-type emotions --input assets\_incoming\[pet_id]\emotions_sheet.png --preview build\preview_emotions.png
+```
+
+The preview mode draws red cell guides + numbered labels and skips writing app assets.
+
 ## Slice Into App Assets
 
-Run the slicer from the repo root. Defaults are 512x512 output, 448px fit size, 48 colors, hard alpha, stronger background removal, character centering, nearest resize, and white/black key-color cleanup.
+Run the slicer from the repo root. Defaults are 512x512 output, 448px fit size, 48 colors, hard alpha, stronger background removal, character centering, nearest resize, white/black key-color cleanup, **sheet-wide shared palette** for cross-cell consistency, and **horizontal centroid alignment** for animation frames.
 
 ```powershell
 $pet = "[pet_id]"
@@ -125,6 +146,24 @@ For direct 256x256 or 128x128 export only when needed:
 --output-size 128 --fit-size 112 --palette-colors 48 --bottom-padding 8
 ```
 
+To revert to per-cell quantization (rarely needed; only when each cell intentionally has its own palette):
+
+```powershell
+--per-cell-palette
+```
+
+To disable horizontal centroid alignment for animation frames (rare; debugging jitter):
+
+```powershell
+--no-centroid-align
+```
+
+To insert the new asset folder into `pubspec.yaml` automatically:
+
+```powershell
+--update-pubspec
+```
+
 ## Verify
 
 Check the generated structure:
@@ -145,6 +184,7 @@ Inspect at least one action and one animation output with `view_image` when avai
 - Character bbox is centered for actions/emotions/growth.
 - Animation frames use a consistent bottom/feet anchor.
 - Near-white and near-black neutral colors were snapped to `#ffffff` and `#000000` when cleanup is enabled.
+- `manifest.json` -> `history.[sheet_type]` records `sourceHash` (sha256 of the source sheet), the slicer options used, and any `emptyCells` warnings. Empty cells indicate the source sheet had a missing or undetectable subject in that cell; regenerate the sheet rather than shipping a transparent PNG.
 
 If `tools/slice_sprite_sheet.py` changed, run:
 

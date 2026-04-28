@@ -483,6 +483,135 @@ class SliceSpriteSheetTest(unittest.TestCase):
             self.assertLessEqual(max(right - left, bottom - top), 112)
             self.assertLessEqual(opaque_color_count(output), 48)
 
+    def test_warns_when_a_cell_has_no_detected_character(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_offset_subject_sheet(input_path, rows=2, cols=3)
+            with Image.open(input_path).convert("RGBA") as image:
+                blank_cell = Image.new(
+                    "RGBA", (image.width // 3, image.height // 2), (250, 250, 250, 255)
+                )
+                image.paste(blank_cell, (0, 0))
+                image.save(input_path)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                ]
+            )
+
+            manifest = json.loads(
+                (root / "assets" / "pets" / "roof_mascot" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertIn("history", manifest)
+            history = manifest["history"]["emotions"]
+            self.assertIn("neutral", history["emptyCells"])
+            self.assertEqual(
+                history["options"]["paletteColors"],
+                slice_sprite_sheet.DEFAULT_PALETTE_COLORS,
+            )
+            self.assertIn("sourceHash", history)
+            self.assertEqual(len(history["sourceHash"]), 64)
+
+    def test_shared_palette_is_consistent_across_sheet_cells(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_gradient_subject_sheet(input_path, rows=2, cols=3)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--palette-colors",
+                    "16",
+                ]
+            )
+
+            emotions_dir = root / "assets" / "pets" / "roof_mascot" / "emotions"
+            cell_palettes = [
+                opaque_colors(path) for path in sorted(emotions_dir.glob("*.png"))
+            ]
+            union = set().union(*cell_palettes)
+            # Shared palette: union should not exceed the requested cap.
+            self.assertLessEqual(len(union), 16)
+
+    def test_per_cell_palette_flag_disables_shared_palette(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_gradient_subject_sheet(input_path, rows=2, cols=3)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--per-cell-palette",
+                    "--palette-colors",
+                    "16",
+                ]
+            )
+
+            manifest = json.loads(
+                (root / "assets" / "pets" / "roof_mascot" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertTrue(
+                manifest["history"]["emotions"]["options"]["perCellPalette"]
+            )
+
+    def test_preview_writes_guide_image_and_skips_assets(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "action_poses_sheet.png"
+            make_offset_subject_sheet(input_path, rows=2, cols=3)
+            preview_path = root / "preview.png"
+
+            exit_code = slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "actions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--preview",
+                    str(preview_path),
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(preview_path.exists())
+            self.assertFalse(
+                (root / "assets" / "pets" / "roof_mascot").exists(),
+                "preview mode must not produce app assets",
+            )
+
     def test_snaps_neutral_near_white_and_near_black_pixels(self) -> None:
         with temporary_project() as tmp:
             root = Path(tmp)

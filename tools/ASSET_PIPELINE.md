@@ -30,25 +30,24 @@ Use `--overwrite` only after checking that replacing existing assets is intended
 | `eat_animation` | 1 x 4 | `animations/eat_01.png` to `eat_04.png` |
 | `greet_animation` | 1 x 4 | `animations/greet_01.png` to `greet_04.png` |
 
-The script copies the source sheet to `assets/pets/[pet_id]/source/`, writes normalized PNG outputs, and updates `assets/pets/[pet_id]/manifest.json`. The default output is 512x512 so AI-generated line detail survives cleanup and later in-app scaling.
+The script copies the source sheet to `assets/pets/[pet_id]/source/`, writes normalized PNG outputs, and updates `assets/pets/[pet_id]/manifest.json`. The manifest also records `slicerVersion`, a per-sheet `sourceHash` (sha256), the slicer options used, and any empty-cell warnings under `history.[sheet_type]`. The default output is 512x512 so AI-generated line detail survives cleanup and later in-app scaling.
 
 ## Post-Processing
 
-By default, each cell goes through this normalization pipeline:
+The default pipeline operates **across the whole sheet** for color consistency:
 
-1. Slice one equal-sized grid cell from the source sheet.
-2. Detect the edge-connected background color.
-3. Remove that background and keep only the character foreground.
-4. Crop to the detected character bbox.
-5. Resize the character to fit inside a 448x448 box by default.
-6. Reduce the sprite to a 48 color flat palette with hard alpha.
-7. Snap neutral near-white and near-black pixels to pure white and pure black.
-8. Place it on a 512x512 transparent canvas by default.
+1. Slice all equal-sized grid cells from the source sheet.
+2. For each cell: detect the edge-connected background color, remove it, crop to the character bbox.
+3. Resize each character to fit inside a 448x448 box by default.
+4. Build a single shared palette across all non-empty cells and quantize every cell to it (48 colors, hard alpha).
+5. Snap neutral near-white and near-black pixels to pure white and pure black.
+6. Place each cell on a 512x512 transparent canvas with consistent anchoring.
+7. Empty cells (no character detected) are saved as fully transparent PNGs and reported on stderr + in `manifest.history.[sheet_type].emptyCells`.
 
 Default placement:
 
 - `actions`, `emotions`, `growth`, and `evolution` use centered placement.
-- Animation sheets use feet placement with 32px bottom padding to reduce frame jitter.
+- Animation sheets use feet placement with 32px bottom padding **and horizontal centroid alignment** so the character's visual mass center stays at the canvas center across all 4 frames, reducing loop jitter.
 
 Useful options:
 
@@ -69,6 +68,10 @@ Useful options:
 --no-color-snap        # disable white/black cleanup
 --keep-background      # disable background removal and centering
 --no-quantize          # keep resized colors instead of reducing palette
+--per-cell-palette     # quantize each cell separately (default is sheet-wide shared palette)
+--no-centroid-align    # disable horizontal centroid alignment for animation frames
+--update-pubspec       # auto-add the new asset folder under flutter.assets in pubspec.yaml
+--preview path.png     # write a numbered cell-guide preview PNG and exit (no app assets)
 --overwrite            # replace existing output files
 ```
 

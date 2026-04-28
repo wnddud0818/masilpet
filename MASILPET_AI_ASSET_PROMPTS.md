@@ -10,6 +10,54 @@
 - 애니메이션은 모든 행동을 한 장에 몰아넣지 않고, `idle`, `walk`, `sleep`처럼 행동 하나당 1행 4프레임 시트로 분리한다.
 - 지자체 마스코트나 공공누리 캐릭터를 사용할 때는 텍스트, 로고, 공식 마크를 복제하지 않는다.
 
+## 시트 출력 규격 (모든 프롬프트에 포함)
+
+후처리 슬라이서가 균등 분할하므로, 모델에게 **출력 픽셀 크기**와 **셀 정렬 규칙**을 항상 명시한다.
+
+| 시트 유형 | 권장 출력 픽셀 (64px nearest-neighbor 8x 업스케일 기준) | 비율 |
+| --- | --- | --- |
+| 기준 캐릭터 1장 | 512x512 | 1:1 |
+| 감정 6종 (2x3) | 1536x1024 | 3:2 |
+| 감정 12종 (3x4) | 2048x1536 | 4:3 |
+| 성장 3단계 (1x3) | 1536x512 | 3:1 |
+| 행동 대표 포즈 (2x3) | 1536x1024 | 3:2 |
+| 애니메이션 (1x4) | 2048x512 | 4:1 |
+
+```text
+Output spec (apply to every sheet):
+- Render the entire sheet at exactly [WxH] pixels.
+- Each cell must be exactly equal in width and height.
+- Do not draw any visible grid lines, panel borders, frame separators, divider lines, or cell numbers.
+- Do not add captions, action labels, or expression text.
+- Background must be a single uniform solid color (preferred: pure white #ffffff). Avoid gradients or textured backgrounds even if the model cannot output transparency.
+- Keep the same character size (head height in pixels) across all cells of the same sheet.
+- Place the character's horizontal center at the cell's horizontal center, with feet at the same Y coordinate inside every cell.
+```
+
+## 셀 간 일관성 강화 규칙 (모든 멀티-셀 시트에 포함)
+
+```text
+Cross-cell consistency rules:
+- Use the exact same color palette across every cell. Do not introduce any new color in any single cell.
+- Use the exact same outline color across every cell.
+- Use the exact same character body proportions, head size, eye size, accessory shape, and tail shape in every cell.
+- The character bounding box must occupy roughly the same pixel area in every cell.
+- The character must not be cropped at any cell edge.
+- Do not redesign or restyle the character between cells.
+```
+
+## 핵심 색상 고정 슬롯 (선택)
+
+레퍼런스 색을 hex로 못 박으면 셀 간 색 일관성이 더 안정적이다.
+
+```text
+Core palette (use exactly these hex colors as the dominant body, accent, and outline):
+- body: #________
+- accent: #________
+- highlight: #________
+- outline: #________
+```
+
 ## 권장 묶음 크기
 
 | 에셋 유형 | 권장 생성 단위 | 최대 권장 |
@@ -93,8 +141,22 @@ Pixel art rules:
 
 ## 공통 네거티브 프롬프트
 
+네거티브 프롬프트는 모델 토큰 한도와 우선순위가 있다. 무거운 것부터 위에 두는 **Tier 1(절대 금지) / Tier 2(완화 가능)** 형태로 분리해서 사용한다. 모델별 사용법:
+
+- DALL-E 3, Imagen, GPT-4o-image: 자연어로 본문 안에 "no X, no Y" 형태로 포함.
+- SDXL/Flux: `negative_prompt` 필드에 Tier 1만 우선 넣고, 여유가 있으면 Tier 2 추가.
+- Midjourney: `--no x, y, z` 파라미터로 Tier 1만.
+
+### Tier 1 (반드시 금지)
+
 ```text
-realistic, semi-realistic, 3D render, clay render, plush toy, fabric texture, high-resolution illustration, vector illustration, anime illustration, painterly style, oil painting, watercolor, smooth vector art, detailed background, complex scenery, text, letters, labels, watermark, logo, UI, decorative symbols, exclamation marks, Z symbols, motion lines, multiple characters, human character, scary, violent, overly detailed, cropped body, blurry, soft blur, anti-aliasing, anti-aliased illustration, antialiased edges, gradient shading, blended shading, soft cel shading, airbrush shading, glossy shading, smooth curves, subpixel lines, pixel-filtered illustration, high-resolution art pretending to be pixel art, AI-upscaled illustration, too many colors, noisy pixels, messy pixel art, inconsistent character, inconsistent proportions, inconsistent colors, different character in each frame, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, tall body, long limbs, sharp hat, serious expression, adult proportions, exact copy of the reference, realistic anatomy, narrow face, tiny face, small eyes, stiff mascot pose, mature mascot proportions, tall thin silhouette
+realistic, 3D render, plush toy, high-resolution illustration, vector illustration, painterly style, smooth curves, anti-aliasing, antialiased edges, gradient shading, pixel-filtered illustration, high-resolution art pretending to be pixel art, grid lines, cell borders, panel borders, frame separators, divider lines, cell numbers, text, letters, labels, watermark, logo, UI, multiple characters, different character in each cell, inconsistent character, inconsistent colors, cropped body, exact copy of the reference, tall body, long limbs, narrow face, small eyes, mature proportions, stiff mascot pose
+```
+
+### Tier 2 (가능하면 금지)
+
+```text
+semi-realistic, clay render, fabric texture, anime illustration, oil painting, watercolor, smooth vector art, detailed background, complex scenery, decorative symbols, exclamation marks, Z symbols, motion lines, human character, scary, violent, overly detailed, blurry, soft blur, blended shading, soft cel shading, airbrush shading, glossy shading, subpixel lines, AI-upscaled illustration, too many colors, noisy pixels, messy pixel art, inconsistent proportions, inconsistent limbs, extra limbs, extra eyes, photo style, weapon, armor, human adult body, sharp hat, serious expression, realistic anatomy, tiny face, mature mascot proportions, tall thin silhouette
 ```
 
 ## 레퍼런스가 있는 경우
@@ -236,12 +298,21 @@ No text, no labels, no background, no watermark, no tall body, no long limbs, no
 
 ### 성장 단계 3종
 
+성장 시트의 chibi 비율 규칙은 **baby 단계부터** 적용한다. egg 단계는 머리/얼굴이 없으므로 별도 규칙으로 다룬다.
+
 ```text
+Egg stage rules (apply only to the first cell):
+- a soft rounded egg shape, not a face
+- no eyes, no nose, no mouth, no facial expression on the egg shell
+- shell pattern or color hints inspired by the reference, but no copied logos or text
+- centered inside the cell, with the same baseline as the other stages
+
 Using the provided MasilPet reference, create a 3-stage evolution sprite sheet.
 
 Layout: 1 row x 3 columns.
+Render the entire sheet at exactly 1536x512 pixels (each cell exactly 512x512).
 Stages:
-1. egg form
+1. egg form (no face, see Egg stage rules above)
 2. baby pet form
 3. evolved companion form
 
@@ -275,11 +346,15 @@ Style: cute Korean tourism mascot-inspired actual 64x64 low-resolution pixel art
 
 ### 행동 대표 포즈 시트
 
+`actions` 시트의 walking/eating/sleeping은 정적 한 컷이고, 같은 이름의 애니메이션 시트(`walk_animation`, `eat_animation`, `sleep_animation`)는 4프레임 루프다. 정적 시트의 동작은 **루프의 가장 알아보기 쉬운 peak frame**(예: walking은 한쪽 발이 앞으로 완전히 나간 순간)을 골라 그리도록 명시한다.
+
 ```text
 Using the provided MasilPet character reference, create a pixel art action pose sprite sheet.
 
 This is not an animation frame sheet.
 Create one representative pose for each action.
+For each action, use the most readable peak-of-motion pose (e.g., walking = one foot fully forward; jumping = airborne with limbs spread; eating = food held to the mouth).
+Render the entire sheet at exactly 1536x1024 pixels (each cell exactly 512x512).
 
 Layout: 2 rows x 3 columns, 6 sprites total.
 Target sprite size: 64x64 pixels per sprite.
@@ -686,3 +761,55 @@ proud: chest out, confident smile
 ```text
 마실펫의 AI 에셋은 런타임 생성이 아니라, 캐릭터별 기준 이미지를 고정한 뒤 감정, 상태, 성장 스프라이트를 사전 생성하여 앱 에셋 번들로 관리한다. 이를 통해 캐릭터 일관성을 확보하고, 생성형 AI 호출 비용과 품질 변동성을 줄인다.
 ```
+
+## 모델별 호출 팁
+
+| 모델 | 비율/크기 지정 | 네거티브 방식 | 레퍼런스 가중치 |
+| --- | --- | --- | --- |
+| DALL-E 3 / GPT-4o-image | 본문에 "exact pixel size" 명시. 1536x1024 같은 비표준 비율은 거절될 수 있어 자르기 후처리 전제. | 본문에 "no X, no Y" 자연어 | image input 1장만, 영향력 약함 |
+| Imagen 3/4 | `aspectRatio` 파라미터 (1:1, 3:2 등). 픽셀 정확도는 본문 표현에 의존 | `negativePrompt` 필드 | `referenceImage` + `referenceType=STYLE` 권장 |
+| Flux/SDXL | `width`/`height` 직접 지정 가능 (8 배수). | `negative_prompt` 필드 (Tier 1 우선) | IPAdapter/ControlNet 사용, weight 0.55~0.7 |
+| Midjourney v6 | `--ar 3:2` `--ar 4:1` 등. `--style raw` 권장 | `--no x, y` (Tier 1만) | `--cref [url]` `--cw 60` |
+| Nano Banana | 본문에 자연어 크기 + 비율 동시 명시 | 본문에 "no X, no Y" | 멀티 이미지 입력 가능, 동일 캐릭터 다른 표정 시 강함 |
+
+권장: 셀 일관성이 가장 중요한 감정/애니메이션 시트는 **레퍼런스 이미지 입력을 지원하는 모델 우선**(Imagen, MJ `--cref`, Nano Banana, Flux+IPAdapter).
+
+## 사람 검수 체크리스트 (슬라이싱 전 필수)
+
+생성한 시트 PNG를 폴더에 넣기 전에 사람이 다음을 모두 확인한다. 하나라도 어긋나면 **재생성**한다.
+
+```text
+[ ] 셀 수가 맞다 (예: 2x3 시트면 6개 캐릭터가 보인다)
+[ ] 모든 셀에 동일한 캐릭터가 보인다 (얼굴/몸통/장식이 모두 동일)
+[ ] 셀 간 색상이 동일하다 (몸체, 외곽선, 강조색)
+[ ] 셀 간 캐릭터 크기가 거의 동일하다
+[ ] 캐릭터가 셀 경계에 잘리지 않았다
+[ ] 셀 경계선/패널/테두리가 그려지지 않았다
+[ ] 셀 안 또는 외곽에 영문/한글 텍스트, 라벨, 숫자가 없다
+[ ] 한 셀에 캐릭터 두 마리가 합쳐져 그려지지 않았다
+[ ] 배경이 단색(흰색 권장)이거나 투명이다 (그라디언트/풍경 없음)
+[ ] 외곽선이 깨끗하고 anti-aliased 흐림이 없다
+[ ] 애니메이션 시트는 4프레임의 발/몸통 위치가 일관된다
+[ ] 성장 시트의 egg 단계에 얼굴/눈이 그려지지 않았다 (있으면 재생성)
+[ ] 공공/지자체 IP의 텍스트, 로고, 공식 마크가 복제되지 않았다
+```
+
+이 체크리스트를 통과하지 못한 시트는 슬라이서가 자동으로 보정해주지 않는다.
+
+## 공공/지자체 IP 라이선스 가이드
+
+지자체 마스코트, 공공누리 캐릭터 사용 시 **공공누리 유형별 사용 조건**을 먼저 확인한다.
+
+| 공공누리 유형 | 출처 표기 | 상업 이용 | 변형 |
+| --- | --- | --- | --- |
+| 1유형 | 필수 | 가능 | 가능 |
+| 2유형 | 필수 | 불가 | 가능 |
+| 3유형 | 필수 | 가능 | 불가 |
+| 4유형 | 필수 | 불가 | 불가 |
+
+운영 규칙:
+
+- **1유형만** AI 변형 + 상업적 인앱 배포에 안전하게 쓸 수 있다.
+- 2/3/4유형은 사전에 해당 지자체와 이용 협약이 필요하다.
+- 어떤 유형이든 텍스트, 로고, 공식 마크는 복제하지 않는다.
+- 결과 에셋의 manifest 또는 앱 크레딧 화면에 출처(지자체명, 공공누리 유형, 원본 캐릭터명)를 명시한다.

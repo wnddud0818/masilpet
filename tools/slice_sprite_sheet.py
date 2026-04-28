@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -17,6 +18,7 @@ from typing import Iterable
 from PIL import Image, ImageColor, ImageOps
 
 
+SLICER_VERSION = "2.0.0"
 PET_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 DEFAULT_OUTPUT_SIZE = 512
 DEFAULT_FIT_SIZE = 448
@@ -284,6 +286,14 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help="Maximum opaque colors after pixel-art quantization. Defaults to 48.",
     )
     parser.add_argument(
+        "--per-cell-palette",
+        action="store_true",
+        help=(
+            "Quantize each cell to its own palette. Default is a sheet-wide shared palette "
+            "so emotion/animation cells stay color-consistent."
+        ),
+    )
+    parser.add_argument(
         "--resample",
         choices=("lanczos", "box", "nearest"),
         default="nearest",
@@ -321,6 +331,28 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         type=int,
         default=DEFAULT_SNAP_NEUTRAL_TOLERANCE,
         help="Maximum RGB channel spread for white/black snapping. Lower keeps colored darks.",
+    )
+    parser.add_argument(
+        "--no-centroid-align",
+        action="store_true",
+        help=(
+            "Disable horizontal centroid alignment for animation frames. "
+            "Centroid alignment is on by default for animation sheets to reduce loop jitter."
+        ),
+    )
+    parser.add_argument(
+        "--update-pubspec",
+        action="store_true",
+        help="Auto-insert the new asset folder under flutter.assets in pubspec.yaml when missing.",
+    )
+    parser.add_argument(
+        "--preview",
+        type=Path,
+        default=None,
+        help=(
+            "Write a sliced preview PNG (with cell guides + numbering) to the given path "
+            "and exit without producing app assets."
+        ),
     )
     args = parser.parse_args(raw_args)
     apply_strict_pixel_art_defaults(args, raw_args)
@@ -561,20 +593,74 @@ def scale_padding(value: int, source_size: int, target_size: int) -> int:
     return max(0, round(value * target_size / source_size))
 
 
+def hard_alpha_mask(image: Image.Image, alpha_threshold: int) -> Image.Image:
+    return image.getchannel("A").point(
+        lambda value: 255 if value > alpha_threshold else 0,
+        mode="L",
+    )
+
+
 def quantize_pixel_art(
     image: Image.Image,
     palette_colors: int,
     alpha_threshold: int,
 ) -> Image.Image:
-    alpha = image.getchannel("A").point(
-        lambda value: 255 if value > alpha_threshold else 0,
-        mode="L",
-    )
+    alpha = hard_alpha_mask(image, alpha_threshold)
     rgb = Image.new("RGB", image.size, (0, 0, 0))
     rgb.paste(image.convert("RGB"), mask=alpha)
     quantized = rgb.quantize(
         colors=palette_colors,
         method=Image.Quantize.MEDIANCUT,
+        dither=Image.Dither.NONE,
+    ).convert("RGBA")
+    quantized.putalpha(alpha)
+    return quantized
+
+
+def build_shared_palette(
+    images: list[Image.Image],
+    palette_colors: int,
+    alpha_threshold: int,
+) -> Image.Image | None:
+    """Concatenate all opaque foreground samples into a single image and quantize once.
+
+    Returns a paletted (mode "P") image whose palette is shared across the sheet's cells.
+    Returns None when no opaque pixels are available.
+    """
+    samples: list[Image.Image] = []
+    max_height = 0
+    total_width = 0
+    for image in images:
+        alpha = hard_alpha_mask(image, alpha_threshold)
+        rgb = Image.new("RGB", image.size, (0, 0, 0))
+        rgb.paste(image.convert("RGB"), mask=alpha)
+        samples.append(rgb)
+        max_height = max(max_height, rgb.height)
+        total_width += rgb.width
+    if not samples or total_width == 0 or max_height == 0:
+        return None
+    canvas = Image.new("RGB", (total_width, max_height), (0, 0, 0))
+    cursor = 0
+    for sample in samples:
+        canvas.paste(sample, (cursor, 0))
+        cursor += sample.width
+    return canvas.quantize(
+        colors=palette_colors,
+        method=Image.Quantize.MEDIANCUT,
+        dither=Image.Dither.NONE,
+    )
+
+
+def quantize_with_shared_palette(
+    image: Image.Image,
+    palette_image: Image.Image,
+    alpha_threshold: int,
+) -> Image.Image:
+    alpha = hard_alpha_mask(image, alpha_threshold)
+    rgb = Image.new("RGB", image.size, (0, 0, 0))
+    rgb.paste(image.convert("RGB"), mask=alpha)
+    quantized = rgb.quantize(
+        palette=palette_image,
         dither=Image.Dither.NONE,
     ).convert("RGBA")
     quantized.putalpha(alpha)
@@ -632,19 +718,48 @@ def resolve_anchor(anchor: str, config: SheetConfig) -> str:
     return "feet" if config.output_dir == "animations" else "center"
 
 
+def horizontal_centroid(image: Image.Image, alpha_threshold: int) -> int | None:
+    """Return the x-coordinate of the opaque-pixel centroid, or None when fully transparent."""
+    alpha = image.getchannel("A")
+    width, height = image.size
+    weight_sum = 0
+    weighted_x = 0
+    data = alpha.load()
+    for y in range(height):
+        for x in range(width):
+            if data[x, y] > alpha_threshold:
+                weight_sum += 1
+                weighted_x += x
+    if weight_sum == 0:
+        return None
+    return round(weighted_x / weight_sum)
+
+
 def place_on_canvas(
     image: Image.Image,
     output_size: int,
     anchor: str,
     bottom_padding: int,
+    centroid_x: int | None = None,
 ) -> Image.Image:
     canvas = Image.new("RGBA", (output_size, output_size), (0, 0, 0, 0))
-    x = round((output_size - image.width) / 2)
+    if centroid_x is not None:
+        x = round(output_size / 2) - centroid_x
+    else:
+        x = round((output_size - image.width) / 2)
     if anchor == "feet":
         y = output_size - bottom_padding - image.height
     else:
         y = round((output_size - image.height) / 2)
-    canvas.alpha_composite(image, (max(0, x), max(0, y)))
+    if x < 0:
+        x = 0
+    if x + image.width > output_size:
+        x = output_size - image.width
+    if y < 0:
+        y = 0
+    if y + image.height > output_size:
+        y = output_size - image.height
+    canvas.alpha_composite(image, (x, y))
     return canvas
 
 
@@ -695,7 +810,32 @@ def rebuild_outline(
     return output
 
 
-def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namespace) -> Image.Image:
+def slice_grid(image: Image.Image, config: SheetConfig) -> list[Image.Image]:
+    """Crop equal-sized cells from a sheet in row-major order."""
+    cell_width = image.width / config.cols
+    cell_height = image.height / config.rows
+    cells: list[Image.Image] = []
+    for index in range(config.rows * config.cols):
+        row = index // config.cols
+        col = index % config.cols
+        left = round(col * cell_width)
+        top = round(row * cell_height)
+        right = round((col + 1) * cell_width)
+        bottom = round((row + 1) * cell_height)
+        cells.append(image.crop((left, top, right, bottom)))
+    return cells
+
+
+def normalize_cells(
+    cells: list[Image.Image],
+    config: SheetConfig,
+    args: argparse.Namespace,
+) -> list[tuple[Image.Image, bool]]:
+    """Run the normalization pipeline over all sheet cells.
+
+    Returns a list of `(image, was_empty)` tuples in cell order.
+    Uses a single shared palette for the whole sheet by default.
+    """
     normalize_size = args.pixel_grid_size or args.output_size
     fit_size = (
         scale_dimension(args.fit_size, args.output_size, normalize_size)
@@ -707,82 +847,127 @@ def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namesp
         if args.pixel_grid_size
         else args.bottom_padding
     )
+    anchor = resolve_anchor(args.anchor, config)
+    centroid_align = (
+        anchor == "feet"
+        and not args.no_centroid_align
+        and config.manifest_key == "animations"
+    )
 
-    if args.keep_background:
-        output = cell.resize(
-            (normalize_size, normalize_size),
-            resampling_filter(args.resample),
-        )
-        if not args.no_quantize:
-            output = quantize_pixel_art(
-                output,
-                args.palette_colors,
-                args.alpha_threshold,
+    # Step 1: extract foreground (or keep raw) and resize each cell.
+    extracted: list[tuple[Image.Image, bool]] = []
+    for cell in cells:
+        if args.keep_background:
+            resized = cell.resize(
+                (normalize_size, normalize_size),
+                resampling_filter(args.resample),
             )
-        output = posterize_colors(output, args.posterize_bits)
+            extracted.append((resized, False))
+            continue
+
+        foreground, bbox = foreground_from_cell(
+            cell,
+            args.bg_threshold,
+            args.alpha_threshold,
+            args.trim_padding,
+        )
+        if bbox is None:
+            extracted.append(
+                (Image.new("RGBA", (normalize_size, normalize_size), (0, 0, 0, 0)), True)
+            )
+            continue
+
+        resized = resize_to_fit(foreground, fit_size, resampling_filter(args.resample))
+        extracted.append((resized, False))
+
+    # Step 2: shared palette quantization across the whole sheet.
+    quantized: list[tuple[Image.Image, bool]] = []
+    if not args.no_quantize:
+        if args.per_cell_palette:
+            for image, was_empty in extracted:
+                if was_empty:
+                    quantized.append((image, was_empty))
+                    continue
+                quantized.append(
+                    (quantize_pixel_art(image, args.palette_colors, args.alpha_threshold), False)
+                )
+        else:
+            non_empty = [image for image, was_empty in extracted if not was_empty]
+            palette_image = build_shared_palette(
+                non_empty, args.palette_colors, args.alpha_threshold
+            )
+            for image, was_empty in extracted:
+                if was_empty or palette_image is None:
+                    quantized.append((image, was_empty))
+                    continue
+                quantized.append(
+                    (
+                        quantize_with_shared_palette(
+                            image, palette_image, args.alpha_threshold
+                        ),
+                        False,
+                    )
+                )
+    else:
+        quantized = extracted
+
+    # Step 3: posterize, snap colors.
+    polished: list[tuple[Image.Image, bool]] = []
+    for image, was_empty in quantized:
+        if was_empty:
+            polished.append((image, True))
+            continue
+        out = posterize_colors(image, args.posterize_bits)
         if not args.no_color_snap:
-            output = snap_key_colors(
-                output,
+            out = snap_key_colors(
+                out,
                 args.white_threshold,
                 args.black_threshold,
                 args.snap_neutral_tolerance,
                 args.alpha_threshold,
             )
+        polished.append((out, False))
+
+    # Step 4: trim, place on canvas with shared anchor, optional outline + upscale.
+    placed: list[tuple[Image.Image, bool]] = []
+    for image, was_empty in polished:
+        if was_empty:
+            empty_canvas = Image.new(
+                "RGBA", (args.output_size, args.output_size), (0, 0, 0, 0)
+            )
+            placed.append((empty_canvas, True))
+            continue
+
+        if args.keep_background:
+            canvas = image
+        else:
+            trimmed = trim_transparent(image)
+            centroid_x: int | None = None
+            if centroid_align:
+                centroid_x = horizontal_centroid(trimmed, args.alpha_threshold)
+            canvas = place_on_canvas(
+                trimmed,
+                normalize_size,
+                anchor,
+                bottom_padding,
+                centroid_x=centroid_x,
+            )
+
         if args.rebuild_outline:
-            output = rebuild_outline(
-                output,
+            canvas = rebuild_outline(
+                canvas,
                 outline_color_rgba(args.outline_color),
                 args.outline_thickness,
                 args.alpha_threshold,
             )
         if args.pixel_grid_size:
-            output = output.resize(
+            canvas = canvas.resize(
                 (args.output_size, args.output_size),
                 Image.Resampling.NEAREST,
             )
-        return output
+        placed.append((canvas, False))
 
-    foreground, bbox = foreground_from_cell(
-        cell,
-        args.bg_threshold,
-        args.alpha_threshold,
-        args.trim_padding,
-    )
-    if bbox is None:
-        return Image.new("RGBA", (args.output_size, args.output_size), (0, 0, 0, 0))
-
-    resized = resize_to_fit(foreground, fit_size, resampling_filter(args.resample))
-    if not args.no_quantize:
-        resized = quantize_pixel_art(resized, args.palette_colors, args.alpha_threshold)
-    resized = posterize_colors(resized, args.posterize_bits)
-    if not args.no_color_snap:
-        resized = snap_key_colors(
-            resized,
-            args.white_threshold,
-            args.black_threshold,
-            args.snap_neutral_tolerance,
-            args.alpha_threshold,
-        )
-    resized = trim_transparent(resized)
-    output = place_on_canvas(
-        resized,
-        normalize_size,
-        resolve_anchor(args.anchor, config),
-        bottom_padding,
-    )
-    if args.rebuild_outline:
-        output = rebuild_outline(
-            output,
-            outline_color_rgba(args.outline_color),
-            args.outline_thickness,
-            args.alpha_threshold,
-        )
-    if args.pixel_grid_size:
-        output = output.resize(
-            (args.output_size, args.output_size),
-            Image.Resampling.NEAREST,
-        )
-    return output
+    return placed
 
 
 def slice_sheet(
@@ -790,32 +975,99 @@ def slice_sheet(
     output_files: list[Path],
     config: SheetConfig,
     args: argparse.Namespace,
-) -> None:
+) -> list[str]:
+    """Slice the sheet, write outputs, and return the list of empty cell names."""
     with Image.open(input_path) as image:
         image = image.convert("RGBA")
-        cell_width = image.width / config.cols
-        cell_height = image.height / config.rows
+        cells = slice_grid(image, config)
 
-        for index, output_file in enumerate(output_files):
-            row = index // config.cols
-            col = index % config.cols
-            left = round(col * cell_width)
-            top = round(row * cell_height)
-            right = round((col + 1) * cell_width)
-            bottom = round((row + 1) * cell_height)
+    results = normalize_cells(cells, config, args)
+    empty_names: list[str] = []
+    for output_file, name, (final_image, was_empty) in zip(
+        output_files, config.names, results
+    ):
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        final_image.save(output_file, format="PNG")
+        if was_empty:
+            empty_names.append(name)
+    return empty_names
 
-            cell = image.crop((left, top, right, bottom))
-            cell = normalize_cell(cell, config, args)
-            output_file.parent.mkdir(parents=True, exist_ok=True)
-            cell.save(output_file, format="PNG")
+
+def write_preview(
+    input_path: Path,
+    config: SheetConfig,
+    preview_path: Path,
+) -> None:
+    """Write a preview PNG with red cell guides + cell numbers for human inspection."""
+    from PIL import ImageDraw, ImageFont
+
+    with Image.open(input_path) as image:
+        canvas = image.convert("RGBA").copy()
+    draw = ImageDraw.Draw(canvas)
+    cell_width = canvas.width / config.cols
+    cell_height = canvas.height / config.rows
+    try:
+        font = ImageFont.truetype("arial.ttf", max(12, int(cell_height // 8)))
+    except OSError:
+        font = ImageFont.load_default()
+    for index in range(config.rows * config.cols):
+        row = index // config.cols
+        col = index % config.cols
+        left = round(col * cell_width)
+        top = round(row * cell_height)
+        right = round((col + 1) * cell_width)
+        bottom = round((row + 1) * cell_height)
+        draw.rectangle((left, top, right - 1, bottom - 1), outline=(255, 0, 0, 255), width=2)
+        label = config.names[index] if index < len(config.names) else str(index + 1)
+        draw.text((left + 4, top + 4), f"{index + 1}: {label}", fill=(255, 0, 0, 255), font=font)
+    preview_path.parent.mkdir(parents=True, exist_ok=True)
+    canvas.save(preview_path, format="PNG")
+
+
+def compute_sheet_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def slicer_options_summary(args: argparse.Namespace) -> dict:
+    return {
+        "outputSize": args.output_size,
+        "fitSize": args.fit_size,
+        "anchor": args.anchor,
+        "bottomPadding": args.bottom_padding,
+        "trimPadding": args.trim_padding,
+        "bgThreshold": args.bg_threshold,
+        "alphaThreshold": args.alpha_threshold,
+        "paletteColors": args.palette_colors,
+        "perCellPalette": bool(args.per_cell_palette),
+        "resample": args.resample,
+        "keepBackground": bool(args.keep_background),
+        "noQuantize": bool(args.no_quantize),
+        "noColorSnap": bool(args.no_color_snap),
+        "whiteThreshold": args.white_threshold,
+        "blackThreshold": args.black_threshold,
+        "snapNeutralTolerance": args.snap_neutral_tolerance,
+        "strictPixelArt": bool(args.strict_pixel_art),
+        "pixelGridSize": args.pixel_grid_size,
+        "posterizeBits": args.posterize_bits,
+        "rebuildOutline": bool(args.rebuild_outline),
+        "outlineColor": args.outline_color,
+        "outlineThickness": args.outline_thickness,
+        "centroidAlign": (not args.no_centroid_align),
+    }
 
 
 def read_manifest(path: Path, pet_id: str) -> dict:
     if not path.exists():
         return {
             "petId": pet_id,
+            "slicerVersion": SLICER_VERSION,
             "sourceSheets": {},
             "assets": {},
+            "history": {},
         }
 
     with path.open("r", encoding="utf-8") as file:
@@ -823,8 +1075,10 @@ def read_manifest(path: Path, pet_id: str) -> dict:
     if manifest.get("petId") not in (None, pet_id):
         raise ValueError(f"Manifest petId does not match --pet-id: {path}")
     manifest["petId"] = pet_id
+    manifest.setdefault("slicerVersion", SLICER_VERSION)
     manifest.setdefault("sourceSheets", {})
     manifest.setdefault("assets", {})
+    manifest.setdefault("history", {})
     return manifest
 
 
@@ -835,9 +1089,12 @@ def write_manifest(
     config: SheetConfig,
     source_path: Path,
     output_files: list[Path],
+    args: argparse.Namespace,
+    empty_names: list[str],
 ) -> Path:
     manifest_path = root / "assets" / "pets" / pet_id / "manifest.json"
     manifest = read_manifest(manifest_path, pet_id)
+    manifest["slicerVersion"] = SLICER_VERSION
     manifest["updatedAt"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     manifest["sourceSheets"][sheet_type] = relative_posix(source_path, root)
     new_assets = [relative_posix(output_file, root) for output_file in output_files]
@@ -849,6 +1106,14 @@ def write_manifest(
         ] + new_assets
     else:
         manifest["assets"][config.manifest_key] = new_assets
+
+    manifest["history"][sheet_type] = {
+        "updatedAt": manifest["updatedAt"],
+        "sourceHash": compute_sheet_hash(source_path),
+        "options": slicer_options_summary(args),
+        "emptyCells": list(empty_names),
+        "outputs": new_assets,
+    }
 
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     with manifest_path.open("w", encoding="utf-8", newline="\n") as file:
@@ -866,9 +1131,44 @@ def pubspec_warning(root: Path, pet_id: str, config: SheetConfig) -> str | None:
     if expected not in pubspec:
         return (
             f"Warning: {expected} is not listed in pubspec.yaml. "
-            "Add it before using these assets in Flutter."
+            "Add it before using these assets in Flutter, or re-run with --update-pubspec."
         )
     return None
+
+
+def update_pubspec_assets(root: Path, pet_id: str, config: SheetConfig) -> bool:
+    """Insert `assets/pets/[pet_id]/[output_dir]/` under `flutter.assets`. Returns True on change."""
+    pubspec_path = root / "pubspec.yaml"
+    if not pubspec_path.exists():
+        return False
+    text = pubspec_path.read_text(encoding="utf-8")
+    needle = f"assets/pets/{pet_id}/{config.output_dir}/"
+    if needle in text:
+        return False
+    lines = text.splitlines()
+    flutter_index: int | None = None
+    assets_index: int | None = None
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("flutter:") and not line.startswith(" "):
+            flutter_index = index
+        if flutter_index is not None and index > flutter_index:
+            if stripped.startswith("assets:") and line.startswith("  assets:"):
+                assets_index = index
+                break
+            if stripped and not line.startswith(" "):
+                break
+    if assets_index is None:
+        return False
+    insert_at = assets_index + 1
+    while insert_at < len(lines):
+        line = lines[insert_at]
+        if not line.startswith("    -") and line.strip():
+            break
+        insert_at += 1
+    lines.insert(insert_at, f"    - {needle}")
+    pubspec_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return True
 
 
 def run(argv: Iterable[str]) -> int:
@@ -886,14 +1186,19 @@ def run(argv: Iterable[str]) -> int:
     if len(config.names) != config.rows * config.cols:
         raise ValueError(f"Invalid sheet config for {sheet_type}")
 
+    if args.preview is not None:
+        preview_path = resolve_project_path(root, args.preview)
+        write_preview(input_path, config, preview_path)
+        print(f"Wrote preview: {preview_path}")
+        return 0
+
     source_path, sliced_paths = output_paths(root, pet_id, config)
-    manifest_path = root / "assets" / "pets" / pet_id / "manifest.json"
     overwrite_targets = list(sliced_paths)
     if input_path.resolve() != source_path.resolve():
         overwrite_targets.append(source_path)
     fail_if_targets_exist(overwrite_targets, args.overwrite)
 
-    slice_sheet(input_path, sliced_paths, config, args)
+    empty_names = slice_sheet(input_path, sliced_paths, config, args)
     copy_source_sheet(input_path, source_path, args.overwrite)
     manifest_path = write_manifest(
         root=root,
@@ -902,6 +1207,8 @@ def run(argv: Iterable[str]) -> int:
         config=config,
         source_path=source_path,
         output_files=sliced_paths,
+        args=args,
+        empty_names=empty_names,
     )
 
     print(f"Sliced {sheet_type} for {pet_id}:")
@@ -909,6 +1216,23 @@ def run(argv: Iterable[str]) -> int:
         print(f"  {relative_posix(path, root)}")
     print(f"Source: {relative_posix(source_path, root)}")
     print(f"Manifest: {relative_posix(manifest_path, root)}")
+
+    if empty_names:
+        joined = ", ".join(empty_names)
+        print(
+            f"Warning: {len(empty_names)} cell(s) had no detected character "
+            f"and were saved as fully transparent PNGs: {joined}. "
+            "Inspect the source sheet and re-run with adjusted --bg-threshold/--alpha-threshold "
+            "or regenerate the sheet.",
+            file=sys.stderr,
+        )
+
+    if args.update_pubspec:
+        changed = update_pubspec_assets(root, pet_id, config)
+        if changed:
+            print(
+                f"Updated pubspec.yaml: added assets/pets/{pet_id}/{config.output_dir}/"
+            )
     warning = pubspec_warning(root, pet_id, config)
     if warning:
         print(warning, file=sys.stderr)

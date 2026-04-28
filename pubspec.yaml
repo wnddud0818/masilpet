@@ -58,3 +58,7 @@ flutter:
     - assets/pets/red_scarf_dori/emotions/
     - assets/pets/red_scarf_dori/growth/
     - assets/pets/red_scarf_dori/animations/
+    - assets/pets/flower_mint_buddy/actions/
+    - assets/pets/flower_mint_buddy/emotions/
+    - assets/pets/flower_mint_buddy/growth/
+    - assets/pets/flower_mint_buddy/animations/

@@ -14,17 +14,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from PIL import Image
+from PIL import Image, ImageColor, ImageOps
 
 
 PET_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
-DEFAULT_OUTPUT_SIZE = 256
-DEFAULT_FIT_SIZE = 224
-DEFAULT_BOTTOM_PADDING = 16
-DEFAULT_PALETTE_COLORS = 64
-DEFAULT_WHITE_THRESHOLD = 235
-DEFAULT_BLACK_THRESHOLD = 84
-DEFAULT_SNAP_NEUTRAL_TOLERANCE = 24
+DEFAULT_OUTPUT_SIZE = 512
+DEFAULT_FIT_SIZE = 448
+DEFAULT_BOTTOM_PADDING = 32
+DEFAULT_BG_THRESHOLD = 180
+DEFAULT_PALETTE_COLORS = 48
+DEFAULT_WHITE_THRESHOLD = 228
+DEFAULT_BLACK_THRESHOLD = 88
+DEFAULT_SNAP_NEUTRAL_TOLERANCE = 28
+DEFAULT_STRICT_PIXEL_GRID_SIZE = 128
+DEFAULT_STRICT_PALETTE_COLORS = 20
+DEFAULT_STRICT_ALPHA_THRESHOLD = 128
+DEFAULT_STRICT_WHITE_THRESHOLD = 228
+DEFAULT_STRICT_BLACK_THRESHOLD = 88
+DEFAULT_STRICT_SNAP_NEUTRAL_TOLERANCE = 28
+DEFAULT_STRICT_POSTERIZE_BITS = 3
+DEFAULT_OUTLINE_COLOR = "#18181a"
 
 
 @dataclass(frozen=True)
@@ -112,7 +121,38 @@ SHEET_TYPES: dict[str, SheetConfig] = {
 }
 
 
+def argument_was_provided(args: list[str], name: str) -> bool:
+    return any(value == name or value.startswith(f"{name}=") for value in args)
+
+
+def apply_strict_pixel_art_defaults(args: argparse.Namespace, raw_args: list[str]) -> None:
+    if not args.strict_pixel_art:
+        return
+    if not argument_was_provided(raw_args, "--pixel-grid-size"):
+        args.pixel_grid_size = DEFAULT_STRICT_PIXEL_GRID_SIZE
+    if not argument_was_provided(raw_args, "--palette-colors"):
+        args.palette_colors = DEFAULT_STRICT_PALETTE_COLORS
+    if not argument_was_provided(raw_args, "--alpha-threshold"):
+        args.alpha_threshold = DEFAULT_STRICT_ALPHA_THRESHOLD
+    if not argument_was_provided(raw_args, "--resample"):
+        args.resample = "nearest"
+    if not argument_was_provided(raw_args, "--posterize-bits"):
+        args.posterize_bits = DEFAULT_STRICT_POSTERIZE_BITS
+    if (
+        not argument_was_provided(raw_args, "--rebuild-outline")
+        and not argument_was_provided(raw_args, "--no-rebuild-outline")
+    ):
+        args.rebuild_outline = True
+    if not argument_was_provided(raw_args, "--white-threshold"):
+        args.white_threshold = DEFAULT_STRICT_WHITE_THRESHOLD
+    if not argument_was_provided(raw_args, "--black-threshold"):
+        args.black_threshold = DEFAULT_STRICT_BLACK_THRESHOLD
+    if not argument_was_provided(raw_args, "--snap-neutral-tolerance"):
+        args.snap_neutral_tolerance = DEFAULT_STRICT_SNAP_NEUTRAL_TOLERANCE
+
+
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
+    raw_args = list(argv)
     parser = argparse.ArgumentParser(
         description="Slice a generated MasilPet sprite sheet into game-ready PNG assets.",
     )
@@ -148,13 +188,64 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--output-size",
         type=int,
         default=DEFAULT_OUTPUT_SIZE,
-        help="Output canvas size in pixels. Defaults to 256.",
+        help="Output canvas size in pixels. Defaults to 512.",
     )
     parser.add_argument(
         "--fit-size",
         type=int,
         default=DEFAULT_FIT_SIZE,
-        help="Maximum subject size inside the output canvas. Defaults to 224.",
+        help="Maximum subject size inside the output canvas. Defaults to 448.",
+    )
+    parser.add_argument(
+        "--strict-pixel-art",
+        action="store_true",
+        help=(
+            "Normalize on a 128px pixel grid, reduce to a tighter palette, harden alpha, "
+            "then upscale with nearest-neighbor. Explicit options override the shortcut."
+        ),
+    )
+    parser.add_argument(
+        "--pixel-grid-size",
+        type=int,
+        default=0,
+        help=(
+            "Optional low-resolution pixel canvas size before nearest-neighbor upscaling. "
+            "Use 128 for clean 2x upscale pixels, or 64 for chunkier 64px pixel art. "
+            "Defaults to disabled."
+        ),
+    )
+    parser.add_argument(
+        "--posterize-bits",
+        type=int,
+        default=0,
+        help=(
+            "Reduce RGB channel precision before final color snapping. "
+            "Use 3 or 4 for flatter pixel-art colors. Defaults to disabled."
+        ),
+    )
+    parser.set_defaults(rebuild_outline=None)
+    parser.add_argument(
+        "--rebuild-outline",
+        dest="rebuild_outline",
+        action="store_true",
+        help="Draw a hard one-pixel outline around the normalized alpha mask.",
+    )
+    parser.add_argument(
+        "--no-rebuild-outline",
+        dest="rebuild_outline",
+        action="store_false",
+        help="Disable outline rebuild when using --strict-pixel-art.",
+    )
+    parser.add_argument(
+        "--outline-color",
+        default=DEFAULT_OUTLINE_COLOR,
+        help=f"Outline color for --rebuild-outline. Defaults to {DEFAULT_OUTLINE_COLOR}.",
+    )
+    parser.add_argument(
+        "--outline-thickness",
+        type=int,
+        default=1,
+        help="Outline thickness in low-resolution pixels. Defaults to 1.",
     )
     parser.add_argument(
         "--anchor",
@@ -166,7 +257,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--bottom-padding",
         type=int,
         default=DEFAULT_BOTTOM_PADDING,
-        help="Bottom padding in pixels when --anchor feet is active. Defaults to 16.",
+        help="Bottom padding in pixels when --anchor feet is active. Defaults to 32.",
     )
     parser.add_argument(
         "--trim-padding",
@@ -177,8 +268,8 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument(
         "--bg-threshold",
         type=int,
-        default=36,
-        help="RGB distance threshold for detecting edge-connected background. Defaults to 36.",
+        default=DEFAULT_BG_THRESHOLD,
+        help="RGB distance threshold for detecting edge-connected background. Defaults to 180.",
     )
     parser.add_argument(
         "--alpha-threshold",
@@ -190,13 +281,13 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         "--palette-colors",
         type=int,
         default=DEFAULT_PALETTE_COLORS,
-        help="Maximum opaque colors after pixel-art quantization. Defaults to 64.",
+        help="Maximum opaque colors after pixel-art quantization. Defaults to 48.",
     )
     parser.add_argument(
         "--resample",
         choices=("lanczos", "box", "nearest"),
-        default="lanczos",
-        help="Resize filter before palette quantization. Defaults to lanczos.",
+        default="nearest",
+        help="Resize filter before palette quantization. Defaults to nearest.",
     )
     parser.add_argument(
         "--keep-background",
@@ -231,7 +322,11 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         default=DEFAULT_SNAP_NEUTRAL_TOLERANCE,
         help="Maximum RGB channel spread for white/black snapping. Lower keeps colored darks.",
     )
-    return parser.parse_args(list(argv))
+    args = parser.parse_args(raw_args)
+    apply_strict_pixel_art_defaults(args, raw_args)
+    if args.rebuild_outline is None:
+        args.rebuild_outline = False
+    return args
 
 
 def validate_pet_id(pet_id: str) -> None:
@@ -278,8 +373,23 @@ def validate_processing_args(args: argparse.Namespace) -> None:
         raise ValueError("--output-size must be between 16 and 512.")
     if not 1 <= args.fit_size <= args.output_size:
         raise ValueError("--fit-size must be between 1 and --output-size.")
+    if args.pixel_grid_size:
+        if not 16 <= args.pixel_grid_size <= args.output_size:
+            raise ValueError("--pixel-grid-size must be between 16 and --output-size.")
+        if args.output_size % args.pixel_grid_size != 0:
+            raise ValueError("--output-size must be divisible by --pixel-grid-size.")
     if args.bottom_padding < 0:
         raise ValueError("--bottom-padding must be zero or greater.")
+    if not 0 <= args.posterize_bits <= 8:
+        raise ValueError("--posterize-bits must be between 0 and 8.")
+    if args.posterize_bits == 1:
+        raise ValueError("--posterize-bits must be 0 or between 2 and 8.")
+    if args.outline_thickness < 0:
+        raise ValueError("--outline-thickness must be zero or greater.")
+    try:
+        ImageColor.getrgb(args.outline_color)
+    except ValueError as exc:
+        raise ValueError("--outline-color must be a valid Pillow color.") from exc
     if args.trim_padding < 0:
         raise ValueError("--trim-padding must be zero or greater.")
     if args.bg_threshold < 0:
@@ -443,6 +553,14 @@ def resize_to_fit(image: Image.Image, fit_size: int, resample: Image.Resampling)
     return image.resize((target_width, target_height), resample)
 
 
+def scale_dimension(value: int, source_size: int, target_size: int) -> int:
+    return max(1, round(value * target_size / source_size))
+
+
+def scale_padding(value: int, source_size: int, target_size: int) -> int:
+    return max(0, round(value * target_size / source_size))
+
+
 def quantize_pixel_art(
     image: Image.Image,
     palette_colors: int,
@@ -491,6 +609,16 @@ def snap_key_colors(
     return output
 
 
+def posterize_colors(image: Image.Image, bits: int) -> Image.Image:
+    if bits == 0:
+        return image
+    alpha = image.getchannel("A")
+    rgb = ImageOps.posterize(image.convert("RGB"), bits)
+    output = rgb.convert("RGBA")
+    output.putalpha(alpha)
+    return output
+
+
 def trim_transparent(image: Image.Image) -> Image.Image:
     bbox = image.getchannel("A").getbbox()
     if bbox is None:
@@ -520,10 +648,69 @@ def place_on_canvas(
     return canvas
 
 
+def outline_color_rgba(raw: str) -> tuple[int, int, int, int]:
+    red, green, blue = ImageColor.getrgb(raw)
+    return red, green, blue, 255
+
+
+def rebuild_outline(
+    image: Image.Image,
+    color: tuple[int, int, int, int],
+    thickness: int,
+    alpha_threshold: int,
+) -> Image.Image:
+    if thickness == 0:
+        return image
+
+    output = image.copy().convert("RGBA")
+    width, height = output.size
+
+    for _ in range(thickness):
+        alpha = output.getchannel("A")
+        pixels = output.load()
+        outline_pixels: list[tuple[int, int]] = []
+
+        for y in range(height):
+            for x in range(width):
+                if alpha.getpixel((x, y)) > alpha_threshold:
+                    continue
+                for nx, ny in (
+                    (x - 1, y),
+                    (x + 1, y),
+                    (x, y - 1),
+                    (x, y + 1),
+                    (x - 1, y - 1),
+                    (x + 1, y - 1),
+                    (x - 1, y + 1),
+                    (x + 1, y + 1),
+                ):
+                    if 0 <= nx < width and 0 <= ny < height:
+                        if alpha.getpixel((nx, ny)) > alpha_threshold:
+                            outline_pixels.append((x, y))
+                            break
+
+        for x, y in outline_pixels:
+            pixels[x, y] = color
+
+    return output
+
+
 def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namespace) -> Image.Image:
+    normalize_size = args.pixel_grid_size or args.output_size
+    fit_size = (
+        scale_dimension(args.fit_size, args.output_size, normalize_size)
+        if args.pixel_grid_size
+        else args.fit_size
+    )
+    bottom_padding = (
+        scale_padding(args.bottom_padding, args.output_size, normalize_size)
+        if args.pixel_grid_size
+        else args.bottom_padding
+    )
+
     if args.keep_background:
         output = cell.resize(
-            (args.output_size, args.output_size),
+            (normalize_size, normalize_size),
             resampling_filter(args.resample),
         )
         if not args.no_quantize:
@@ -532,6 +719,7 @@ def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namesp
                 args.palette_colors,
                 args.alpha_threshold,
             )
+        output = posterize_colors(output, args.posterize_bits)
         if not args.no_color_snap:
             output = snap_key_colors(
                 output,
@@ -539,6 +727,18 @@ def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namesp
                 args.black_threshold,
                 args.snap_neutral_tolerance,
                 args.alpha_threshold,
+            )
+        if args.rebuild_outline:
+            output = rebuild_outline(
+                output,
+                outline_color_rgba(args.outline_color),
+                args.outline_thickness,
+                args.alpha_threshold,
+            )
+        if args.pixel_grid_size:
+            output = output.resize(
+                (args.output_size, args.output_size),
+                Image.Resampling.NEAREST,
             )
         return output
 
@@ -551,9 +751,10 @@ def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namesp
     if bbox is None:
         return Image.new("RGBA", (args.output_size, args.output_size), (0, 0, 0, 0))
 
-    resized = resize_to_fit(foreground, args.fit_size, resampling_filter(args.resample))
+    resized = resize_to_fit(foreground, fit_size, resampling_filter(args.resample))
     if not args.no_quantize:
         resized = quantize_pixel_art(resized, args.palette_colors, args.alpha_threshold)
+    resized = posterize_colors(resized, args.posterize_bits)
     if not args.no_color_snap:
         resized = snap_key_colors(
             resized,
@@ -563,12 +764,25 @@ def normalize_cell(cell: Image.Image, config: SheetConfig, args: argparse.Namesp
             args.alpha_threshold,
         )
     resized = trim_transparent(resized)
-    return place_on_canvas(
+    output = place_on_canvas(
         resized,
-        args.output_size,
+        normalize_size,
         resolve_anchor(args.anchor, config),
-        args.bottom_padding,
+        bottom_padding,
     )
+    if args.rebuild_outline:
+        output = rebuild_outline(
+            output,
+            outline_color_rgba(args.outline_color),
+            args.outline_thickness,
+            args.alpha_threshold,
+        )
+    if args.pixel_grid_size:
+        output = output.resize(
+            (args.output_size, args.output_size),
+            Image.Resampling.NEAREST,
+        )
+    return output
 
 
 def slice_sheet(

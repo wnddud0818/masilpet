@@ -7,7 +7,7 @@ description: Use when creating MasilPet AI pet assets from a reference image or 
 
 ## Overview
 
-Use this skill to run the full MasilPet asset flow: generate AI sprite-sheet images, store them in the incoming folder, slice them into game-ready 256x256 PNG assets, verify the result, and commit/push the repo changes when requested.
+Use this skill to run the full MasilPet asset flow: generate AI sprite-sheet images, store them in the incoming folder, slice them into game-ready 512x512 PNG assets, verify the result, and commit/push the repo changes when requested.
 
 Work from the MasilPet repo root. The expected repo files are:
 
@@ -83,7 +83,7 @@ Only slice sheets that actually exist. Do not fabricate missing generated files.
 
 ## Slice Into App Assets
 
-Run the slicer from the repo root. Defaults are 256x256 output, 224px fit size, 64 colors, hard alpha, background removal, character centering, and white/black key-color cleanup.
+Run the slicer from the repo root. Defaults are 512x512 output, 448px fit size, 48 colors, hard alpha, stronger background removal, character centering, nearest resize, and white/black key-color cleanup.
 
 ```powershell
 $pet = "[pet_id]"
@@ -106,15 +106,22 @@ foreach ($sheet in $sheets) {
 }
 ```
 
-For stronger outline/white cleanup, add:
+For strict pixel-grid cleanup when an AI sheet still looks soft, add:
+
+```powershell
+--strict-pixel-art
+```
+
+For stronger white/black cleanup, add:
 
 ```powershell
 --white-threshold 228 --black-threshold 88 --snap-neutral-tolerance 28
 ```
 
-For direct 128x128 export only when needed:
+For direct 256x256 or 128x128 export only when needed:
 
 ```powershell
+--output-size 256 --fit-size 224 --palette-colors 48 --bottom-padding 16
 --output-size 128 --fit-size 112 --palette-colors 48 --bottom-padding 8
 ```
 
@@ -133,7 +140,7 @@ assets/pets/[pet_id]/manifest.json
 
 Inspect at least one action and one animation output with `view_image` when available. Numeric checks should confirm:
 
-- PNG size is 256x256 unless intentionally overridden.
+- PNG size is 512x512 unless intentionally overridden.
 - Alpha values are hard `{0, 255}`.
 - Character bbox is centered for actions/emotions/growth.
 - Animation frames use a consistent bottom/feet anchor.

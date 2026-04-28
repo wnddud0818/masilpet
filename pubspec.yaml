@@ -54,3 +54,7 @@ flutter:
     - assets/pets/bandana_tanuki/emotions/
     - assets/pets/bandana_tanuki/growth/
     - assets/pets/bandana_tanuki/animations/
+    - assets/pets/red_scarf_dori/actions/
+    - assets/pets/red_scarf_dori/emotions/
+    - assets/pets/red_scarf_dori/growth/
+    - assets/pets/red_scarf_dori/animations/

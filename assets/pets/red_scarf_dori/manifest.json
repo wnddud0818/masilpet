@@ -1,0 +1,59 @@
+{
+  "petId": "red_scarf_dori",
+  "sourceSheets": {
+    "actions": "assets/pets/red_scarf_dori/source/action_poses_sheet.png",
+    "emotions": "assets/pets/red_scarf_dori/source/emotions_sheet.png",
+    "growth": "assets/pets/red_scarf_dori/source/growth_sheet.png",
+    "idle_animation": "assets/pets/red_scarf_dori/source/idle_animation_sheet.png",
+    "walk_animation": "assets/pets/red_scarf_dori/source/walk_animation_sheet.png",
+    "sleep_animation": "assets/pets/red_scarf_dori/source/sleep_animation_sheet.png",
+    "eat_animation": "assets/pets/red_scarf_dori/source/eat_animation_sheet.png",
+    "greet_animation": "assets/pets/red_scarf_dori/source/greet_animation_sheet.png"
+  },
+  "assets": {
+    "actions": [
+      "assets/pets/red_scarf_dori/actions/idle.png",
+      "assets/pets/red_scarf_dori/actions/walking.png",
+      "assets/pets/red_scarf_dori/actions/jumping.png",
+      "assets/pets/red_scarf_dori/actions/eating.png",
+      "assets/pets/red_scarf_dori/actions/sleeping.png",
+      "assets/pets/red_scarf_dori/actions/greeting.png"
+    ],
+    "emotions": [
+      "assets/pets/red_scarf_dori/emotions/neutral.png",
+      "assets/pets/red_scarf_dori/emotions/happy.png",
+      "assets/pets/red_scarf_dori/emotions/excited.png",
+      "assets/pets/red_scarf_dori/emotions/sad.png",
+      "assets/pets/red_scarf_dori/emotions/surprised.png",
+      "assets/pets/red_scarf_dori/emotions/sleepy.png"
+    ],
+    "growth": [
+      "assets/pets/red_scarf_dori/growth/baby.png",
+      "assets/pets/red_scarf_dori/growth/grown.png",
+      "assets/pets/red_scarf_dori/growth/evolved.png"
+    ],
+    "animations": [
+      "assets/pets/red_scarf_dori/animations/idle_01.png",
+      "assets/pets/red_scarf_dori/animations/idle_02.png",
+      "assets/pets/red_scarf_dori/animations/idle_03.png",
+      "assets/pets/red_scarf_dori/animations/idle_04.png",
+      "assets/pets/red_scarf_dori/animations/walk_01.png",
+      "assets/pets/red_scarf_dori/animations/walk_02.png",
+      "assets/pets/red_scarf_dori/animations/walk_03.png",
+      "assets/pets/red_scarf_dori/animations/walk_04.png",
+      "assets/pets/red_scarf_dori/animations/sleep_01.png",
+      "assets/pets/red_scarf_dori/animations/sleep_02.png",
+      "assets/pets/red_scarf_dori/animations/sleep_03.png",
+      "assets/pets/red_scarf_dori/animations/sleep_04.png",
+      "assets/pets/red_scarf_dori/animations/eat_01.png",
+      "assets/pets/red_scarf_dori/animations/eat_02.png",
+      "assets/pets/red_scarf_dori/animations/eat_03.png",
+      "assets/pets/red_scarf_dori/animations/eat_04.png",
+      "assets/pets/red_scarf_dori/animations/greet_01.png",
+      "assets/pets/red_scarf_dori/animations/greet_02.png",
+      "assets/pets/red_scarf_dori/animations/greet_03.png",
+      "assets/pets/red_scarf_dori/animations/greet_04.png"
+    ]
+  },
+  "updatedAt": "2026-04-28T00:16:27+00:00"
+}

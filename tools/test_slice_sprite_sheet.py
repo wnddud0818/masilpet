@@ -176,8 +176,24 @@ def alpha_values(path: Path) -> set[int]:
         return set(data)
 
 
+def matches_pixel_grid(path: Path, grid_size: int) -> bool:
+    with Image.open(path).convert("RGBA") as image:
+        if image.width != image.height or image.width % grid_size != 0:
+            return False
+        scale = image.width // grid_size
+        pixels = image.load()
+        for y in range(0, image.height, scale):
+            for x in range(0, image.width, scale):
+                color = pixels[x, y]
+                for dy in range(scale):
+                    for dx in range(scale):
+                        if pixels[x + dx, y + dy] != color:
+                            return False
+    return True
+
+
 class SliceSpriteSheetTest(unittest.TestCase):
-    def test_slices_action_sheet_to_named_default_256px_assets(self) -> None:
+    def test_slices_action_sheet_to_named_default_512px_assets(self) -> None:
         with temporary_project() as tmp:
             root = Path(tmp)
             input_path = root / "action_poses_sheet.png"
@@ -202,7 +218,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
                 output = root / "assets" / "pets" / "roof_mascot" / "actions" / f"{name}.png"
                 self.assertTrue(output.exists(), output)
                 with Image.open(output) as image:
-                    self.assertEqual(image.size, (256, 256))
+                    self.assertEqual(image.size, (512, 512))
 
             manifest = json.loads(
                 (root / "assets" / "pets" / "roof_mascot" / "manifest.json").read_text(
@@ -331,8 +347,8 @@ class SliceSpriteSheetTest(unittest.TestCase):
                 with Image.open(output).convert("RGBA") as image:
                     self.assertEqual(image.getpixel((0, 0))[3], 0)
                 left, top, right, bottom = alpha_bbox(output)
-                self.assertLessEqual(abs(left - (256 - right)), 1, output.name)
-                self.assertLessEqual(max(right - left, bottom - top), 224, output.name)
+                self.assertLessEqual(abs(left - (512 - right)), 1, output.name)
+                self.assertLessEqual(max(right - left, bottom - top), 448, output.name)
 
     def test_animation_frames_use_feet_anchor(self) -> None:
         with temporary_project() as tmp:
@@ -356,8 +372,8 @@ class SliceSpriteSheetTest(unittest.TestCase):
             animations_dir = root / "assets" / "pets" / "roof_mascot" / "animations"
             for output in sorted(animations_dir.glob("idle_*.png")):
                 left, top, right, bottom = alpha_bbox(output)
-                self.assertEqual(256 - bottom, 16, output.name)
-                self.assertLessEqual(abs(left - (256 - right)), 1, output.name)
+                self.assertEqual(512 - bottom, 32, output.name)
+                self.assertLessEqual(abs(left - (512 - right)), 1, output.name)
 
     def test_quantizes_colors_and_hardens_alpha(self) -> None:
         with temporary_project() as tmp:
@@ -379,8 +395,57 @@ class SliceSpriteSheetTest(unittest.TestCase):
             )
 
             output = root / "assets" / "pets" / "roof_mascot" / "emotions" / "neutral.png"
-            self.assertLessEqual(opaque_color_count(output), 64)
+            self.assertLessEqual(opaque_color_count(output), 48)
             self.assertLessEqual(alpha_values(output), {0, 255})
+
+    def test_strict_pixel_art_rebuilds_on_128px_grid(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_gradient_subject_sheet(input_path, rows=2, cols=3, cell_size=120)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--strict-pixel-art",
+                ]
+            )
+
+            output = root / "assets" / "pets" / "roof_mascot" / "emotions" / "neutral.png"
+            with Image.open(output) as image:
+                self.assertEqual(image.size, (512, 512))
+            self.assertTrue(matches_pixel_grid(output, 128))
+            self.assertLessEqual(opaque_color_count(output), 20)
+            self.assertLessEqual(alpha_values(output), {0, 255})
+
+    def test_pixel_grid_size_must_evenly_scale_output(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_gradient_subject_sheet(input_path, rows=2, cols=3)
+
+            with self.assertRaises(ValueError):
+                slice_sprite_sheet.run(
+                    [
+                        "--pet-id",
+                        "roof_mascot",
+                        "--sheet-type",
+                        "emotions",
+                        "--input",
+                        str(input_path),
+                        "--root",
+                        str(root),
+                        "--pixel-grid-size",
+                        "48",
+                    ]
+                )
 
     def test_supports_smaller_output_size_when_explicitly_requested(self) -> None:
         with temporary_project() as tmp:
@@ -444,9 +509,9 @@ class SliceSpriteSheetTest(unittest.TestCase):
             for red, green, blue in colors:
                 channel_min = min(red, green, blue)
                 channel_max = max(red, green, blue)
-                if channel_max - channel_min <= 24 and channel_min >= 235:
+                if channel_max - channel_min <= 28 and channel_min >= 228:
                     self.assertEqual((red, green, blue), (255, 255, 255))
-                if channel_max - channel_min <= 24 and channel_max <= 84:
+                if channel_max - channel_min <= 28 and channel_max <= 88:
                     self.assertEqual((red, green, blue), (0, 0, 0))
 
 

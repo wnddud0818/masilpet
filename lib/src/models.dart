@@ -77,6 +77,15 @@ enum EggStatus {
   hatched,
 }
 
+enum PetFieldActivity {
+  idle,
+  walking,
+  eating,
+  greeting,
+  jumping,
+  sleeping,
+}
+
 class Coordinates {
   const Coordinates({
     required this.latitude,

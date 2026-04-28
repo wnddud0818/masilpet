@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
 import '../state.dart';
+import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
 
@@ -33,6 +34,16 @@ class MapScreen extends ConsumerWidget {
           sliver: ResponsiveSliverList(
             children: [
               const StatusBanner(),
+              const SizedBox(height: 12),
+              PetPlayField(
+                templates: state.templates,
+                pets: state.pets,
+                eggs: state.eggs,
+                activePetId: state.activePetId,
+                activity: state.fieldActivity,
+                activityNonce: state.fieldActivityNonce,
+                height: 220,
+              ),
               const SizedBox(height: 12),
               _MapPreview(state: state),
               const SizedBox(height: 16),
@@ -126,7 +137,8 @@ class _PoiTile extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.secondaryContainer,
                     borderRadius: BorderRadius.circular(8),
@@ -156,9 +168,12 @@ class _PoiTile extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: canCheckIn ? () => controller.attemptCheckIn(poi) : null,
-                icon: Icon(canCheckIn ? Icons.check_circle : Icons.near_me_disabled),
-                label: Text(distance <= checkInRadiusMeters ? '체크인' : '150m 안에서 가능'),
+                onPressed:
+                    canCheckIn ? () => controller.attemptCheckIn(poi) : null,
+                icon: Icon(
+                    canCheckIn ? Icons.check_circle : Icons.near_me_disabled),
+                label: Text(
+                    distance <= checkInRadiusMeters ? '체크인' : '150m 안에서 가능'),
               ),
             ),
           ],

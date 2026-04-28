@@ -12,4 +12,9 @@ class PetAssets {
   static String action(String petKey, String action) {
     return 'assets/pets/$petKey/actions/$action.png';
   }
+
+  static String animation(String petKey, String action, int frame) {
+    final frameName = frame.toString().padLeft(2, '0');
+    return 'assets/pets/$petKey/animations/${action}_$frameName.png';
+  }
 }

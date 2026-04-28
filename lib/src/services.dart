@@ -71,7 +71,7 @@ class GrowthEngine {
       return egg;
     }
 
-    final nextProgress = egg.progress + math.max(0, stepDelta);
+    final nextProgress = egg.progress + (stepDelta < 0 ? 0 : stepDelta);
     if (nextProgress >= egg.requiredSteps) {
       return egg.copyWith(
         progress: egg.requiredSteps,

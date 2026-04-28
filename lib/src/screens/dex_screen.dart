@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/responsive_sliver_list.dart';
@@ -41,12 +42,16 @@ class DexScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 template.name,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
                                       fontWeight: FontWeight.w800,
                                     ),
                               ),
                               const SizedBox(height: 4),
-                              Text('${template.primaryCategory.label} · ${template.rarity}'),
+                              Text(
+                                  '${template.primaryCategory.label} · ${template.rarity}'),
                               const SizedBox(height: 6),
                               Text(template.basePersonality),
                             ],
@@ -69,7 +74,8 @@ class DexScreen extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.place_outlined),
                   title: Text(poi.title),
-                  subtitle: Text('${poi.category.label} · ${poi.category.tourApiHint}'),
+                  subtitle: Text(
+                      '${poi.category.label} · ${poi.category.tourApiHint}'),
                 ),
             ],
           ),

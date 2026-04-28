@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'firebase_options.dart';
 import 'src/data/firestore_bootstrap.dart';
 import 'src/app.dart';
 import 'src/state.dart';
@@ -13,7 +14,9 @@ Future<void> main() async {
 
   var firebaseReady = false;
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     if (FirebaseAuth.instance.currentUser == null) {
       await FirebaseAuth.instance.signInAnonymously();
     }

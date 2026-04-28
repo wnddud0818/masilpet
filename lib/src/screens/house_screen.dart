@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
+import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
 
@@ -23,6 +24,16 @@ class HouseScreen extends ConsumerWidget {
           sliver: ResponsiveSliverList(
             children: [
               const StatusBanner(),
+              const SizedBox(height: 16),
+              PetPlayField(
+                templates: state.templates,
+                pets: state.pets,
+                eggs: state.eggs,
+                activePetId: state.activePetId,
+                activity: state.fieldActivity,
+                activityNonce: state.fieldActivityNonce,
+                height: 220,
+              ),
               const SizedBox(height: 16),
               Text(
                 '보유 마실펫',
@@ -48,7 +59,9 @@ class HouseScreen extends ConsumerWidget {
                         ),
                   ),
                   OutlinedButton.icon(
-                    onPressed: state.isBusy ? null : () => controller.addStepProgress(500),
+                    onPressed: state.isBusy
+                        ? null
+                        : () => controller.addStepProgress(500),
                     icon: const Icon(Icons.directions_walk),
                     label: const Text('500걸음 반영'),
                   ),
@@ -144,7 +157,8 @@ class _EggTile extends ConsumerWidget {
                   ),
                 ),
                 FilledButton(
-                  onPressed: hatchable ? () => controller.hatchEgg(egg.id) : null,
+                  onPressed:
+                      hatchable ? () => controller.hatchEgg(egg.id) : null,
                   child: const Text('부화'),
                 ),
               ],

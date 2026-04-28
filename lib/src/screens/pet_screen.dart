@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
+import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/stat_bar.dart';
 import '../widgets/status_banner.dart';
@@ -25,6 +27,15 @@ class PetScreen extends ConsumerWidget {
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
+              PetPlayField(
+                templates: state.templates,
+                pets: state.pets,
+                eggs: state.eggs,
+                activePetId: state.activePetId,
+                activity: state.fieldActivity,
+                activityNonce: state.fieldActivityNonce,
+              ),
+              const SizedBox(height: 12),
               if (pet == null)
                 const Card(
                   child: Padding(
@@ -39,7 +50,8 @@ class PetScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: state.isBusy ? null : controller.talkWithActivePet,
+                      onPressed:
+                          state.isBusy ? null : controller.talkWithActivePet,
                       icon: const Icon(Icons.forum_outlined),
                       label: const Text('대화'),
                     ),
@@ -90,12 +102,14 @@ class _ActivePetPanel extends ConsumerWidget {
                     children: [
                       Text(
                         pet.name,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                       ),
                       const SizedBox(height: 4),
-                      Text('Lv.${pet.level} · ${pet.stage.label} 단계 · ${template.rarity}'),
+                      Text(
+                          'Lv.${pet.level} · ${pet.stage.label} 단계 · ${template.rarity}'),
                       const SizedBox(height: 8),
                       Text(template.basePersonality),
                     ],

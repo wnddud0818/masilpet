@@ -12,8 +12,10 @@ final masilPetControllerProvider =
     StateNotifierProvider<MasilPetController, MasilPetState>((ref) {
   return MasilPetController(
     firebaseReady: ref.watch(firebaseReadyProvider),
-    backend: ref.watch(firebaseReadyProvider) ? FirebaseMasilPetBackend() : null,
-    userRepository: ref.watch(firebaseReadyProvider) ? FirestoreUserRepository() : null,
+    backend:
+        ref.watch(firebaseReadyProvider) ? FirebaseMasilPetBackend() : null,
+    userRepository:
+        ref.watch(firebaseReadyProvider) ? FirestoreUserRepository() : null,
     locationService: const DeviceLocationService(),
   );
 });
@@ -32,6 +34,8 @@ class MasilPetState {
     required this.activePetId,
     required this.selectedTab,
     required this.statusMessage,
+    required this.fieldActivity,
+    required this.fieldActivityNonce,
     required this.lastVisitedCategory,
     required this.dialogueCountToday,
     required this.dialogueDay,
@@ -54,7 +58,8 @@ class MasilPetState {
           name: starterTemplate.name,
           stage: PetStage.baby,
           level: 1,
-          stats: const GrowthStats(exp: 20, mood: 20, knowledge: 5, affinity: 8),
+          stats:
+              const GrowthStats(exp: 20, mood: 20, knowledge: 5, affinity: 8),
           originRegionId: starterTemplate.regionId,
           hatchedAt: now,
           lastInteractedAt: null,
@@ -75,7 +80,10 @@ class MasilPetState {
       currentLocation: busanPoiSeed.first.coordinates,
       activePetId: 'pet-starter-wave-naru',
       selectedTab: 0,
-      statusMessage: firebaseReady ? 'Firebase 연결 준비 완료' : 'Firebase 미설정: 데모 모드로 시작합니다.',
+      statusMessage:
+          firebaseReady ? 'Firebase 연결 준비 완료' : 'Firebase 미설정: 데모 모드로 시작합니다.',
+      fieldActivity: PetFieldActivity.idle,
+      fieldActivityNonce: 0,
       lastVisitedCategory: null,
       dialogueCountToday: 0,
       dialogueDay: now,
@@ -95,6 +103,8 @@ class MasilPetState {
   final String activePetId;
   final int selectedTab;
   final String statusMessage;
+  final PetFieldActivity fieldActivity;
+  final int fieldActivityNonce;
   final PoiCategory? lastVisitedCategory;
   final int dialogueCountToday;
   final DateTime dialogueDay;
@@ -121,7 +131,9 @@ class MasilPetState {
 
   int get todayCheckInCount {
     final now = DateTime.now();
-    return checkIns.where((checkIn) => isSameLocalDay(checkIn.createdAt, now)).length;
+    return checkIns
+        .where((checkIn) => isSameLocalDay(checkIn.createdAt, now))
+        .length;
   }
 
   MasilPetState copyWith({
@@ -137,6 +149,8 @@ class MasilPetState {
     String? activePetId,
     int? selectedTab,
     String? statusMessage,
+    PetFieldActivity? fieldActivity,
+    bool bumpFieldActivity = false,
     PoiCategory? lastVisitedCategory,
     bool clearLastVisitedCategory = false,
     int? dialogueCountToday,
@@ -156,8 +170,12 @@ class MasilPetState {
       activePetId: activePetId ?? this.activePetId,
       selectedTab: selectedTab ?? this.selectedTab,
       statusMessage: statusMessage ?? this.statusMessage,
-      lastVisitedCategory:
-          clearLastVisitedCategory ? null : lastVisitedCategory ?? this.lastVisitedCategory,
+      fieldActivity: fieldActivity ?? this.fieldActivity,
+      fieldActivityNonce:
+          bumpFieldActivity ? fieldActivityNonce + 1 : fieldActivityNonce,
+      lastVisitedCategory: clearLastVisitedCategory
+          ? null
+          : lastVisitedCategory ?? this.lastVisitedCategory,
       dialogueCountToday: dialogueCountToday ?? this.dialogueCountToday,
       dialogueDay: dialogueDay ?? this.dialogueDay,
       isBusy: isBusy ?? this.isBusy,
@@ -186,6 +204,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     state = state.copyWith(
       onboardingComplete: true,
       statusMessage: '마실펫 탐험을 시작합니다.',
+      fieldActivity: PetFieldActivity.walking,
+      bumpFieldActivity: true,
     );
   }
 
@@ -204,17 +224,26 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     state = state.copyWith(
       currentLocation: busanPoiSeed.first.coordinates,
       statusMessage: '현재 위치를 해운대 데모 지점으로 설정했습니다.',
+      fieldActivity: PetFieldActivity.walking,
+      bumpFieldActivity: true,
     );
   }
 
   Future<void> useDeviceLocation() async {
-    state = state.copyWith(isBusy: true, statusMessage: '현재 위치를 확인하는 중입니다.');
+    state = state.copyWith(
+      isBusy: true,
+      statusMessage: '현재 위치를 확인하는 중입니다.',
+      fieldActivity: PetFieldActivity.walking,
+      bumpFieldActivity: true,
+    );
     try {
       final location = await _locationService.readCurrentLocation();
       state = state.copyWith(
         currentLocation: location,
         isBusy: false,
         statusMessage: '현재 위치를 반영했습니다.',
+        fieldActivity: PetFieldActivity.walking,
+        bumpFieldActivity: true,
       );
     } on LocationUnavailableException catch (error) {
       state = state.copyWith(isBusy: false, statusMessage: error.message);
@@ -230,7 +259,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       return;
     }
 
-    state = state.copyWith(isBusy: true, statusMessage: '마실펫 첫 지역 서버 데이터를 준비하는 중입니다.');
+    state = state.copyWith(
+        isBusy: true, statusMessage: '마실펫 첫 지역 서버 데이터를 준비하는 중입니다.');
     try {
       await backend.seedStarterRegionData();
       await backend.ensureUserBootstrap();
@@ -250,11 +280,13 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   Future<void> ensureRemoteUserBootstrap() async {
     final backend = _backend;
     if (backend == null) {
-      state = state.copyWith(statusMessage: 'Firebase 설정 후 서버 사용자 초기화를 호출할 수 있습니다.');
+      state = state.copyWith(
+          statusMessage: 'Firebase 설정 후 서버 사용자 초기화를 호출할 수 있습니다.');
       return;
     }
 
-    state = state.copyWith(isBusy: true, statusMessage: '서버 사용자 데이터를 확인하는 중입니다.');
+    state =
+        state.copyWith(isBusy: true, statusMessage: '서버 사용자 데이터를 확인하는 중입니다.');
     try {
       await backend.ensureUserBootstrap();
       await refreshRemoteProgress(silent: true);
@@ -274,7 +306,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final repository = _userRepository;
     if (repository == null) {
       if (!silent) {
-        state = state.copyWith(statusMessage: 'Firebase 설정 후 서버 진행도를 불러올 수 있습니다.');
+        state =
+            state.copyWith(statusMessage: 'Firebase 설정 후 서버 진행도를 불러올 수 있습니다.');
       }
       return;
     }
@@ -297,7 +330,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         pets: progress.pets.isEmpty ? state.pets : progress.pets,
         eggs: progress.eggs,
         checkIns: progress.checkIns,
-        activePetId: progress.activePetId.isEmpty ? state.activePetId : progress.activePetId,
+        activePetId: progress.activePetId.isEmpty
+            ? state.activePetId
+            : progress.activePetId,
         isBusy: false,
         statusMessage: silent ? state.statusMessage : '서버 진행도를 불러왔습니다.',
       );
@@ -315,13 +350,17 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     if (distance > checkInRadiusMeters) {
       state = state.copyWith(
-        statusMessage: '${poi.title}까지 ${distance.round()}m 떨어져 있습니다. 150m 안에서 체크인할 수 있습니다.',
+        statusMessage:
+            '${poi.title}까지 ${distance.round()}m 떨어져 있습니다. 150m 안에서 체크인할 수 있습니다.',
+        fieldActivity: PetFieldActivity.walking,
+        bumpFieldActivity: true,
       );
       return;
     }
 
     final alreadyCheckedIn = state.checkIns.any(
-      (checkIn) => checkIn.poiId == poi.id && isSameLocalDay(checkIn.createdAt, now),
+      (checkIn) =>
+          checkIn.poiId == poi.id && isSameLocalDay(checkIn.createdAt, now),
     );
     if (alreadyCheckedIn) {
       state = state.copyWith(statusMessage: '오늘은 이미 ${poi.title}에 체크인했습니다.');
@@ -330,7 +369,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     final backend = _backend;
     if (backend != null) {
-      state = state.copyWith(isBusy: true, statusMessage: '${poi.title} 서버 체크인을 확인하는 중입니다.');
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${poi.title} 서버 체크인을 확인하는 중입니다.',
+        fieldActivity: PetFieldActivity.walking,
+        bumpFieldActivity: true,
+      );
       try {
         final result = await backend.attemptCheckIn(
           poiId: poi.id,
@@ -394,14 +438,22 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       checkIns: [checkIn, ...state.checkIns],
       lastVisitedCategory: poi.category,
       isBusy: false,
-      statusMessage: '$messagePrefix: EXP +${rewardStats.exp}, ${poi.category.label} 보상 적용',
+      statusMessage:
+          '$messagePrefix: EXP +${rewardStats.exp}, ${poi.category.label} 보상 적용',
+      fieldActivity: PetFieldActivity.jumping,
+      bumpFieldActivity: true,
     );
   }
 
   Future<void> addStepProgress(int stepDelta) async {
     final backend = _backend;
     if (backend != null) {
-      state = state.copyWith(isBusy: true, statusMessage: '$stepDelta 걸음을 서버에 반영하는 중입니다.');
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '$stepDelta 걸음을 서버에 반영하는 중입니다.',
+        fieldActivity: PetFieldActivity.walking,
+        bumpFieldActivity: true,
+      );
       try {
         await backend.applyStepProgress(stepDelta);
       } on Object {
@@ -413,13 +465,19 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       }
     }
 
-    final eggs = state.eggs.map((egg) => _growthEngine.progressEgg(egg, stepDelta)).toList();
-    final hatchableCount = eggs.where((egg) => egg.status == EggStatus.hatchable).length;
+    final eggs = state.eggs
+        .map((egg) => _growthEngine.progressEgg(egg, stepDelta))
+        .toList();
+    final hatchableCount =
+        eggs.where((egg) => egg.status == EggStatus.hatchable).length;
     state = state.copyWith(
       eggs: eggs,
       isBusy: false,
-      statusMessage:
-          hatchableCount > 0 ? '부화 가능한 알이 있습니다.' : '알 부화 진행도에 $stepDelta 걸음을 반영했습니다.',
+      statusMessage: hatchableCount > 0
+          ? '부화 가능한 알이 있습니다.'
+          : '알 부화 진행도에 $stepDelta 걸음을 반영했습니다.',
+      fieldActivity: PetFieldActivity.walking,
+      bumpFieldActivity: true,
     );
   }
 
@@ -436,7 +494,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     var petId = 'pet-${template.id}-${now.microsecondsSinceEpoch}';
 
     if (backend != null) {
-      state = state.copyWith(isBusy: true, statusMessage: '${template.name}의 알을 서버에서 부화하는 중입니다.');
+      state = state.copyWith(
+          isBusy: true, statusMessage: '${template.name}의 알을 서버에서 부화하는 중입니다.');
       try {
         petId = await backend.hatchEgg(eggId);
       } on Object {
@@ -466,12 +525,15 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       activePetId: pet.id,
       isBusy: false,
       statusMessage: '${template.name}이 부화했습니다.',
+      fieldActivity: PetFieldActivity.jumping,
+      bumpFieldActivity: true,
     );
   }
 
   Future<void> talkWithActivePet() async {
     final now = DateTime.now();
-    final resetCount = isSameLocalDay(state.dialogueDay, now) ? state.dialogueCountToday : 0;
+    final resetCount =
+        isSameLocalDay(state.dialogueDay, now) ? state.dialogueCountToday : 0;
     if (resetCount >= 5) {
       state = state.copyWith(
         dialogueCountToday: resetCount,
@@ -496,7 +558,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final backend = _backend;
 
     if (backend != null) {
-      state = state.copyWith(isBusy: true, statusMessage: '${activePet.name}과의 대화를 서버에 반영하는 중입니다.');
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${activePet.name}과의 대화를 서버에 반영하는 중입니다.',
+        fieldActivity: PetFieldActivity.greeting,
+        bumpFieldActivity: true,
+      );
       try {
         await backend.interactWithPet(petId: activePet.id, actionType: 'talk');
       } on Object {
@@ -528,6 +595,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       dialogueDay: now,
       isBusy: false,
       statusMessage: line.text,
+      fieldActivity: PetFieldActivity.greeting,
+      bumpFieldActivity: true,
     );
   }
 
@@ -543,7 +612,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final backend = _backend;
 
     if (backend != null) {
-      state = state.copyWith(isBusy: true, statusMessage: '${activePet.name} 먹이주기를 서버에 반영하는 중입니다.');
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${activePet.name} 먹이주기를 서버에 반영하는 중입니다.',
+        fieldActivity: PetFieldActivity.eating,
+        bumpFieldActivity: true,
+      );
       try {
         await backend.interactWithPet(petId: activePet.id, actionType: 'feed');
       } on Object {
@@ -572,6 +646,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       pets: _replacePet(updated),
       isBusy: false,
       statusMessage: '${activePet.name}의 기분이 좋아졌습니다.',
+      fieldActivity: PetFieldActivity.eating,
+      bumpFieldActivity: true,
     );
   }
 
@@ -604,17 +680,21 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   }
 
   List<Pet> _replacePet(Pet updated) {
-    return state.pets.map((pet) => pet.id == updated.id ? updated : pet).toList();
+    return state.pets
+        .map((pet) => pet.id == updated.id ? updated : pet)
+        .toList();
   }
 
   List<Egg> _maybeDropEgg(List<Egg> currentEggs, Poi poi, DateTime now) {
-    final hasOpenEgg = currentEggs.any((egg) => egg.status != EggStatus.hatched);
+    final hasOpenEgg =
+        currentEggs.any((egg) => egg.status != EggStatus.hatched);
     if (hasOpenEgg) {
       return currentEggs;
     }
 
     final firstCheckInToday = state.todayCheckInCount == 0;
-    final rareCategory = poi.category == PoiCategory.history || poi.category == PoiCategory.festival;
+    final rareCategory = poi.category == PoiCategory.history ||
+        poi.category == PoiCategory.festival;
     if (!firstCheckInToday && !rareCategory) {
       return currentEggs;
     }

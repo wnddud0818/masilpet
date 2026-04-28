@@ -195,7 +195,7 @@ const busanPetTemplateSeed = [
     basePersonality: '바다 산책을 좋아하고 새로운 길을 먼저 살핀다.',
     colorValue: 0x0ea5e9,
     initials: 'PN',
-    assetKey: 'wave_naru',
+    assetKey: 'red_scarf_dori',
   },
   {
     id: 'harbor-maru',
@@ -206,7 +206,7 @@ const busanPetTemplateSeed = [
     basePersonality: '시장과 골목의 소리에 민감하고 먹거리 이야기에 밝다.',
     colorValue: 0xf97316,
     initials: 'HM',
-    assetKey: 'harbor_maru',
+    assetKey: 'bandana_tanuki',
   },
   {
     id: 'film-bori',
@@ -217,7 +217,7 @@ const busanPetTemplateSeed = [
     basePersonality: '장면과 대사를 기억하며 문화 공간에서 활발해진다.',
     colorValue: 0x7c3aed,
     initials: 'FB',
-    assetKey: 'film_bori',
+    assetKey: 'wink_yellow_pup',
   },
   {
     id: 'spring-dami',
@@ -228,7 +228,7 @@ const busanPetTemplateSeed = [
     basePersonality: '차분하고 회복을 좋아하며 긴 산책 뒤에 힘을 낸다.',
     colorValue: 0x14b8a6,
     initials: 'OD',
-    assetKey: 'spring_dami',
+    assetKey: 'flower_mint_buddy',
   },
   {
     id: 'story-goun',
@@ -239,7 +239,7 @@ const busanPetTemplateSeed = [
     basePersonality: '오래된 장소의 이름과 이야기를 차근차근 알려준다.',
     colorValue: 0x8b5cf6,
     initials: 'SG',
-    assetKey: 'story_goun',
+    assetKey: 'autumn_leaf_sprite',
   },
 ];
 

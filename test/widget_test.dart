@@ -502,7 +502,14 @@ void main() {
 
   testWidgets('dex screen marks undiscovered pets as exploration goals',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(3);
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -513,9 +520,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
           ),
         ],
         child: const MaterialApp(home: Scaffold(body: DexScreen())),
@@ -525,6 +531,12 @@ void main() {
 
     expect(find.text('탐험 필요'), findsWidgets);
     expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'));
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
   });
 

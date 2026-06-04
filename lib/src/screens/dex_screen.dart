@@ -160,15 +160,17 @@ class _PoiMappingCard extends StatelessWidget {
   }
 }
 
-class _DexProgressCard extends StatelessWidget {
+class _DexProgressCard extends ConsumerWidget {
   const _DexProgressCard({required this.state});
 
   final MasilPetState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
     final discovered = state.discoveredTemplateIds.length;
     final total = state.templates.length;
+    final hasUndiscovered = discovered < total;
 
     return Card(
       child: Padding(
@@ -213,6 +215,17 @@ class _DexProgressCard extends StatelessWidget {
               '지역별 체크인과 부화를 통해 부산 마실펫을 수집합니다.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            if (hasUndiscovered) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => controller.setTab(0),
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('지도에서 탐험하기'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

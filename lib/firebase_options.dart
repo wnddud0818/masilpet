@@ -5,6 +5,17 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   const DefaultFirebaseOptions._();
 
+  static const _webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
+  static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
+  static const _webMessagingSenderId =
+      String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+
+  static bool get hasRequiredWebConfiguration {
+    return _webApiKey.isNotEmpty &&
+        _webAppId.isNotEmpty &&
+        _webMessagingSenderId.isNotEmpty;
+  }
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -26,9 +37,9 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: String.fromEnvironment('FIREBASE_WEB_API_KEY'),
-    appId: String.fromEnvironment('FIREBASE_WEB_APP_ID'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
+    apiKey: _webApiKey,
+    appId: _webAppId,
+    messagingSenderId: _webMessagingSenderId,
     projectId: 'masilpet-6ff8d',
     authDomain: String.fromEnvironment(
       'FIREBASE_AUTH_DOMAIN',

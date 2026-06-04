@@ -11,7 +11,7 @@ const busanRegion = Region(
 const busanPoiSeed = <Poi>[
   Poi(
     id: 'busan-haeundae-beach',
-    tourApiContentId: 'demo-001',
+    tourApiContentId: 'seed-001',
     title: '해운대 해수욕장',
     regionId: 'busan',
     category: PoiCategory.nature,
@@ -20,7 +20,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-gwangalli',
-    tourApiContentId: 'demo-002',
+    tourApiContentId: 'seed-002',
     title: '광안리 해변',
     regionId: 'busan',
     category: PoiCategory.nature,
@@ -29,7 +29,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-gamcheon',
-    tourApiContentId: 'demo-003',
+    tourApiContentId: 'seed-003',
     title: '감천문화마을',
     regionId: 'busan',
     category: PoiCategory.culture,
@@ -38,7 +38,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-biff',
-    tourApiContentId: 'demo-004',
+    tourApiContentId: 'seed-004',
     title: 'BIFF 광장',
     regionId: 'busan',
     category: PoiCategory.culture,
@@ -47,7 +47,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-jagalchi',
-    tourApiContentId: 'demo-005',
+    tourApiContentId: 'seed-005',
     title: '자갈치시장',
     regionId: 'busan',
     category: PoiCategory.food,
@@ -56,7 +56,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-gukje-market',
-    tourApiContentId: 'demo-006',
+    tourApiContentId: 'seed-006',
     title: '국제시장',
     regionId: 'busan',
     category: PoiCategory.shopping,
@@ -65,7 +65,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-beomeosa',
-    tourApiContentId: 'demo-007',
+    tourApiContentId: 'seed-007',
     title: '범어사',
     regionId: 'busan',
     category: PoiCategory.history,
@@ -74,7 +74,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-museum',
-    tourApiContentId: 'demo-008',
+    tourApiContentId: 'seed-008',
     title: '부산박물관',
     regionId: 'busan',
     category: PoiCategory.culture,
@@ -83,7 +83,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-cinema-center',
-    tourApiContentId: 'demo-009',
+    tourApiContentId: 'seed-009',
     title: '영화의전당',
     regionId: 'busan',
     category: PoiCategory.culture,
@@ -92,7 +92,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-fireworks',
-    tourApiContentId: 'demo-010',
+    tourApiContentId: 'seed-010',
     title: '부산불꽃축제',
     regionId: 'busan',
     category: PoiCategory.festival,
@@ -101,7 +101,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-spa-land',
-    tourApiContentId: 'demo-011',
+    tourApiContentId: 'seed-011',
     title: '해운대 온천권',
     regionId: 'busan',
     category: PoiCategory.other,
@@ -110,7 +110,7 @@ const busanPoiSeed = <Poi>[
   ),
   Poi(
     id: 'busan-dongbaek',
-    tourApiContentId: 'demo-012',
+    tourApiContentId: 'seed-012',
     title: '동백섬',
     regionId: 'busan',
     category: PoiCategory.nature,

@@ -5,7 +5,6 @@
 .flutter-plugins-dependencies
 build/
 coverage/
-pubspec.lock
 
 # Firebase
 .firebase/
@@ -14,6 +13,10 @@ firestore-debug.log
 functions/lib/
 functions/node_modules/
 functions/.runtimeconfig.json
+.secrets/
+service-account*.json
+*-firebase-adminsdk-*.json
+google-application-credentials*.json
 
 # Python tooling
 __pycache__/

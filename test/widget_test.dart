@@ -1,15 +1,22 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:masilpet/src/app.dart';
+import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
 
 void main() {
-  testWidgets('MasilPet app starts in demo mode', (WidgetTester tester) async {
+  testWidgets('MasilPet app starts with local progress fallback',
+      (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
         ],
         child: const MasilPetApp(),
       ),
@@ -17,5 +24,79 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MasilPetApp), findsOneWidget);
+    expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
+  });
+
+  testWidgets('profile release diagnostics fit on phone width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('앱 버전'), findsOneWidget);
+    expect(find.text('local-dev'), findsOneWidget);
+    expect(find.text('빌드 채널'), findsOneWidget);
+    expect(find.text('local'), findsOneWidget);
+    expect(find.text('빌드 시각'), findsOneWidget);
+    expect(find.text('local build'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile reset action requires confirmation',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, '진행도 초기화'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('진행도 초기화'), findsWidgets);
+    expect(find.textContaining('되돌릴 수 없습니다'), findsOneWidget);
+    expect(find.text('취소'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '초기화'), findsOneWidget);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('되돌릴 수 없습니다'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 }

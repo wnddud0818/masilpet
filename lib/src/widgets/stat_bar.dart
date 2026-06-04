@@ -24,7 +24,8 @@ class StatBar extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: Theme.of(context).textTheme.labelLarge),
-            Text('$value / $max', style: Theme.of(context).textTheme.labelMedium),
+            Text('$value / $max',
+                style: Theme.of(context).textTheme.labelMedium),
           ],
         ),
         const SizedBox(height: 6),

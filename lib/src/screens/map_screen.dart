@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/link.dart';
 
 import '../models.dart';
+import '../services.dart';
 import '../state.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
+
+final Uri _openStreetMapCopyrightUri =
+    Uri.parse('https://www.openstreetmap.org/copyright');
 
 class MapScreen extends ConsumerWidget {
   const MapScreen({super.key});
@@ -35,6 +42,8 @@ class MapScreen extends ConsumerWidget {
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
+              _ExplorationBriefing(state: state),
+              const SizedBox(height: 12),
               PetPlayField(
                 templates: state.templates,
                 pets: state.pets,
@@ -45,7 +54,7 @@ class MapScreen extends ConsumerWidget {
                 height: 220,
               ),
               const SizedBox(height: 12),
-              _MapPreview(state: state),
+              _LivePoiMap(state: state),
               const SizedBox(height: 16),
               Text(
                 '가까운 POI',
@@ -63,54 +72,351 @@ class MapScreen extends ConsumerWidget {
   }
 }
 
-class _MapPreview extends StatelessWidget {
-  const _MapPreview({required this.state});
+class _ExplorationBriefing extends StatelessWidget {
+  const _ExplorationBriefing({required this.state});
 
   final MasilPetState state;
 
   @override
   Widget build(BuildContext context) {
+    final nearest = state.nearestPoi;
+    final nearestDistance = nearest == null || !state.hasFreshVerifiedLocation
+        ? null
+        : state.currentLocation.distanceTo(nearest.coordinates).round();
+
     return Card(
-      child: Container(
-        height: 180,
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          gradient: const LinearGradient(
-            colors: [Color(0xFFECFEFF), Color(0xFFF0FDF4)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.route_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '오늘의 탐험 현황',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _BriefingMetric(
+                    label: '체크인 가능',
+                    value: '${state.todayAvailableCheckInCount}곳',
+                    icon: Icons.check_circle_outline,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _BriefingMetric(
+                    label: '오늘 체크인',
+                    value: '${state.todayCheckInCount}회',
+                    icon: Icons.flag_outlined,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _BriefingMetric(
+                    label: '가장 가까운 곳',
+                    value:
+                        nearestDistance == null ? '-' : '${nearestDistance}m',
+                    icon: Icons.near_me_outlined,
+                  ),
+                ),
+              ],
+            ),
+            if (nearest != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                state.hasFreshVerifiedLocation
+                    ? '${nearest.title}부터 시작하면 ${nearest.category.label} 보상을 받을 수 있습니다.'
+                    : '현재 위치를 확인하면 150m 체크인 판정이 활성화됩니다.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _BriefingMetric extends StatelessWidget {
+  const _BriefingMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LivePoiMap extends StatelessWidget {
+  const _LivePoiMap({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final currentPoint = LatLng(
+      state.currentLocation.latitude,
+      state.currentLocation.longitude,
+    );
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 260,
         child: Stack(
           children: [
-            Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                state.region.name,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+            FlutterMap(
+              key: ValueKey(
+                '${state.currentLocation.latitude.toStringAsFixed(6)},'
+                '${state.currentLocation.longitude.toStringAsFixed(6)}',
+              ),
+              options: MapOptions(
+                initialCenter: currentPoint,
+                initialZoom: 12.7,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.drag |
+                      InteractiveFlag.pinchZoom |
+                      InteractiveFlag.doubleTapZoom,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.masilpet.app',
+                ),
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: currentPoint,
+                      radius: checkInRadiusMeters,
+                      useRadiusInMeter: true,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.14),
+                      borderColor: Theme.of(context).colorScheme.primary,
+                      borderStrokeWidth: 1.5,
                     ),
+                  ],
+                ),
+                MarkerLayer(
+                  markers: [
+                    for (final poi in state.pois)
+                      Marker(
+                        point: LatLng(
+                          poi.coordinates.latitude,
+                          poi.coordinates.longitude,
+                        ),
+                        width: 44,
+                        height: 44,
+                        child: _PoiMarker(
+                          poi: poi,
+                          checked: state.hasCheckedInToday(poi),
+                        ),
+                      ),
+                    Marker(
+                      point: currentPoint,
+                      width: 48,
+                      height: 48,
+                      child: const _CurrentLocationMarker(),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Positioned(
+              left: 12,
+              top: 12,
+              child: _MapBadge(
+                text: '${state.region.name} POI ${state.pois.length}곳',
+                icon: Icons.map_outlined,
               ),
             ),
-            Align(
-              alignment: Alignment.center,
-              child: Icon(
-                Icons.location_on,
-                size: 54,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: Text(
-                'Kakao Maps SDK 연결 전까지 데모 POI 지도로 표시합니다.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+            const Positioned(
+              right: 8,
+              bottom: 6,
+              child: _MapAttribution(),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PoiMarker extends StatelessWidget {
+  const _PoiMarker({
+    required this.poi,
+    required this.checked,
+  });
+
+  final Poi poi;
+  final bool checked;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _categoryColor(poi.category);
+    return Tooltip(
+      message: poi.title,
+      child: Icon(
+        checked ? Icons.task_alt : Icons.location_on,
+        color: color,
+        size: checked ? 30 : 36,
+        shadows: const [
+          Shadow(
+            color: Colors.black26,
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CurrentLocationMarker extends StatelessWidget {
+  const _CurrentLocationMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.navigation, color: Colors.white, size: 20),
+    );
+  }
+}
+
+class _MapBadge extends StatelessWidget {
+  const _MapBadge({
+    required this.text,
+    required this.icon,
+  });
+
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapAttribution extends StatelessWidget {
+  const _MapAttribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return Link(
+      uri: _openStreetMapCopyrightUri,
+      target: LinkTarget.blank,
+      builder: (context, followLink) {
+        return Tooltip(
+          message: 'OpenStreetMap 저작권 보기',
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.86),
+            borderRadius: BorderRadius.circular(6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: followLink,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 32),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Text(
+                    '© OpenStreetMap contributors',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -125,7 +431,11 @@ class _PoiTile extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
     final controller = ref.read(masilPetControllerProvider.notifier);
     final distance = state.currentLocation.distanceTo(poi.coordinates);
-    final canCheckIn = distance <= checkInRadiusMeters && !state.isBusy;
+    final checked = state.hasCheckedInToday(poi);
+    final inRange =
+        state.hasFreshVerifiedLocation && distance <= checkInRadiusMeters;
+    final canCheckIn = inRange && !checked && !state.isBusy;
+    final reward = const GrowthEngine().rewardFor(poi.category);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -136,19 +446,9 @@ class _PoiTile extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    poi.category.label,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
+                _CategoryChip(
+                  category: poi.category,
+                  checked: checked,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -159,21 +459,55 @@ class _PoiTile extends ConsumerWidget {
                         ),
                   ),
                 ),
-                Text('${distance.round()}m'),
+                Text(
+                  state.hasFreshVerifiedLocation
+                      ? '${distance.round()}m'
+                      : '미확인',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Text(poi.shortDescription),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _RewardChip(
+                  icon: Icons.auto_graph,
+                  label: 'EXP +${reward.stats.exp}',
+                ),
+                _RewardChip(
+                  icon: Icons.favorite_outline,
+                  label: '친밀도 +${reward.stats.affinity}',
+                ),
+                _RewardChip(
+                  icon: Icons.egg_alt_outlined,
+                  label: '알 +${reward.eggProgress}',
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed:
                     canCheckIn ? () => controller.attemptCheckIn(poi) : null,
-                icon: Icon(
-                    canCheckIn ? Icons.check_circle : Icons.near_me_disabled),
-                label: Text(
-                    distance <= checkInRadiusMeters ? '체크인' : '150m 안에서 가능'),
+                icon: Icon(checked
+                    ? Icons.task_alt
+                    : canCheckIn
+                        ? Icons.check_circle
+                        : state.hasFreshVerifiedLocation
+                            ? Icons.near_me_disabled
+                            : Icons.my_location),
+                label: Text(checked
+                    ? '오늘 체크인 완료'
+                    : inRange
+                        ? '체크인'
+                        : state.hasFreshVerifiedLocation
+                            ? '150m 안에서 가능'
+                            : '현재 위치 확인 필요'),
               ),
             ),
           ],
@@ -181,4 +515,79 @@ class _PoiTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.category,
+    required this.checked,
+  });
+
+  final PoiCategory category;
+  final bool checked;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = checked ? const Color(0xFF16A34A) : _categoryColor(category);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        checked ? '완료' : category.label,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+}
+
+class _RewardChip extends StatelessWidget {
+  const _RewardChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Color _categoryColor(PoiCategory category) {
+  return switch (category) {
+    PoiCategory.nature => const Color(0xFF0F766E),
+    PoiCategory.food => const Color(0xFFF97316),
+    PoiCategory.festival => const Color(0xFFDB2777),
+    PoiCategory.culture => const Color(0xFF2563EB),
+    PoiCategory.history => const Color(0xFF7C3AED),
+    PoiCategory.shopping => const Color(0xFFB45309),
+    PoiCategory.other => const Color(0xFF64748B),
+  };
 }

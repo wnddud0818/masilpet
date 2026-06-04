@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="index,follow">
+  <meta name="description" content="MasilPet 개인정보 처리방침">
+  <meta name="theme-color" content="#0F766E">
+  <title>MasilPet 개인정보 처리방침</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f7f7f2;
+      color: #1f2933;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px 18px 56px;
+    }
+
+    main {
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(28px, 5vw, 40px);
+      line-height: 1.15;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      font-size: 20px;
+    }
+
+    p,
+    li {
+      line-height: 1.75;
+      font-size: 16px;
+    }
+
+    .summary {
+      margin: 22px 0;
+      padding: 16px;
+      border: 1px solid #d7e4df;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    a {
+      color: #0f766e;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>MasilPet 개인정보 처리방침</h1>
+    <p>시행일: 2026년 6월 4일</p>
+
+    <section class="summary">
+      <p>MasilPet은 부산 지역 탐험과 마실펫 성장을 위해 필요한 최소한의 위치·진행 정보를 처리합니다. 이름, 이메일, 전화번호, 소셜 계정은 요구하지 않으며, TourAPI 키는 앱에 포함하지 않습니다.</p>
+    </section>
+
+    <h2>1. 처리하는 정보</h2>
+    <ul>
+      <li>Firebase 익명 인증 식별자</li>
+      <li>체크인 검증에 필요한 현재 위치 좌표, POI와의 거리, 위치 확인 시간, 체크인 시간</li>
+      <li>마실펫, 알, 보상, 도감, 교감 등 앱 진행 데이터</li>
+      <li>기기 내 이어하기를 위한 로컬 진행 저장 데이터</li>
+    </ul>
+
+    <h2>2. 이용 목적</h2>
+    <ul>
+      <li>최근 15분 안에 확인한 위치를 기준으로 150m 체크인 가능 여부 확인</li>
+      <li>주변 POI 목록 표시와 지역 탐험 보상 제공</li>
+      <li>마실펫 성장, 알 부화, 도감 수집률 동기화</li>
+      <li>앱 오류 대응과 서비스 품질 개선</li>
+    </ul>
+
+    <h2>3. 보관과 삭제</h2>
+    <p>Firebase에 저장된 익명 사용자 진행 데이터는 서비스 운영 목적에 필요한 기간 동안 보관합니다. 사용자는 앱의 내 정보 화면에서 진행도 초기화를 실행해 기기 내 로컬 진행 데이터와 온라인 진행 데이터를 초기화할 수 있습니다. Firebase 연결이 준비되지 않은 상태에서는 기기 내 로컬 진행 데이터만 초기화됩니다. 브라우저의 사이트 데이터 삭제 기능을 사용해도 기기 내 로컬 진행 데이터가 삭제됩니다.</p>
+
+    <h2>4. 제3자 서비스</h2>
+    <ul>
+      <li>Firebase Auth, Firestore, Functions, Hosting: 인증, 진행도 저장, 서버 검증, 웹 배포</li>
+      <li>TourAPI: 부산 지역 POI 동기화</li>
+      <li>OpenStreetMap 타일: 지도 표시</li>
+    </ul>
+
+    <h2>5. 보안</h2>
+    <p>사용자 진행도 쓰기는 Cloud Functions를 통해 처리하며, Firestore 클라이언트 직접 쓰기는 제한합니다. 공용 지역 데이터 동기화와 TourAPI 호출은 운영자 권한이 있는 계정으로만 수행합니다.</p>
+
+    <h2>6. 문의</h2>
+    <p>공모전 제출·운영 관련 문의는 제출자가 공지한 연락 채널을 통해 받습니다.</p>
+
+    <p><a href="/">MasilPet 앱으로 돌아가기</a></p>
+  </main>
+</body>
+</html>

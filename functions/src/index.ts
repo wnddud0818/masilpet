@@ -1,5 +1,6 @@
 import {initializeApp} from 'firebase-admin/app';
 import {FieldValue, Timestamp, getFirestore} from 'firebase-admin/firestore';
+import type {DocumentReference, Transaction} from 'firebase-admin/firestore';
 import {HttpsError, onCall} from 'firebase-functions/v2/https';
 import {logger} from 'firebase-functions';
 import {defineSecret} from 'firebase-functions/params';
@@ -9,7 +10,12 @@ initializeApp();
 const db = getFirestore();
 const functionRegion = 'asia-northeast3';
 const checkInRadiusMeters = 150;
+const maxDailyCheckIns = 20;
+const maxStepDeltaPerCall = 3000;
+const maxDailyStepDelta = 12000;
 const tourApiKey = defineSecret('TOUR_API_KEY');
+const starterPetId = 'pet-starter-wave-naru';
+const starterEggId = 'egg-harbor-maru';
 
 type PoiCategory =
   | 'nature'
@@ -65,7 +71,7 @@ const busanRegionSeed = {
 const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   {
     id: 'busan-haeundae-beach',
-    tourApiContentId: 'demo-001',
+    tourApiContentId: 'seed-001',
     title: '해운대 해수욕장',
     regionId: 'busan',
     category: 'nature',
@@ -75,7 +81,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-gwangalli',
-    tourApiContentId: 'demo-002',
+    tourApiContentId: 'seed-002',
     title: '광안리 해변',
     regionId: 'busan',
     category: 'nature',
@@ -85,7 +91,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-gamcheon',
-    tourApiContentId: 'demo-003',
+    tourApiContentId: 'seed-003',
     title: '감천문화마을',
     regionId: 'busan',
     category: 'culture',
@@ -95,7 +101,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-biff',
-    tourApiContentId: 'demo-004',
+    tourApiContentId: 'seed-004',
     title: 'BIFF 광장',
     regionId: 'busan',
     category: 'culture',
@@ -105,7 +111,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-jagalchi',
-    tourApiContentId: 'demo-005',
+    tourApiContentId: 'seed-005',
     title: '자갈치시장',
     regionId: 'busan',
     category: 'food',
@@ -115,7 +121,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-gukje-market',
-    tourApiContentId: 'demo-006',
+    tourApiContentId: 'seed-006',
     title: '국제시장',
     regionId: 'busan',
     category: 'shopping',
@@ -125,7 +131,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-beomeosa',
-    tourApiContentId: 'demo-007',
+    tourApiContentId: 'seed-007',
     title: '범어사',
     regionId: 'busan',
     category: 'history',
@@ -135,7 +141,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-museum',
-    tourApiContentId: 'demo-008',
+    tourApiContentId: 'seed-008',
     title: '부산박물관',
     regionId: 'busan',
     category: 'culture',
@@ -145,7 +151,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-cinema-center',
-    tourApiContentId: 'demo-009',
+    tourApiContentId: 'seed-009',
     title: '영화의전당',
     regionId: 'busan',
     category: 'culture',
@@ -155,7 +161,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-fireworks',
-    tourApiContentId: 'demo-010',
+    tourApiContentId: 'seed-010',
     title: '부산불꽃축제',
     regionId: 'busan',
     category: 'festival',
@@ -165,7 +171,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-spa-land',
-    tourApiContentId: 'demo-011',
+    tourApiContentId: 'seed-011',
     title: '해운대 온천권',
     regionId: 'busan',
     category: 'other',
@@ -175,7 +181,7 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
   {
     id: 'busan-dongbaek',
-    tourApiContentId: 'demo-012',
+    tourApiContentId: 'seed-012',
     title: '동백섬',
     regionId: 'busan',
     category: 'nature',
@@ -271,7 +277,7 @@ const dialogueSeed = [
 ];
 
 export const seedStarterRegionData = onCall({region: functionRegion}, async (request) => {
-  requireAuth(request.auth?.uid);
+  requireOperator(request.auth?.uid, request.auth?.token);
 
   const batch = db.batch();
   batch.set(db.collection('regions').doc('busan'), busanRegionSeed, {merge: true});
@@ -312,39 +318,23 @@ export const ensureUserBootstrap = onCall({region: functionRegion}, async (reque
       return;
     }
 
-    const starterPetId = 'pet-starter-wave-naru';
-    transaction.set(userRef, {
-      activePetId: starterPetId,
-      createdAt: now,
-      displayName: '부산 여행자',
-      homeTheme: 'busan-basic',
-      lastLoginAt: now,
-    });
-    transaction.set(userRef.collection('pets').doc(starterPetId), {
-      templateId: 'wave-naru',
-      name: '파도나루',
-      stage: 'baby',
-      level: 1,
-      stats: {exp: 20, mood: 20, knowledge: 5, affinity: 8},
-      originRegionId: 'busan',
-      hatchedAt: now,
-      lastInteractedAt: null,
-    });
-    transaction.set(userRef.collection('eggs').doc('egg-harbor-maru'), {
-      templateId: 'harbor-maru',
-      originRegionId: 'busan',
-      progress: 1200,
-      requiredSteps: 3500,
-      status: 'incubating',
-      createdAt: now,
-    });
+    setStarterUser(transaction, userRef, now);
   });
 
   return {success: true};
 });
 
+export const deleteUserProgress = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const userRef = db.collection('users').doc(uid);
+
+  await db.recursiveDelete(userRef);
+  logger.info('Deleted MasilPet user progress');
+  return {success: true};
+});
+
 export const syncBusanPois = onCall({region: functionRegion, secrets: [tourApiKey]}, async (request) => {
-  requireAuth(request.auth?.uid);
+  requireOperator(request.auth?.uid, request.auth?.token);
 
   const serviceKey = tourApiKey.value();
   if (!serviceKey) {
@@ -446,34 +436,47 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
   }
 
   const now = Timestamp.now();
-  const dayStart = startOfLocalDay(new Date());
+  const today = new Date();
+  const dayStart = startOfKoreanDay(today);
+  const dayKey = koreanDayKey(today);
   const checkinsRef = db.collection('users').doc(uid).collection('checkins');
-  const duplicate = await checkinsRef
-    .where('poiId', '==', poiId)
-    .where('createdAt', '>=', Timestamp.fromDate(dayStart))
-    .limit(1)
-    .get();
-  if (!duplicate.empty) {
-    throw new HttpsError('already-exists', 'Already checked in to this POI today.');
-  }
+  const checkinRef = checkinsRef.doc(checkInDocumentId(poiId, dayKey));
 
   const reward = rewardFor(poi.category);
+  const eggProgress = eggProgressFor(poi.category);
   const userRef = db.collection('users').doc(uid);
   let updatedPet: {id: string; stats: GrowthStats; level: number; stage: PetStage} | null = null;
 
   await db.runTransaction(async (transaction) => {
+    const duplicateSnap = await transaction.get(checkinRef);
+    if (duplicateSnap.exists) {
+      throw new HttpsError('already-exists', 'Already checked in to this POI today.');
+    }
+
     const userSnap = await transaction.get(userRef);
-    const activePetId = String(userSnap.data()?.activePetId ?? '');
-    const activePetRef = activePetId ? userRef.collection('pets').doc(activePetId) : null;
-    const activePetSnap = activePetRef ? await transaction.get(activePetRef) : null;
+    let activePetId = String(userSnap.data()?.activePetId ?? starterPetId);
+    if (!activePetId) {
+      activePetId = starterPetId;
+    }
+    let activePetRef = userRef.collection('pets').doc(activePetId);
+    const activePetSnap = await transaction.get(activePetRef);
     const openEggs = await transaction.get(
       userRef.collection('eggs').where('status', 'in', ['incubating', 'hatchable']).limit(3),
     );
     const todayCheckins = await transaction.get(
-      checkinsRef.where('createdAt', '>=', Timestamp.fromDate(dayStart)).limit(1),
+      checkinsRef.where('createdAt', '>=', Timestamp.fromDate(dayStart)).limit(maxDailyCheckIns),
     );
+    if (todayCheckins.size >= maxDailyCheckIns) {
+      throw new HttpsError('failed-precondition', 'Daily check-in limit reached.');
+    }
 
-    const checkinRef = checkinsRef.doc();
+    const needsStarterBootstrap = !userSnap.exists || !activePetSnap.exists;
+    if (needsStarterBootstrap) {
+      activePetId = starterPetId;
+      activePetRef = userRef.collection('pets').doc(starterPetId);
+      setStarterUser(transaction, userRef, now);
+    }
+
     transaction.set(checkinRef, {
       poiId,
       regionId: poi.regionId,
@@ -485,8 +488,10 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       createdAt: now,
     });
 
-    if (activePetId && activePetRef && activePetSnap?.exists) {
-      const pet = activePetSnap.data() as PetDoc;
+    if (activePetId && activePetRef) {
+      const pet = needsStarterBootstrap
+        ? starterPetRuntimeDoc()
+        : activePetSnap.data() as PetDoc;
       const stats = addStats(pet.stats, reward);
       const level = levelFor(stats);
       const stage = stageFor(level, stats, pet.stage);
@@ -508,7 +513,7 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       if (eggData.status === 'hatchable') {
         continue;
       }
-      const progress = Math.min(eggData.requiredSteps, eggData.progress + eggProgressFor(poi.category));
+      const progress = Math.min(eggData.requiredSteps, eggData.progress + eggProgress);
       transaction.set(
         egg.ref,
         {
@@ -519,7 +524,22 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       );
     }
 
-    if (openEggs.empty && (todayCheckins.empty || poi.category === 'history' || poi.category === 'festival')) {
+    if (needsStarterBootstrap && openEggs.empty) {
+      const starterEgg = starterEggRuntimeDoc();
+      const progress = Math.min(starterEgg.requiredSteps, starterEgg.progress + eggProgress);
+      transaction.set(
+        userRef.collection('eggs').doc(starterEggId),
+        {
+          ...starterEggData(now),
+          progress,
+          status: progress >= starterEgg.requiredSteps ? 'hatchable' : 'incubating',
+        },
+        {merge: true},
+      );
+    }
+
+    if (!needsStarterBootstrap && openEggs.empty &&
+      (todayCheckins.empty || poi.category === 'history' || poi.category === 'festival')) {
       const templateId = templateForCategory(poi.category);
       transaction.set(userRef.collection('eggs').doc(`egg-${templateId}-${now.toMillis()}`), {
         templateId,
@@ -545,6 +565,7 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
     success: true,
     distanceMeters: Math.round(distance),
     reward,
+    eggProgress,
     updatedPet,
   };
 });
@@ -604,31 +625,83 @@ export const hatchEgg = onCall({region: functionRegion}, async (request) => {
 
 export const applyStepProgress = onCall({region: functionRegion}, async (request) => {
   const uid = requireAuth(request.auth?.uid);
-  const stepDelta = Math.max(0, Number(request.data?.stepDelta ?? 0));
-  if (!Number.isFinite(stepDelta) || stepDelta <= 0) {
+  const requestedStepDelta = Number(request.data?.stepDelta ?? 0);
+  if (!Number.isInteger(requestedStepDelta) || requestedStepDelta <= 0) {
     throw new HttpsError('invalid-argument', 'stepDelta must be positive.');
   }
-
-  const eggs = await db.collection('users').doc(uid).collection('eggs').get();
-  const batch = db.batch();
-  let hatchableCount = 0;
-
-  for (const egg of eggs.docs) {
-    const data = egg.data();
-    if (data.status === 'hatched') {
-      continue;
-    }
-    const requiredSteps = Number(data.requiredSteps ?? 3500);
-    const progress = Math.min(requiredSteps, Number(data.progress ?? 0) + stepDelta);
-    const status = progress >= requiredSteps ? 'hatchable' : 'incubating';
-    if (status === 'hatchable') {
-      hatchableCount += 1;
-    }
-    batch.update(egg.ref, {progress, status});
+  if (requestedStepDelta > maxStepDeltaPerCall) {
+    throw new HttpsError('invalid-argument', `stepDelta must be ${maxStepDeltaPerCall} or less.`);
   }
 
-  await batch.commit();
-  return {hatchableCount};
+  const userRef = db.collection('users').doc(uid);
+  const now = Timestamp.now();
+  const dayKey = koreanDayKey(new Date());
+  let hatchableCount = 0;
+  let appliedStepDelta = 0;
+
+  await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const needsStarterBootstrap = !userSnap.exists;
+    const userData = userSnap.data() ?? {};
+    const usedToday = userData.stepCreditDay === dayKey
+      ? Number(userData.stepCreditToday ?? 0)
+      : 0;
+    const remainingToday = Math.max(0, maxDailyStepDelta - usedToday);
+    if (remainingToday <= 0) {
+      throw new HttpsError('failed-precondition', 'Daily step progress limit reached.');
+    }
+
+    appliedStepDelta = Math.min(requestedStepDelta, remainingToday);
+    const eggs = await transaction.get(userRef.collection('eggs'));
+
+    if (needsStarterBootstrap) {
+      setStarterUser(transaction, userRef, now);
+    }
+
+    for (const egg of eggs.docs) {
+      const data = egg.data();
+      if (data.status === 'hatched') {
+        continue;
+      }
+      const requiredSteps = Number(data.requiredSteps ?? 3500);
+      const progress = Math.min(requiredSteps, Number(data.progress ?? 0) + appliedStepDelta);
+      const status = progress >= requiredSteps ? 'hatchable' : 'incubating';
+      if (status === 'hatchable') {
+        hatchableCount += 1;
+      }
+      transaction.update(egg.ref, {progress, status});
+    }
+
+    if (needsStarterBootstrap && eggs.empty) {
+      const starterEgg = starterEggRuntimeDoc();
+      const progress = Math.min(starterEgg.requiredSteps, starterEgg.progress + appliedStepDelta);
+      const status = progress >= starterEgg.requiredSteps ? 'hatchable' : 'incubating';
+      if (status === 'hatchable') {
+        hatchableCount += 1;
+      }
+      transaction.set(
+        userRef.collection('eggs').doc(starterEggId),
+        {
+          ...starterEggData(now),
+          progress,
+          status,
+        },
+        {merge: true},
+      );
+    }
+
+    transaction.set(
+      userRef,
+      {
+        stepCreditDay: dayKey,
+        stepCreditToday: usedToday + appliedStepDelta,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+  });
+
+  return {hatchableCount, appliedStepDelta};
 });
 
 export const interactWithPet = onCall({region: functionRegion}, async (request) => {
@@ -643,16 +716,24 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
     ? {exp: 2, mood: 4, knowledge: 0, affinity: 1}
     : {exp: 3, mood: 8, knowledge: 0, affinity: 2};
 
-  const petRef = db.collection('users').doc(uid).collection('pets').doc(petId);
+  const userRef = db.collection('users').doc(uid);
+  const petRef = userRef.collection('pets').doc(petId);
   let updatedPet: {stats: GrowthStats; level: number; stage: PetStage} | null = null;
 
   await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
     const petSnap = await transaction.get(petRef);
-    if (!petSnap.exists) {
+    const needsStarterBootstrap = !userSnap.exists || !petSnap.exists;
+    if (!petSnap.exists && petId !== starterPetId) {
       throw new HttpsError('not-found', 'Pet not found.');
     }
+    if (needsStarterBootstrap) {
+      setStarterUser(transaction, userRef, FieldValue.serverTimestamp());
+    }
 
-    const pet = petSnap.data() as PetDoc;
+    const pet = needsStarterBootstrap
+      ? starterPetRuntimeDoc()
+      : petSnap.data() as PetDoc;
     const stats = addStats(pet.stats, reward);
     const level = levelFor(stats);
     const stage = stageFor(level, stats, pet.stage);
@@ -672,11 +753,72 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
   return {reward, updatedPet};
 });
 
+function setStarterUser(
+  transaction: Transaction,
+  userRef: DocumentReference,
+  now: Timestamp | FieldValue,
+): void {
+  transaction.set(userRef, {
+    activePetId: starterPetId,
+    createdAt: now,
+    displayName: '부산 여행자',
+    homeTheme: 'busan-basic',
+    lastLoginAt: now,
+  }, {merge: true});
+  transaction.set(userRef.collection('pets').doc(starterPetId), starterPetData(now), {merge: true});
+  transaction.set(userRef.collection('eggs').doc(starterEggId), starterEggData(now), {merge: true});
+}
+
+function starterPetData(now: Timestamp | FieldValue) {
+  return {
+    ...starterPetRuntimeDoc(),
+    hatchedAt: now,
+    lastInteractedAt: null,
+  };
+}
+
+function starterEggData(now: Timestamp | FieldValue) {
+  return {
+    ...starterEggRuntimeDoc(),
+    createdAt: now,
+  };
+}
+
+function starterPetRuntimeDoc(): PetDoc {
+  return {
+    templateId: 'wave-naru',
+    name: '파도나루',
+    stage: 'baby',
+    level: 1,
+    stats: {exp: 20, mood: 20, knowledge: 5, affinity: 8},
+    originRegionId: 'busan',
+  };
+}
+
+function starterEggRuntimeDoc(): EggDoc {
+  return {
+    templateId: 'harbor-maru',
+    originRegionId: 'busan',
+    progress: 1200,
+    requiredSteps: 3500,
+    status: 'incubating',
+  };
+}
+
 function requireAuth(uid: string | undefined): string {
   if (!uid) {
     throw new HttpsError('unauthenticated', 'Authentication is required.');
   }
   return uid;
+}
+
+function requireOperator(uid: string | undefined, token: unknown): string {
+  const authenticatedUid = requireAuth(uid);
+  const claims = token as {operator?: unknown} | undefined;
+  if (claims?.operator !== true) {
+    throw new HttpsError('permission-denied', 'Operator permission is required.');
+  }
+  return authenticatedUid;
 }
 
 function rewardFor(category: PoiCategory): GrowthStats {
@@ -762,8 +904,24 @@ function radians(degrees: number): number {
   return degrees * Math.PI / 180;
 }
 
-function startOfLocalDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+function startOfKoreanDay(date: Date): Date {
+  const offsetMs = 9 * 60 * 60 * 1000;
+  const shifted = new Date(date.getTime() + offsetMs);
+  const startOfShiftedDay = Date.UTC(
+    shifted.getUTCFullYear(),
+    shifted.getUTCMonth(),
+    shifted.getUTCDate(),
+  );
+  return new Date(startOfShiftedDay - offsetMs);
+}
+
+function koreanDayKey(date: Date): string {
+  const offsetMs = 9 * 60 * 60 * 1000;
+  return new Date(date.getTime() + offsetMs).toISOString().slice(0, 10);
+}
+
+function checkInDocumentId(poiId: string, dayKey: string): string {
+  return `${poiId}_${dayKey}`;
 }
 
 function mapTourCategory(cat1?: string, contentTypeId?: string): PoiCategory {

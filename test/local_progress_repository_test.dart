@@ -1,0 +1,289 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:masilpet/src/data/local_progress_repository.dart';
+import 'package:masilpet/src/data/masilpet_backend.dart';
+import 'package:masilpet/src/models.dart';
+import 'package:masilpet/src/seed_data.dart';
+import 'package:masilpet/src/services.dart';
+import 'package:masilpet/src/state.dart';
+
+class MemoryLocalProgressRepository implements LocalProgressRepository {
+  MemoryLocalProgressRepository([this.snapshot]);
+
+  LocalProgressSnapshot? snapshot;
+
+  @override
+  Future<LocalProgressSnapshot?> loadProgress() async {
+    return snapshot;
+  }
+
+  @override
+  Future<void> saveProgress(LocalProgressSnapshot snapshot) async {
+    this.snapshot = snapshot;
+  }
+
+  @override
+  Future<void> clearProgress() async {
+    snapshot = null;
+  }
+}
+
+MasilPetController _controller({
+  LocalProgressRepository? localProgressRepository,
+  MasilPetBackend? backend,
+  bool firebaseReady = false,
+}) {
+  return MasilPetController(
+    firebaseReady: firebaseReady,
+    locationService: const DeviceLocationService(),
+    backend: backend,
+    userRepository: null,
+    localProgressRepository: localProgressRepository,
+  );
+}
+
+class ResetProgressBackend implements MasilPetBackend {
+  bool deleted = false;
+
+  @override
+  Future<void> ensureUserBootstrap() async {}
+
+  @override
+  Future<void> deleteUserProgress() async {
+    deleted = true;
+  }
+
+  @override
+  Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
+
+  @override
+  Future<RemoteCheckInResult> attemptCheckIn({
+    required String poiId,
+    required Coordinates location,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RemoteStepProgressResult> applyStepProgress(int stepDelta) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> hatchEgg(String eggId) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<RemotePetInteractionResult> interactWithPet({
+    required String petId,
+    required String actionType,
+  }) async {
+    throw UnimplementedError();
+  }
+}
+
+void main() {
+  test('local progress snapshot round-trips gameplay data', () {
+    final snapshot = LocalProgressSnapshot(
+      onboardingComplete: true,
+      pois: busanPoiSeed,
+      pets: [
+        Pet(
+          id: 'pet-local',
+          templateId: 'wave-naru',
+          name: '파도나루',
+          stage: PetStage.grown,
+          level: 3,
+          stats: const GrowthStats(
+              exp: 240, mood: 64, knowledge: 22, affinity: 35),
+          originRegionId: 'busan',
+          hatchedAt: DateTime(2026, 6, 4, 10),
+          lastInteractedAt: DateTime(2026, 6, 4, 11),
+        ),
+      ],
+      eggs: [
+        Egg(
+          id: 'egg-local',
+          templateId: 'harbor-maru',
+          originRegionId: 'busan',
+          progress: 2400,
+          requiredSteps: 3500,
+          status: EggStatus.incubating,
+          createdAt: DateTime(2026, 6, 3),
+        ),
+      ],
+      checkIns: [
+        CheckIn(
+          id: 'checkin-local',
+          poiId: busanPoiSeed.first.id,
+          regionId: 'busan',
+          category: PoiCategory.nature,
+          createdAt: DateTime(2026, 6, 4, 12),
+          distanceMeters: 12,
+          rewardApplied: true,
+        ),
+      ],
+      currentLocation: busanPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: DateTime(2026, 6, 4, 12),
+      activePetId: 'pet-local',
+      lastVisitedCategory: PoiCategory.nature,
+      dialogueCountToday: 2,
+      dialogueDay: DateTime(2026, 6, 4),
+    );
+
+    final restored = LocalProgressSnapshot.fromMap(snapshot.toMap());
+
+    expect(restored.onboardingComplete, isTrue);
+    expect(restored.pets.single.id, 'pet-local');
+    expect(restored.pets.single.stage, PetStage.grown);
+    expect(restored.eggs.single.progress, 2400);
+    expect(restored.checkIns.single.poiId, busanPoiSeed.first.id);
+    expect(restored.locationVerified, isTrue);
+    expect(restored.locationVerifiedAt, DateTime(2026, 6, 4, 12));
+    expect(restored.lastVisitedCategory, PoiCategory.nature);
+  });
+
+  test('controller restores and saves local progress', () async {
+    final repository = MemoryLocalProgressRepository(
+      LocalProgressSnapshot(
+        onboardingComplete: true,
+        pois: busanPoiSeed,
+        pets: [
+          Pet(
+            id: 'pet-restored',
+            templateId: 'wave-naru',
+            name: '파도나루',
+            stage: PetStage.baby,
+            level: 1,
+            stats: const GrowthStats(
+              exp: 20,
+              mood: 20,
+              knowledge: 5,
+              affinity: 8,
+            ),
+            originRegionId: 'busan',
+            hatchedAt: DateTime(2026, 6, 4),
+            lastInteractedAt: null,
+          ),
+        ],
+        eggs: const [],
+        checkIns: const [],
+        currentLocation: busanPoiSeed.first.coordinates,
+        locationVerified: true,
+        locationVerifiedAt: DateTime.now(),
+        activePetId: 'pet-restored',
+        lastVisitedCategory: null,
+        dialogueCountToday: 0,
+        dialogueDay: DateTime(2026, 6, 4),
+      ),
+    );
+    final controller = _controller(localProgressRepository: repository);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.onboardingComplete, isTrue);
+    expect(controller.state.activePetId, 'pet-restored');
+
+    await controller.attemptCheckIn(busanPoiSeed.first);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(repository.snapshot?.checkIns.length, 1);
+    expect(repository.snapshot?.onboardingComplete, isTrue);
+  });
+
+  test('controller does not reuse stale verified location from storage',
+      () async {
+    final repository = MemoryLocalProgressRepository(
+      LocalProgressSnapshot(
+        onboardingComplete: true,
+        pois: busanPoiSeed,
+        pets: const [],
+        eggs: const [],
+        checkIns: const [],
+        currentLocation: busanPoiSeed.first.coordinates,
+        locationVerified: true,
+        locationVerifiedAt: DateTime.now()
+            .subtract(locationVerificationTtl + const Duration(minutes: 1)),
+        activePetId: '',
+        lastVisitedCategory: null,
+        dialogueCountToday: 0,
+        dialogueDay: DateTime.now(),
+      ),
+    );
+    final controller = _controller(localProgressRepository: repository);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.locationVerified, isTrue);
+    expect(controller.state.hasFreshVerifiedLocation, isFalse);
+
+    await controller.attemptCheckIn(busanPoiSeed.first);
+
+    expect(controller.state.todayCheckInCount, 0);
+    expect(controller.state.statusMessage, contains('다시 확인'));
+  });
+
+  test('controller reset clears local and remote progress', () async {
+    final repository = MemoryLocalProgressRepository(
+      LocalProgressSnapshot(
+        onboardingComplete: true,
+        pois: busanPoiSeed,
+        pets: [
+          Pet(
+            id: 'pet-reset',
+            templateId: 'wave-naru',
+            name: '파도나루',
+            stage: PetStage.grown,
+            level: 3,
+            stats: const GrowthStats(
+              exp: 240,
+              mood: 64,
+              knowledge: 22,
+              affinity: 35,
+            ),
+            originRegionId: 'busan',
+            hatchedAt: DateTime(2026, 6, 4),
+            lastInteractedAt: null,
+          ),
+        ],
+        eggs: const [],
+        checkIns: [
+          CheckIn(
+            id: 'checkin-reset',
+            poiId: busanPoiSeed.first.id,
+            regionId: 'busan',
+            category: PoiCategory.nature,
+            createdAt: DateTime.now(),
+            distanceMeters: 10,
+            rewardApplied: true,
+          ),
+        ],
+        currentLocation: busanPoiSeed.first.coordinates,
+        locationVerified: true,
+        locationVerifiedAt: DateTime.now(),
+        activePetId: 'pet-reset',
+        lastVisitedCategory: PoiCategory.nature,
+        dialogueCountToday: 1,
+        dialogueDay: DateTime.now(),
+      ),
+    );
+    final backend = ResetProgressBackend();
+    final controller = _controller(
+      localProgressRepository: repository,
+      backend: backend,
+      firebaseReady: true,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.onboardingComplete, isTrue);
+    expect(controller.state.todayCheckInCount, 1);
+
+    await controller.resetProgress();
+
+    expect(backend.deleted, isTrue);
+    expect(repository.snapshot, isNull);
+    expect(controller.state.onboardingComplete, isFalse);
+    expect(controller.state.todayCheckInCount, 0);
+    expect(controller.state.activePetId, 'pet-starter-wave-naru');
+    expect(controller.state.statusMessage, contains('기기와 서버 진행도'));
+  });
+}

@@ -38,7 +38,8 @@ void main() {
   test('evolution requires level, affinity, and knowledge', () {
     final stage = engine.stageFor(
       level: 5,
-      stats: const GrowthStats(exp: 500, mood: 80, knowledge: 50, affinity: 100),
+      stats:
+          const GrowthStats(exp: 500, mood: 80, knowledge: 50, affinity: 100),
       currentStage: PetStage.grown,
     );
 

@@ -49,9 +49,15 @@ class FirestoreUserRepository {
 
     return UserProgressSnapshot(
       activePetId: userDoc.data()?['activePetId'] as String? ?? '',
-      pets: petsSnapshot.docs.map((doc) => _petFromDoc(doc.id, doc.data())).toList(),
-      eggs: eggsSnapshot.docs.map((doc) => _eggFromDoc(doc.id, doc.data())).toList(),
-      checkIns: checkInsSnapshot.docs.map((doc) => _checkInFromDoc(doc.id, doc.data())).toList(),
+      pets: petsSnapshot.docs
+          .map((doc) => _petFromDoc(doc.id, doc.data()))
+          .toList(),
+      eggs: eggsSnapshot.docs
+          .map((doc) => _eggFromDoc(doc.id, doc.data()))
+          .toList(),
+      checkIns: checkInsSnapshot.docs
+          .map((doc) => _checkInFromDoc(doc.id, doc.data()))
+          .toList(),
     );
   }
 }
@@ -63,10 +69,13 @@ Pet _petFromDoc(String id, Map<String, dynamic> data) {
     name: data['name'] as String? ?? '마실펫',
     stage: _petStageFromName(data['stage'] as String?),
     level: (data['level'] as num? ?? 1).toInt(),
-    stats: _statsFromMap(Map<String, dynamic>.from(data['stats'] as Map? ?? const {})),
+    stats: _statsFromMap(
+        Map<String, dynamic>.from(data['stats'] as Map? ?? const {})),
     originRegionId: data['originRegionId'] as String? ?? 'busan',
     hatchedAt: _dateFromValue(data['hatchedAt']),
-    lastInteractedAt: data['lastInteractedAt'] == null ? null : _dateFromValue(data['lastInteractedAt']),
+    lastInteractedAt: data['lastInteractedAt'] == null
+        ? null
+        : _dateFromValue(data['lastInteractedAt']),
   );
 }
 

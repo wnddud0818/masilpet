@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'firebase_options.dart';
-import 'src/data/firestore_bootstrap.dart';
 import 'src/app.dart';
 import 'src/state.dart';
 
@@ -13,30 +12,34 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   var firebaseReady = false;
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-    );
+  var firebaseStartupIssue = FirebaseStartupIssue.none;
+  if (!DefaultFirebaseOptions.hasRequiredWebConfiguration) {
+    firebaseStartupIssue = FirebaseStartupIssue.missingWebConfiguration;
+  } else {
     try {
-      await FirebaseBootstrapService().ensureUserBootstrap();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+      // User progress writes are handled by callable Functions, so the client
+      // only needs Firebase initialization and authentication here.
+      firebaseReady = true;
     } on Object {
-      // The demo app can still run if Firestore is not configured yet.
+      firebaseStartupIssue = FirebaseStartupIssue.initializationFailed;
+      firebaseReady = false;
     }
-    firebaseReady = true;
-  } on Object {
-    firebaseReady = false;
   }
 
   runApp(
     ProviderScope(
       overrides: [
         firebaseReadyProvider.overrideWithValue(firebaseReady),
+        firebaseStartupIssueProvider.overrideWithValue(firebaseStartupIssue),
       ],
       child: const MasilPetApp(),
     ),

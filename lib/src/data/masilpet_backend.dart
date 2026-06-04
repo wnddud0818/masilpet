@@ -3,9 +3,9 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models.dart';
 
 abstract class MasilPetBackend {
-  Future<void> seedStarterRegionData();
-
   Future<void> ensureUserBootstrap();
+
+  Future<void> deleteUserProgress();
 
   Future<List<RemotePoi>> getNearbyPois(Coordinates location);
 
@@ -14,11 +14,11 @@ abstract class MasilPetBackend {
     required Coordinates location,
   });
 
-  Future<int> applyStepProgress(int stepDelta);
+  Future<RemoteStepProgressResult> applyStepProgress(int stepDelta);
 
   Future<String> hatchEgg(String eggId);
 
-  Future<GrowthStats> interactWithPet({
+  Future<RemotePetInteractionResult> interactWithPet({
     required String petId,
     required String actionType,
   });
@@ -27,30 +27,33 @@ abstract class MasilPetBackend {
 class FirebaseMasilPetBackend implements MasilPetBackend {
   FirebaseMasilPetBackend({
     FirebaseFunctions? functions,
-  }) : _functions = functions ?? FirebaseFunctions.instanceFor(region: 'asia-northeast3');
+  }) : _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'asia-northeast3');
 
   final FirebaseFunctions _functions;
 
   @override
-  Future<void> seedStarterRegionData() async {
-    await _functions.httpsCallable('seedStarterRegionData').call();
+  Future<void> ensureUserBootstrap() async {
+    await _call('ensureUserBootstrap');
   }
 
   @override
-  Future<void> ensureUserBootstrap() async {
-    await _functions.httpsCallable('ensureUserBootstrap').call();
+  Future<void> deleteUserProgress() async {
+    await _call('deleteUserProgress');
   }
 
   @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async {
-    final callable = _functions.httpsCallable('getNearbyPois');
-    final response = await callable.call<Map<String, dynamic>>({
+    final data = await _call('getNearbyPois', {
       'lat': location.latitude,
       'lng': location.longitude,
     });
 
-    final pois = (response.data['pois'] as List<dynamic>? ?? const []);
-    return pois.map((item) => RemotePoi.fromMap(Map<String, dynamic>.from(item as Map))).toList();
+    final pois = (data['pois'] as List<dynamic>? ?? const []);
+    return pois
+        .map(
+            (item) => RemotePoi.fromMap(Map<String, dynamic>.from(item as Map)))
+        .toList();
   }
 
   @override
@@ -58,43 +61,73 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
     required String poiId,
     required Coordinates location,
   }) async {
-    final callable = _functions.httpsCallable('attemptCheckIn');
-    final response = await callable.call<Map<String, dynamic>>({
+    final data = await _call('attemptCheckIn', {
       'poiId': poiId,
       'lat': location.latitude,
       'lng': location.longitude,
     });
-    return RemoteCheckInResult.fromMap(response.data);
+    return RemoteCheckInResult.fromMap(data);
   }
 
   @override
-  Future<int> applyStepProgress(int stepDelta) async {
-    final callable = _functions.httpsCallable('applyStepProgress');
-    final response = await callable.call<Map<String, dynamic>>({
+  Future<RemoteStepProgressResult> applyStepProgress(int stepDelta) async {
+    final data = await _call('applyStepProgress', {
       'stepDelta': stepDelta,
     });
-    return (response.data['hatchableCount'] as num? ?? 0).toInt();
+    return RemoteStepProgressResult.fromMap(data);
   }
 
   @override
   Future<String> hatchEgg(String eggId) async {
-    final response = await _functions.httpsCallable('hatchEgg').call<Map<String, dynamic>>({
+    final data = await _call('hatchEgg', {
       'eggId': eggId,
     });
-    return response.data['petId'] as String;
+    return data['petId'] as String;
   }
 
   @override
-  Future<GrowthStats> interactWithPet({
+  Future<RemotePetInteractionResult> interactWithPet({
     required String petId,
     required String actionType,
   }) async {
-    final callable = _functions.httpsCallable('interactWithPet');
-    final response = await callable.call<Map<String, dynamic>>({
+    final data = await _call('interactWithPet', {
       'petId': petId,
       'actionType': actionType,
     });
-    return _statsFromMap(Map<String, dynamic>.from(response.data['reward'] as Map));
+    return RemotePetInteractionResult.fromMap(data);
+  }
+
+  Future<Map<String, dynamic>> _call(String functionName,
+      [Map<String, dynamic> payload = const {}]) async {
+    try {
+      final callable = _functions.httpsCallable(functionName);
+      final response = await callable.call<Map<String, dynamic>>(payload);
+      return response.data;
+    } on FirebaseFunctionsException catch (error) {
+      throw MasilPetBackendException(
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      );
+    }
+  }
+}
+
+class MasilPetBackendException implements Exception {
+  const MasilPetBackendException({
+    required this.code,
+    this.message,
+    this.details,
+  });
+
+  final String code;
+  final String? message;
+  final Object? details;
+
+  @override
+  String toString() {
+    final label = message == null ? code : '$code: $message';
+    return 'MasilPetBackendException($label)';
   }
 }
 
@@ -135,25 +168,107 @@ class RemoteCheckInResult {
     required this.success,
     required this.distanceMeters,
     required this.reward,
+    required this.eggProgress,
+    required this.updatedPet,
   });
 
   factory RemoteCheckInResult.fromMap(Map<String, dynamic> map) {
+    final updatedPet = map['updatedPet'] is Map
+        ? RemotePetUpdate.fromMap(
+            Map<String, dynamic>.from(map['updatedPet'] as Map),
+          )
+        : null;
+
     return RemoteCheckInResult(
       success: map['success'] == true,
       distanceMeters: (map['distanceMeters'] as num? ?? 0).toDouble(),
       reward: _statsFromMap(Map<String, dynamic>.from(map['reward'] as Map)),
+      eggProgress: (map['eggProgress'] as num?)?.toInt(),
+      updatedPet: updatedPet,
     );
   }
 
   final bool success;
   final double distanceMeters;
   final GrowthStats reward;
+  final int? eggProgress;
+  final RemotePetUpdate? updatedPet;
+}
+
+class RemoteStepProgressResult {
+  const RemoteStepProgressResult({
+    required this.hatchableCount,
+    required this.appliedStepDelta,
+  });
+
+  factory RemoteStepProgressResult.fromMap(Map<String, dynamic> map) {
+    return RemoteStepProgressResult(
+      hatchableCount: (map['hatchableCount'] as num? ?? 0).toInt(),
+      appliedStepDelta: (map['appliedStepDelta'] as num? ?? 0).toInt(),
+    );
+  }
+
+  final int hatchableCount;
+  final int appliedStepDelta;
+}
+
+class RemotePetInteractionResult {
+  const RemotePetInteractionResult({
+    required this.reward,
+    required this.updatedPet,
+  });
+
+  factory RemotePetInteractionResult.fromMap(Map<String, dynamic> map) {
+    final updatedPet = map['updatedPet'] is Map
+        ? RemotePetUpdate.fromMap(
+            Map<String, dynamic>.from(map['updatedPet'] as Map),
+          )
+        : null;
+
+    return RemotePetInteractionResult(
+      reward: _statsFromMap(Map<String, dynamic>.from(map['reward'] as Map)),
+      updatedPet: updatedPet,
+    );
+  }
+
+  final GrowthStats reward;
+  final RemotePetUpdate? updatedPet;
+}
+
+class RemotePetUpdate {
+  const RemotePetUpdate({
+    this.id,
+    required this.stats,
+    required this.level,
+    required this.stage,
+  });
+
+  factory RemotePetUpdate.fromMap(Map<String, dynamic> map) {
+    return RemotePetUpdate(
+      id: map['id'] as String?,
+      stats: _statsFromMap(Map<String, dynamic>.from(map['stats'] as Map)),
+      level: (map['level'] as num? ?? 1).toInt(),
+      stage: _petStageFromName(map['stage'] as String?),
+    );
+  }
+
+  final String? id;
+  final GrowthStats stats;
+  final int level;
+  final PetStage stage;
 }
 
 PoiCategory _categoryFromName(String? name) {
   return PoiCategory.values.firstWhere(
     (category) => category.name == name,
     orElse: () => PoiCategory.other,
+  );
+}
+
+PetStage _petStageFromName(String? name) {
+  return PetStage.values.firstWhere(
+    (stage) => stage.name == name,
+    orElse: () => PetStage.baby,
   );
 }
 

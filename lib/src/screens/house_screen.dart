@@ -24,6 +24,8 @@ class HouseScreen extends ConsumerWidget {
           sliver: ResponsiveSliverList(
             children: [
               const StatusBanner(),
+              const SizedBox(height: 12),
+              _HouseOverviewCard(state: state),
               const SizedBox(height: 16),
               PetPlayField(
                 templates: state.templates,
@@ -49,23 +51,11 @@ class HouseScreen extends ConsumerWidget {
                   onSelect: () => controller.selectPet(pet.id),
                 ),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '알',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: state.isBusy
-                        ? null
-                        : () => controller.addStepProgress(500),
-                    icon: const Icon(Icons.directions_walk),
-                    label: const Text('500걸음 반영'),
-                  ),
-                ],
+              Text(
+                '알',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
               ),
               const SizedBox(height: 8),
               if (state.eggs.isEmpty)
@@ -81,6 +71,118 @@ class HouseScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HouseOverviewCard extends StatelessWidget {
+  const _HouseOverviewCard({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final nextEgg = state.eggs.isEmpty ? null : state.eggs.first;
+    final remainingSteps = nextEgg == null
+        ? null
+        : (nextEgg.requiredSteps - nextEgg.progress)
+            .clamp(0, nextEgg.requiredSteps);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '마실펫 하우스 현황',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _HouseMetric(
+                    icon: Icons.pets_outlined,
+                    label: '보유 펫',
+                    value: '${state.pets.length}/${state.templates.length}',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HouseMetric(
+                    icon: Icons.egg_alt_outlined,
+                    label: '부화 가능',
+                    value: '${state.hatchableEggCount}개',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HouseMetric(
+                    icon: Icons.directions_walk,
+                    label: '남은 걸음',
+                    value: remainingSteps == null ? '-' : '$remainingSteps',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                minHeight: 8,
+                value: state.dexCompletionRatio,
+                backgroundColor: const Color(0xFFE2E8F0),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HouseMetric extends StatelessWidget {
+  const _HouseMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -130,6 +232,8 @@ class _EggTile extends ConsumerWidget {
     final controller = ref.read(masilPetControllerProvider.notifier);
     final template = controller.templateFor(egg.templateId);
     final hatchable = egg.status == EggStatus.hatchable && !state.isBusy;
+    final remainingSteps =
+        (egg.requiredSteps - egg.progress).clamp(0, egg.requiredSteps);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -152,7 +256,11 @@ class _EggTile extends ConsumerWidget {
                               fontWeight: FontWeight.w800,
                             ),
                       ),
-                      Text('${egg.progress} / ${egg.requiredSteps} 걸음'),
+                      Text(
+                        egg.status == EggStatus.hatchable
+                            ? '부화 준비 완료'
+                            : '$remainingSteps 걸음 남음',
+                      ),
                     ],
                   ),
                 ),

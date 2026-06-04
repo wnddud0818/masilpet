@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,7 +18,97 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="MasilPet location-based pet raising app.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="부산을 걸으며 체크인하고 지역 맥락을 가진 마실펫을 수집·성장시키는 위치 기반 앱입니다.">
+  <meta name="theme-color" content="#0F766E">
+  <meta name="color-scheme" content="light">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="MasilPet">
+  <meta property="og:description" content="부산을 걸으며 만나는 나만의 마실펫">
+  <link rel="privacy-policy" href="/privacy.html">
+  <style>
+    :root {
+      color-scheme: light;
+      background: #F7F7F2;
+      color: #1F2933;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #F7F7F2;
+    }
+
+    #loading-shell,
+    .fallback-shell {
+      min-height: 100vh;
+      box-sizing: border-box;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .loading-content,
+    .fallback-content {
+      max-width: 520px;
+    }
+
+    .loading-mark {
+      width: 54px;
+      height: 54px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: #0F766E;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-weight: 800;
+      font-size: 24px;
+    }
+
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      margin: 22px auto 0;
+      border-radius: 50%;
+      border: 4px solid #D7E4DF;
+      border-top-color: #0F766E;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .loading-content h1,
+    .fallback-content h1 {
+      margin: 0 0 8px;
+      font-size: 30px;
+      line-height: 1.2;
+    }
+
+    .loading-content p,
+    .fallback-content p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.7;
+    }
+
+    .fallback-content a {
+      color: #0F766E;
+      font-weight: 700;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .loading-spinner {
+        animation: none;
+      }
+    }
+  </style>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -33,6 +123,35 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <div id="loading-shell" role="status" aria-live="polite" aria-label="MasilPet 앱 로딩 중">
+    <div class="loading-content">
+      <div class="loading-mark" aria-hidden="true">M</div>
+      <h1>MasilPet</h1>
+      <p>부산을 걸으며 만나는 나만의 마실펫을 준비하고 있습니다.</p>
+      <div class="loading-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+  <noscript>
+    <style>
+      #loading-shell {
+        display: none;
+      }
+    </style>
+    <main class="fallback-shell">
+      <div class="fallback-content">
+        <h1>MasilPet</h1>
+        <p>앱을 사용하려면 브라우저에서 JavaScript를 켜야 합니다. 개인정보 처리방침은 <a href="/privacy.html">/privacy.html</a>에서 확인할 수 있습니다.</p>
+      </div>
+    </main>
+  </noscript>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var loadingShell = document.getElementById('loading-shell');
+      if (loadingShell) {
+        loadingShell.remove();
+      }
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

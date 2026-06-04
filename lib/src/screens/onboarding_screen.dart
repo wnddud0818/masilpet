@@ -11,9 +11,6 @@ class OnboardingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(masilPetControllerProvider.notifier);
     final state = ref.watch(masilPetControllerProvider);
-    final firebaseReady = ref.watch(
-      masilPetControllerProvider.select((state) => state.firebaseReady),
-    );
 
     return Scaffold(
       body: SafeArea(
@@ -23,76 +20,152 @@ class OnboardingScreen extends ConsumerWidget {
             return SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: isWide ? 28 : 12),
-                      Text(
-                        'MasilPet',
-                        style:
-                            Theme.of(context).textTheme.displaySmall?.copyWith(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1040),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: isWide ? 28 : 12),
+                          Text(
+                            'MasilPet',
+                            style: Theme.of(context)
+                                .textTheme
+                                .displaySmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0,
                                 ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '부산을 걸으며 만나는 나만의 마실펫',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '실제 위치 체크인, TourAPI 지역 데이터, Firebase 진행도 동기화를 연결한 지역 탐험형 펫 성장 앱입니다.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 18),
+                          PetPlayField(
+                            templates: state.templates,
+                            pets: state.pets,
+                            eggs: state.eggs,
+                            activePetId: state.activePetId,
+                            activity: state.fieldActivity,
+                            activityNonce: state.fieldActivityNonce,
+                            height: isWide ? 300 : 230,
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _IntroMetric(
+                                  value: '${state.pois.length}',
+                                  label: '부산 POI',
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _IntroMetric(
+                                  value: '${state.templates.length}',
+                                  label: '마실펫',
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: _IntroMetric(
+                                  value: '150m',
+                                  label: '체크인 반경',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          _OnboardingPoint(
+                            icon: Icons.map_outlined,
+                            title: 'TourAPI 기반 지역 탐험',
+                            body: '현재 위치 확인 후 부산 POI를 카테고리별로 방문하고 체크인합니다.',
+                          ),
+                          const SizedBox(height: 12),
+                          _OnboardingPoint(
+                            icon: Icons.egg_alt_outlined,
+                            title: '알 수집과 부화',
+                            body: '체크인 보상과 지역 방문 기록이 알 부화 진행도로 이어집니다.',
+                          ),
+                          const SizedBox(height: 12),
+                          _OnboardingPoint(
+                            icon: Icons.forum_outlined,
+                            title: '장소 맥락 기반 교감',
+                            body: '방문한 장소에 맞춘 상황별 대사로 펫과 대화합니다.',
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            state.firebaseReady
+                                ? 'Firebase 연결 준비 완료'
+                                : state.firebaseStartupIssue.fallbackMessage,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: controller.completeOnboarding,
+                              icon: const Icon(Icons.play_arrow_rounded),
+                              label: const Text('마실펫 시작'),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        '부산을 걸으며 만나는 나만의 마실펫',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 18),
-                      PetPlayField(
-                        templates: state.templates,
-                        pets: state.pets,
-                        eggs: state.eggs,
-                        activePetId: state.activePetId,
-                        activity: state.fieldActivity,
-                        activityNonce: state.fieldActivityNonce,
-                        height: isWide ? 300 : 230,
-                      ),
-                      const SizedBox(height: 18),
-                      _OnboardingPoint(
-                        icon: Icons.map_outlined,
-                        title: 'TourAPI 기반 지역 탐험',
-                        body: '부산 POI를 카테고리별로 방문하고 체크인합니다.',
-                      ),
-                      const SizedBox(height: 12),
-                      _OnboardingPoint(
-                        icon: Icons.egg_alt_outlined,
-                        title: '알 수집과 부화',
-                        body: '체크인 보상과 걸음 수가 알 부화 진행도로 이어집니다.',
-                      ),
-                      const SizedBox(height: 12),
-                      _OnboardingPoint(
-                        icon: Icons.forum_outlined,
-                        title: '고정 대사 기반 교감',
-                        body: 'MVP에서는 비용 없이 상황별 대사로 펫과 대화합니다.',
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        firebaseReady
-                            ? 'Firebase 연결 준비 완료'
-                            : 'Firebase 미설정 상태라 데모 모드로 실행됩니다.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: controller.completeOnboarding,
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('마실펫 시작'),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _IntroMetric extends StatelessWidget {
+  const _IntroMetric({
+    required this.value,
+    required this.label,
+  });
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }

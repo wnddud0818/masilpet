@@ -11,11 +11,29 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, create, update: if isOwner(uid);
-      allow delete: if false;
+      allow read: if isOwner(uid);
+      allow create, update, delete: if false;
+
+      // Progress writes are server-owned. Callable Functions use the Admin SDK
+      // and bypass rules; clients can only read their own synced state.
+      match /pets/{petId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      match /eggs/{eggId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
+      match /checkins/{checkinId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
 
       match /{document=**} {
-        allow read, write: if isOwner(uid);
+        allow read: if isOwner(uid);
+        allow write: if false;
       }
     }
 

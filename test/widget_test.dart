@@ -631,6 +631,7 @@ void main() {
 
     final petsTopLeft = tester.getTopLeft(find.text('보유 마실펫'));
     final eggsTopLeft = tester.getTopLeft(find.text('알'));
+    expect(find.text('도감 수집률'), findsOneWidget);
     expect(eggsTopLeft.dx, greaterThan(petsTopLeft.dx));
     expect((eggsTopLeft.dy - petsTopLeft.dy).abs(), lessThan(80));
     expect(tester.takeException(), isNull);

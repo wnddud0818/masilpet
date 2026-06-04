@@ -216,6 +216,26 @@ class _HouseOverviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '도감 수집률',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${(state.dexCompletionRatio * 100).round()}%',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(

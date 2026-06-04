@@ -880,6 +880,9 @@ void main() {
     final startButton =
         find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
     expect(startButton, findsOneWidget);
+    expect(find.text('기기 내 진행 모드'), findsOneWidget);
+    expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
+    expect(find.byIcon(Icons.storage_outlined), findsOneWidget);
     expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
     expect(tester.takeException(), isNull);
   });

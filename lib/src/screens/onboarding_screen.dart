@@ -98,11 +98,11 @@ class OnboardingScreen extends ConsumerWidget {
                 ),
               ],
             );
-            final connectionStatus = Text(
-              state.firebaseReady
+            final connectionStatus = _OnboardingConnectionStatus(
+              online: state.firebaseReady,
+              message: state.firebaseReady
                   ? 'Firebase 연결 준비 완료'
                   : state.firebaseStartupIssue.fallbackMessage,
-              style: Theme.of(context).textTheme.bodyMedium,
             );
             return SingleChildScrollView(
               child: ConstrainedBox(
@@ -249,6 +249,58 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
         ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+}
+
+class _OnboardingConnectionStatus extends StatelessWidget {
+  const _OnboardingConnectionStatus({
+    required this.online,
+    required this.message,
+  });
+
+  final bool online;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = online ? const Color(0xFF16A34A) : scheme.primary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            online ? Icons.cloud_done_outlined : Icons.storage_outlined,
+            color: color,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  online ? '온라인 동기화 준비' : '기기 내 진행 모드',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(message),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

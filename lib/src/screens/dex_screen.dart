@@ -5,6 +5,7 @@ import '../models.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/responsive_sliver_list.dart';
+import '../widgets/section_header.dart';
 
 class DexScreen extends ConsumerWidget {
   const DexScreen({super.key});
@@ -22,32 +23,54 @@ class DexScreen extends ConsumerWidget {
             children: [
               _DexProgressCard(state: state),
               const SizedBox(height: 16),
-              const SizedBox(height: 8),
+              SectionHeader(
+                title: '수집한 마실펫',
+                detail:
+                    '${state.discoveredTemplateIds.length}/${state.templates.length}',
+                icon: Icons.pets_outlined,
+              ),
               for (final template in state.templates)
                 _DexPetCard(
                   template: template,
                   discovered: state.discoveredTemplateIds.contains(template.id),
                 ),
               const SizedBox(height: 16),
-              Text(
-                'TourAPI 카테고리 매핑',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              const SectionHeader(
+                title: 'TourAPI 카테고리 매핑',
+                icon: Icons.route_outlined,
               ),
-              const SizedBox(height: 8),
-              for (final poi in state.pois.take(6))
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.place_outlined),
-                  title: Text(poi.title),
-                  subtitle: Text(
-                      '${poi.category.label} · ${poi.category.tourApiHint}'),
-                ),
+              _PoiMappingCard(pois: state.pois.take(6).toList()),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PoiMappingCard extends StatelessWidget {
+  const _PoiMappingCard({required this.pois});
+
+  final List<Poi> pois;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Column(
+          children: [
+            for (final poi in pois)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.place_outlined),
+                title: Text(poi.title),
+                subtitle:
+                    Text('${poi.category.label} · ${poi.category.tourApiHint}'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

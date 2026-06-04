@@ -6,6 +6,7 @@ import '../state.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
+import '../widgets/section_header.dart';
 import '../widgets/status_banner.dart';
 
 class HouseScreen extends ConsumerWidget {
@@ -27,13 +28,11 @@ class HouseScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _HouseOverviewCard(state: state),
               const SizedBox(height: 16),
-              Text(
-                '보유 마실펫',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              SectionHeader(
+                title: '보유 마실펫',
+                detail: '${state.pets.length}종',
+                icon: Icons.pets_outlined,
               ),
-              const SizedBox(height: 8),
               for (final pet in state.pets)
                 _PetHouseTile(
                   pet: pet,
@@ -41,19 +40,16 @@ class HouseScreen extends ConsumerWidget {
                   onSelect: () => controller.selectPet(pet.id),
                 ),
               const SizedBox(height: 16),
-              Text(
-                '알',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              SectionHeader(
+                title: '알',
+                detail: '${state.eggs.length}개',
+                icon: Icons.egg_alt_outlined,
               ),
-              const SizedBox(height: 8),
               if (state.eggs.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('보유 중인 알이 없습니다. 부산 POI를 체크인해 새 알을 찾아보세요.'),
-                  ),
+                const EmptyStateCard(
+                  icon: Icons.egg_alt_outlined,
+                  title: '부화할 알이 없습니다',
+                  body: '체크인 보상으로 새 알을 발견하면 이곳에 표시됩니다.',
                 )
               else
                 for (final egg in state.eggs) _EggTile(egg: egg),

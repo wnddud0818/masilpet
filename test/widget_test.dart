@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:masilpet/src/app.dart';
+import 'package:masilpet/src/screens/dex_screen.dart';
+import 'package:masilpet/src/screens/house_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
@@ -90,6 +92,50 @@ void main() {
         find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
     expect(startButton, findsOneWidget);
     expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('collection screens expose clear sections on phone width',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('보유 마실펫'), findsOneWidget);
+    expect(find.text('알'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: DexScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('수집한 마실펫'), findsOneWidget);
+    expect(find.text('TourAPI 카테고리 매핑'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

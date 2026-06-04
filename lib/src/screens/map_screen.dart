@@ -50,7 +50,12 @@ class MapScreen extends ConsumerWidget {
                     state.isBusy ? null : controller.useDeviceLocation,
               ),
               const SizedBox(height: 12),
-              _MapExplorationLayout(state: state, nearby: nearby),
+              _MapExplorationLayout(
+                state: state,
+                nearby: nearby,
+                onUseDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+              ),
               const SizedBox(height: 16),
               PetPlayField(
                 templates: state.templates,
@@ -73,12 +78,14 @@ class _MapExplorationLayout extends StatelessWidget {
   const _MapExplorationLayout({
     required this.state,
     required this.nearby,
+    required this.onUseDeviceLocation,
   });
 
   static const _wideBreakpoint = 840.0;
 
   final MasilPetState state;
   final List<Poi> nearby;
+  final VoidCallback? onUseDeviceLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +96,10 @@ class _MapExplorationLayout extends StatelessWidget {
           state: state,
           height: useTwoColumns ? 420 : 260,
         );
-        final poiList = _NearbyPoiList(nearby: nearby);
+        final poiList = _NearbyPoiList(
+          nearby: nearby,
+          onUseDeviceLocation: onUseDeviceLocation,
+        );
 
         if (!useTwoColumns) {
           return Column(
@@ -116,9 +126,13 @@ class _MapExplorationLayout extends StatelessWidget {
 }
 
 class _NearbyPoiList extends StatelessWidget {
-  const _NearbyPoiList({required this.nearby});
+  const _NearbyPoiList({
+    required this.nearby,
+    required this.onUseDeviceLocation,
+  });
 
   final List<Poi> nearby;
+  final VoidCallback? onUseDeviceLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -131,10 +145,13 @@ class _NearbyPoiList extends StatelessWidget {
           icon: Icons.near_me_outlined,
         ),
         if (nearby.isEmpty)
-          const EmptyStateCard(
+          EmptyStateCard(
             icon: Icons.location_off_outlined,
             title: '근처 POI가 없습니다',
             body: '현재 위치를 다시 확인하면 가까운 여행지가 표시됩니다.',
+            actionIcon: Icons.my_location,
+            actionLabel: '현재 위치 다시 확인',
+            onAction: onUseDeviceLocation,
           )
         else
           for (final poi in nearby) _PoiTile(poi: poi),

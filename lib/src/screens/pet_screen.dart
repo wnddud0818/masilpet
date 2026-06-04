@@ -92,9 +92,9 @@ class _PetCareLayout extends StatelessWidget {
               if (pet != null) ...[
                 _CareReadinessCard(pet: pet!),
                 const SizedBox(height: 12),
+                actions,
+                const SizedBox(height: 12),
               ],
-              actions,
-              const SizedBox(height: 12),
               details,
             ],
           );
@@ -109,8 +109,10 @@ class _PetCareLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   playField,
-                  const SizedBox(height: 12),
-                  actions,
+                  if (pet != null) ...[
+                    const SizedBox(height: 12),
+                    actions,
+                  ],
                 ],
               ),
             ),

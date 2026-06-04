@@ -125,6 +125,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile readiness links missing check-in to map',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final checkInAction = find.widgetWithText(TextButton, '지도에서 체크인하기');
+    expect(find.text('탐험 준비 상태'), findsOneWidget);
+    expect(checkInAction, findsOneWidget);
+    expect(tester.widget<TextButton>(checkInAction).onPressed, isNotNull);
+
+    await tester.tap(checkInAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profile screen pairs diagnostics and actions on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -936,9 +981,10 @@ void main() {
     );
     await tester.pump();
 
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    final resetAction = find.widgetWithText(OutlinedButton, '진행도 초기화');
+    await tester.ensureVisible(resetAction);
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(OutlinedButton, '진행도 초기화'));
+    await tester.tap(resetAction);
     await tester.pumpAndSettle();
 
     expect(find.text('진행도 초기화'), findsWidgets);

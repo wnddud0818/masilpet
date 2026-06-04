@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app_build_info.dart';
+import '../services.dart';
 import '../services/privacy_navigation.dart';
 import '../state.dart';
 import '../widgets/status_banner.dart';
@@ -444,14 +445,16 @@ class _ProgressManagementCard extends StatelessWidget {
   }
 }
 
-class _LaunchReadinessCard extends StatelessWidget {
+class _LaunchReadinessCard extends ConsumerWidget {
   const _LaunchReadinessCard({required this.state});
 
   final MasilPetState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final score = state.launchReadinessScore;
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final nextAction = _readinessNextAction(state, controller);
 
     return Card(
       child: Padding(
@@ -514,11 +517,67 @@ class _LaunchReadinessCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (nextAction != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: state.isBusy ? null : nextAction.onPressed,
+                  icon: Icon(nextAction.icon),
+                  label: Text(nextAction.label),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _ReadinessAction {
+  const _ReadinessAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+}
+
+_ReadinessAction? _readinessNextAction(
+  MasilPetState state,
+  MasilPetController controller,
+) {
+  if (state.todayCheckInCount == 0) {
+    return _ReadinessAction(
+      icon: Icons.map_outlined,
+      label: '지도에서 체크인하기',
+      onPressed: () => controller.setTab(0),
+    );
+  }
+
+  if (state.pets.isEmpty) {
+    return _ReadinessAction(
+      icon: Icons.home_outlined,
+      label: '하우스에서 알 보기',
+      onPressed: () => controller.setTab(2),
+    );
+  }
+
+  final hasTalkedToday = isSameLocalDay(state.dialogueDay, DateTime.now()) &&
+      state.dialogueCountToday > 0;
+  if (!hasTalkedToday) {
+    return _ReadinessAction(
+      icon: Icons.forum_outlined,
+      label: '마실펫 돌보기',
+      onPressed: () => controller.setTab(1),
+    );
+  }
+
+  return null;
 }
 
 class _ReadinessChip extends StatelessWidget {

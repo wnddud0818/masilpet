@@ -485,6 +485,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('pet screen disables talk action after daily limit',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      dialogueCountToday: 5,
+      dialogueDay: DateTime.now(),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final doneTalkAction = find.widgetWithText(FilledButton, '대화 완료');
+    expect(find.text('대화 가능'), findsOneWidget);
+    expect(find.text('0회'), findsOneWidget);
+    expect(doneTalkAction, findsOneWidget);
+    expect(tester.widget<FilledButton>(doneTalkAction).onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pet screen hides care actions when no active pet is available',
       (WidgetTester tester) async {
     final controller = _EmptyPetController();

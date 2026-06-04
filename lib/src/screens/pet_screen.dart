@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
+import '../services.dart';
 import '../state.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
@@ -62,6 +63,8 @@ class _PetCareLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final talksLeft = _talksLeftToday(state);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final useTwoColumns = constraints.maxWidth >= _wideBreakpoint;
@@ -76,6 +79,7 @@ class _PetCareLayout extends StatelessWidget {
         );
         final actions = _CareActionRow(
           isBusy: isBusy,
+          talksLeft: talksLeft,
           onTalk: onTalk,
           onFeed: onFeed,
         );
@@ -140,23 +144,29 @@ class _PetCareLayout extends StatelessWidget {
 class _CareActionRow extends StatelessWidget {
   const _CareActionRow({
     required this.isBusy,
+    required this.talksLeft,
     required this.onTalk,
     required this.onFeed,
   });
 
   final bool isBusy;
+  final int talksLeft;
   final VoidCallback onTalk;
   final VoidCallback onFeed;
 
   @override
   Widget build(BuildContext context) {
+    final canTalk = talksLeft > 0;
+
     return Row(
       children: [
         Expanded(
           child: FilledButton.icon(
-            onPressed: isBusy ? null : onTalk,
-            icon: const Icon(Icons.forum_outlined),
-            label: const Text('대화'),
+            onPressed: isBusy || !canTalk ? null : onTalk,
+            icon: Icon(
+              canTalk ? Icons.forum_outlined : Icons.check_circle_outline,
+            ),
+            label: Text(canTalk ? '대화' : '대화 완료'),
           ),
         ),
         const SizedBox(width: 10),
@@ -243,7 +253,7 @@ class _CareReadinessCard extends StatelessWidget {
     return Consumer(
       builder: (context, ref, child) {
         final state = ref.watch(masilPetControllerProvider);
-        final talksLeft = (5 - state.dialogueCountToday).clamp(0, 5);
+        final talksLeft = _talksLeftToday(state);
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -283,6 +293,13 @@ class _CareReadinessCard extends StatelessWidget {
       },
     );
   }
+}
+
+int _talksLeftToday(MasilPetState state) {
+  final countToday = isSameLocalDay(state.dialogueDay, DateTime.now())
+      ? state.dialogueCountToday
+      : 0;
+  return (5 - countToday).clamp(0, 5).toInt();
 }
 
 class _ActivePetPanel extends ConsumerWidget {

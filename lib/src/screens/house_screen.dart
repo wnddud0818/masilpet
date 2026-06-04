@@ -29,31 +29,10 @@ class HouseScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _HouseOverviewCard(state: state),
               const SizedBox(height: 16),
-              SectionHeader(
-                title: '보유 마실펫',
-                detail: '${state.pets.length}종',
-                icon: Icons.pets_outlined,
+              _HouseCollectionLayout(
+                state: state,
+                onSelectPet: controller.selectPet,
               ),
-              for (final pet in state.pets)
-                _PetHouseTile(
-                  pet: pet,
-                  isActive: pet.id == state.activePetId,
-                  onSelect: () => controller.selectPet(pet.id),
-                ),
-              const SizedBox(height: 16),
-              SectionHeader(
-                title: '알',
-                detail: '${state.eggs.length}개',
-                icon: Icons.egg_alt_outlined,
-              ),
-              if (state.eggs.isEmpty)
-                const EmptyStateCard(
-                  icon: Icons.egg_alt_outlined,
-                  title: '부화할 알이 없습니다',
-                  body: '체크인 보상으로 새 알을 발견하면 이곳에 표시됩니다.',
-                )
-              else
-                for (final egg in state.eggs) _EggTile(egg: egg),
               const SizedBox(height: 16),
               PetPlayField(
                 templates: state.templates,
@@ -67,6 +46,120 @@ class HouseScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _HouseCollectionLayout extends StatelessWidget {
+  const _HouseCollectionLayout({
+    required this.state,
+    required this.onSelectPet,
+  });
+
+  static const _wideBreakpoint = 840.0;
+
+  final MasilPetState state;
+  final ValueChanged<String> onSelectPet;
+
+  @override
+  Widget build(BuildContext context) {
+    final pets = _OwnedPetsSection(
+      pets: state.pets,
+      activePetId: state.activePetId,
+      onSelectPet: onSelectPet,
+    );
+    final eggs = _EggsSection(eggs: state.eggs);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTwoColumns = constraints.maxWidth >= _wideBreakpoint;
+        if (!useTwoColumns) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              pets,
+              const SizedBox(height: 16),
+              eggs,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: pets),
+            const SizedBox(width: 16),
+            Expanded(child: eggs),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _OwnedPetsSection extends StatelessWidget {
+  const _OwnedPetsSection({
+    required this.pets,
+    required this.activePetId,
+    required this.onSelectPet,
+  });
+
+  final List<Pet> pets;
+  final String? activePetId;
+  final ValueChanged<String> onSelectPet;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: '보유 마실펫',
+          detail: '${pets.length}종',
+          icon: Icons.pets_outlined,
+        ),
+        if (pets.isEmpty)
+          const EmptyStateCard(
+            icon: Icons.pets_outlined,
+            title: '함께 지내는 마실펫이 없습니다',
+            body: '알을 부화하면 이곳에 보유 마실펫이 표시됩니다.',
+          )
+        else
+          for (final pet in pets)
+            _PetHouseTile(
+              pet: pet,
+              isActive: pet.id == activePetId,
+              onSelect: () => onSelectPet(pet.id),
+            ),
+      ],
+    );
+  }
+}
+
+class _EggsSection extends StatelessWidget {
+  const _EggsSection({required this.eggs});
+
+  final List<Egg> eggs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: '알',
+          detail: '${eggs.length}개',
+          icon: Icons.egg_alt_outlined,
+        ),
+        if (eggs.isEmpty)
+          const EmptyStateCard(
+            icon: Icons.egg_alt_outlined,
+            title: '부화할 알이 없습니다',
+            body: '체크인 보상으로 새 알을 발견하면 이곳에 표시됩니다.',
+          )
+        else
+          for (final egg in eggs) _EggTile(egg: egg),
       ],
     );
   }

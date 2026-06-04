@@ -278,6 +278,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('house screen pairs pets and eggs on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final petsTopLeft = tester.getTopLeft(find.text('보유 마실펫'));
+    final eggsTopLeft = tester.getTopLeft(find.text('알'));
+    expect(eggsTopLeft.dx, greaterThan(petsTopLeft.dx));
+    expect((eggsTopLeft.dy - petsTopLeft.dy).abs(), lessThan(80));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('onboarding primary action stays visible on phone width',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);

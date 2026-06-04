@@ -12,6 +12,7 @@ import 'package:masilpet/src/screens/map_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/pet_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
+import 'package:masilpet/src/models.dart';
 import 'package:masilpet/src/services.dart';
 import 'package:masilpet/src/state.dart';
 import 'package:masilpet/src/widgets/metric_grid.dart';
@@ -425,6 +426,69 @@ void main() {
     final eggsTopLeft = tester.getTopLeft(find.text('알'));
     expect(eggsTopLeft.dx, greaterThan(petsTopLeft.dx));
     expect((eggsTopLeft.dy - petsTopLeft.dy).abs(), lessThan(80));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house screen makes representative pet selection explicit',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    final firstPet = controller.state.pets.first;
+    final secondTemplate = controller.state.templates[1];
+    final secondPet = Pet(
+      id: 'pet-test-${secondTemplate.id}',
+      templateId: secondTemplate.id,
+      name: secondTemplate.name,
+      stage: PetStage.baby,
+      level: 1,
+      stats: const GrowthStats(
+        exp: 10,
+        mood: 12,
+        knowledge: 4,
+        affinity: 7,
+      ),
+      originRegionId: secondTemplate.regionId,
+      hatchedAt: DateTime(2026, 1, 1),
+      lastInteractedAt: null,
+    );
+    controller.state = controller.state.copyWith(
+      pets: [firstPet, secondPet],
+      activePetId: firstPet.id,
+    );
+
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('대표'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '대표 설정'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '대표 설정'));
+    await tester.pump();
+
+    expect(controller.state.activePetId, secondPet.id);
+    expect(find.text('대표'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

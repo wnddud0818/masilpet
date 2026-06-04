@@ -246,20 +246,82 @@ class _PetHouseTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final controller = ref.read(masilPetControllerProvider.notifier);
     final template = controller.templateFor(pet.templateId);
+    final scheme = Theme.of(context).colorScheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: PetAvatar(template: template, size: 52, stage: pet.stage.name),
-        title: Text(pet.name),
-        subtitle: Text('Lv.${pet.level} · ${pet.stage.label} 단계'),
-        trailing: isActive
-            ? const Icon(Icons.check_circle)
-            : IconButton(
-                tooltip: '대표 설정',
+      color: isActive
+          ? scheme.primaryContainer.withValues(alpha: 0.22)
+          : scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: isActive ? scheme.primary : scheme.outlineVariant,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            PetAvatar(template: template, size: 52, stage: pet.stage.name),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    pet.name,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text('Lv.${pet.level} · ${pet.stage.label} 단계'),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (isActive)
+              _ActivePetBadge(color: scheme.primary)
+            else
+              OutlinedButton.icon(
                 onPressed: onSelect,
                 icon: const Icon(Icons.flag_outlined),
+                label: const Text('대표 설정'),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActivePetBadge extends StatelessWidget {
+  const _ActivePetBadge({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle, size: 16, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '대표',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
       ),
     );
   }

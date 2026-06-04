@@ -364,6 +364,45 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('pet stage goal links growth to map exploration',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(1);
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('성장 단계'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'));
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pet screen hides care actions when no active pet is available',
       (WidgetTester tester) async {
     final controller = _EmptyPetController();

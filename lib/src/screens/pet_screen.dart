@@ -365,13 +365,15 @@ class _ActivePetPanel extends ConsumerWidget {
   }
 }
 
-class _StageGoal extends StatelessWidget {
+class _StageGoal extends ConsumerWidget {
   const _StageGoal({required this.pet});
 
   final Pet pet;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final isComplete = pet.stage == PetStage.evolved;
     final nextLabel = switch (pet.stage) {
       PetStage.baby => '성장 단계',
       PetStage.grown => '진화 단계',
@@ -392,11 +394,10 @@ class _StageGoal extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            pet.stage == PetStage.evolved
-                ? Icons.workspace_premium
-                : Icons.flag_outlined,
+            isComplete ? Icons.workspace_premium : Icons.flag_outlined,
             color: Theme.of(context).colorScheme.primary,
           ),
           const SizedBox(width: 10),
@@ -412,6 +413,17 @@ class _StageGoal extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(description),
+                if (!isComplete) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => controller.setTab(0),
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('지도에서 성장 보상 얻기'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

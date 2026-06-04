@@ -9,6 +9,7 @@ import 'package:masilpet/src/screens/house_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
+import 'package:masilpet/src/widgets/metric_grid.dart';
 
 void main() {
   testWidgets('MasilPet app starts with local progress fallback',
@@ -97,6 +98,60 @@ void main() {
     expect(find.text('현재 위치 사용'), findsOneWidget);
     expect(find.text('해운대 지도 보기'), findsOneWidget);
     expect(find.text('새로고침'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('metric summaries wrap on narrow phones',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(320, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: EdgeInsets.all(16),
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: MetricGrid(
+                  items: [
+                    MetricGridItem(
+                      icon: Icons.check_circle_outline,
+                      label: '체크인 가능',
+                      value: '3곳',
+                    ),
+                    MetricGridItem(
+                      icon: Icons.flag_outlined,
+                      label: '오늘 체크인',
+                      value: '1회',
+                    ),
+                    MetricGridItem(
+                      icon: Icons.near_me_outlined,
+                      label: '가장 가까운 곳',
+                      value: '120m',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('체크인 가능'), findsOneWidget);
+    expect(find.text('오늘 체크인'), findsOneWidget);
+    expect(find.text('가장 가까운 곳'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('가장 가까운 곳')).dy,
+      greaterThan(tester.getTopLeft(find.text('체크인 가능')).dy),
+    );
     expect(tester.takeException(), isNull);
   });
 

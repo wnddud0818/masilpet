@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
 import '../state.dart';
+import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
@@ -123,30 +124,22 @@ class _CareReadinessCard extends StatelessWidget {
                       ),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CareMetric(
-                        icon: Icons.forum_outlined,
-                        label: '대화 가능',
-                        value: '$talksLeft회',
-                      ),
+                MetricGrid(
+                  items: [
+                    MetricGridItem(
+                      icon: Icons.forum_outlined,
+                      label: '대화 가능',
+                      value: '$talksLeft회',
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _CareMetric(
-                        icon: Icons.auto_graph,
-                        label: '다음 레벨',
-                        value: '$safeExpToNextLevel EXP',
-                      ),
+                    MetricGridItem(
+                      icon: Icons.auto_graph,
+                      label: '다음 레벨',
+                      value: '$safeExpToNextLevel EXP',
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _CareMetric(
-                        icon: Icons.public,
-                        label: '방문 보상',
-                        value: state.lastVisitedCategory?.label ?? '대기',
-                      ),
+                    MetricGridItem(
+                      icon: Icons.public,
+                      label: '방문 보상',
+                      value: state.lastVisitedCategory?.label ?? '대기',
                     ),
                   ],
                 ),
@@ -155,49 +148,6 @@ class _CareReadinessCard extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _CareMetric extends StatelessWidget {
-  const _CareMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
     );
   }
 }

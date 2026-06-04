@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
 import '../state.dart';
+import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
@@ -97,30 +98,22 @@ class _HouseOverviewCard extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _HouseMetric(
-                    icon: Icons.pets_outlined,
-                    label: '보유 펫',
-                    value: '${state.pets.length}/${state.templates.length}',
-                  ),
+            MetricGrid(
+              items: [
+                MetricGridItem(
+                  icon: Icons.pets_outlined,
+                  label: '보유 펫',
+                  value: '${state.pets.length}/${state.templates.length}',
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _HouseMetric(
-                    icon: Icons.egg_alt_outlined,
-                    label: '부화 가능',
-                    value: '${state.hatchableEggCount}개',
-                  ),
+                MetricGridItem(
+                  icon: Icons.egg_alt_outlined,
+                  label: '부화 가능',
+                  value: '${state.hatchableEggCount}개',
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _HouseMetric(
-                    icon: Icons.directions_walk,
-                    label: '남은 걸음',
-                    value: remainingSteps == null ? '-' : '$remainingSteps',
-                  ),
+                MetricGridItem(
+                  icon: Icons.directions_walk,
+                  label: '남은 걸음',
+                  value: remainingSteps == null ? '-' : '$remainingSteps',
                 ),
               ],
             ),
@@ -135,49 +128,6 @@ class _HouseOverviewCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HouseMetric extends StatelessWidget {
-  const _HouseMetric({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ),
     );
   }

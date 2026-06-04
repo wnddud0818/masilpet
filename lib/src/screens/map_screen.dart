@@ -7,6 +7,7 @@ import 'package:url_launcher/link.dart';
 import '../models.dart';
 import '../services.dart';
 import '../state.dart';
+import '../widgets/metric_grid.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
@@ -108,31 +109,22 @@ class _ExplorationBriefing extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _BriefingMetric(
-                    label: '체크인 가능',
-                    value: '${state.todayAvailableCheckInCount}곳',
-                    icon: Icons.check_circle_outline,
-                  ),
+            MetricGrid(
+              items: [
+                MetricGridItem(
+                  label: '체크인 가능',
+                  value: '${state.todayAvailableCheckInCount}곳',
+                  icon: Icons.check_circle_outline,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _BriefingMetric(
-                    label: '오늘 체크인',
-                    value: '${state.todayCheckInCount}회',
-                    icon: Icons.flag_outlined,
-                  ),
+                MetricGridItem(
+                  label: '오늘 체크인',
+                  value: '${state.todayCheckInCount}회',
+                  icon: Icons.flag_outlined,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _BriefingMetric(
-                    label: '가장 가까운 곳',
-                    value:
-                        nearestDistance == null ? '-' : '${nearestDistance}m',
-                    icon: Icons.near_me_outlined,
-                  ),
+                MetricGridItem(
+                  label: '가장 가까운 곳',
+                  value: nearestDistance == null ? '-' : '${nearestDistance}m',
+                  icon: Icons.near_me_outlined,
                 ),
               ],
             ),
@@ -147,48 +139,6 @@ class _ExplorationBriefing extends StatelessWidget {
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BriefingMetric extends StatelessWidget {
-  const _BriefingMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ),
     );
   }

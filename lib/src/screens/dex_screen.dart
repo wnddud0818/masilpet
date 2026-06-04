@@ -237,9 +237,9 @@ class _DexPetCard extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            Opacity(
-              opacity: discovered ? 1 : 0.45,
-              child: PetAvatar(template: template, size: 58),
+            _DexAvatar(
+              template: template,
+              discovered: discovered,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -295,11 +295,58 @@ class _DiscoveryBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        discovered ? '발견' : '잠김',
+        discovered ? '발견' : '탐험 필요',
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w800,
             ),
+      ),
+    );
+  }
+}
+
+class _DexAvatar extends StatelessWidget {
+  const _DexAvatar({
+    required this.template,
+    required this.discovered,
+  });
+
+  final PetTemplate template;
+  final bool discovered;
+
+  @override
+  Widget build(BuildContext context) {
+    if (discovered) {
+      return PetAvatar(template: template, size: 58);
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 58,
+      height: 58,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Opacity(
+            opacity: 0.38,
+            child: PetAvatar(template: template, size: 58),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: scheme.surface.withValues(alpha: 0.86),
+              shape: BoxShape.circle,
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: Icon(
+                Icons.lock_outline,
+                size: 18,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -480,6 +480,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dex screen marks undiscovered pets as exploration goals',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: DexScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('탐험 필요'), findsWidgets);
+    expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('onboarding primary action stays visible on phone width',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);

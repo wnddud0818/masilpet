@@ -365,6 +365,7 @@ void main() {
 
   testWidgets('pet screen hides care actions when no active pet is available',
       (WidgetTester tester) async {
+    final controller = _EmptyPetController();
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -376,7 +377,7 @@ void main() {
       ProviderScope(
         overrides: [
           masilPetControllerProvider.overrideWith(
-            (ref) => _EmptyPetController(),
+            (ref) => controller,
           ),
         ],
         child: const MaterialApp(home: Scaffold(body: PetScreen())),
@@ -384,9 +385,16 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('아직 함께할 마실펫이 없습니다. 알을 부화해 보세요.'), findsOneWidget);
+    expect(find.text('아직 함께할 마실펫이 없습니다'), findsOneWidget);
+    expect(find.textContaining('하우스에서 알 상태를 확인'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '하우스에서 알 보기'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, '대화'), findsNothing);
     expect(find.widgetWithText(OutlinedButton, '먹이주기'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilledButton, '하우스에서 알 보기'));
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 2);
     expect(tester.takeException(), isNull);
   });
 

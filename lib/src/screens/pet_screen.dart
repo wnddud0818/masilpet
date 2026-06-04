@@ -172,15 +172,59 @@ class _CareActionRow extends StatelessWidget {
   }
 }
 
-class _NoActivePetCard extends StatelessWidget {
+class _NoActivePetCard extends ConsumerWidget {
   const _NoActivePetCard();
 
   @override
-  Widget build(BuildContext context) {
-    return const Card(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('아직 함께할 마실펫이 없습니다. 알을 부화해 보세요.'),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.egg_alt_outlined,
+                color: scheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '아직 함께할 마실펫이 없습니다',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('하우스에서 알 상태를 확인하고 부화할 마실펫을 준비해 보세요.'),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.icon(
+                      onPressed: () => controller.setTab(2),
+                      icon: const Icon(Icons.home_outlined),
+                      label: const Text('하우스에서 알 보기'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

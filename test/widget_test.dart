@@ -106,6 +106,43 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile screen pairs diagnostics and actions on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final readinessTopLeft =
+        tester.getTopLeft(find.byIcon(Icons.rocket_launch_outlined));
+    final locationActionTopLeft =
+        tester.getTopLeft(find.byIcon(Icons.my_location));
+    expect(locationActionTopLeft.dx, greaterThan(readinessTopLeft.dx));
+    expect(
+        (locationActionTopLeft.dy - readinessTopLeft.dy).abs(), lessThan(160));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('metric summaries wrap on narrow phones',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(320, 740);

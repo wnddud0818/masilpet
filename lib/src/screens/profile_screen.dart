@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app_build_info.dart';
 import '../services/privacy_navigation.dart';
 import '../state.dart';
-import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -22,7 +21,9 @@ class ProfileScreen extends ConsumerWidget {
         const SliverAppBar(title: Text('내 정보')),
         SliverPadding(
           padding: const EdgeInsets.all(16),
-          sliver: ResponsiveSliverList(
+          sliver: _ProfileAdaptiveSliverList(
+            primaryCount: 5,
+            secondaryStartIndex: 6,
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
@@ -153,6 +154,63 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed == true) {
       await controller.resetProgress();
     }
+  }
+}
+
+class _ProfileAdaptiveSliverList extends StatelessWidget {
+  const _ProfileAdaptiveSliverList({
+    required this.children,
+    required this.primaryCount,
+    required this.secondaryStartIndex,
+  });
+
+  static const double _wideBreakpoint = 840.0;
+
+  final List<Widget> children;
+  final int primaryCount;
+  final int secondaryStartIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1040),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < _wideBreakpoint) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children.take(primaryCount).toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children.skip(secondaryStartIndex).toList(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -641,6 +641,7 @@ void main() {
 
     expect(find.text('진행도 초기화'), findsWidgets);
     expect(find.textContaining('되돌릴 수 없습니다'), findsOneWidget);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
     expect(find.text('취소'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, '초기화'), findsOneWidget);
 

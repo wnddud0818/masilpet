@@ -130,8 +130,18 @@ class ProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
         return AlertDialog(
-          title: const Text('진행도 초기화'),
+          title: Row(
+            children: [
+              Icon(
+                Icons.warning_amber_rounded,
+                color: scheme.error,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('진행도 초기화')),
+            ],
+          ),
           content: Text(
             includeRemote
                 ? '기기 내 진행과 온라인 진행도를 초기화합니다. 이 작업은 되돌릴 수 없습니다.'
@@ -144,6 +154,10 @@ class ProfileScreen extends ConsumerWidget {
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.error,
+                foregroundColor: scheme.onError,
+              ),
               child: const Text('초기화'),
             ),
           ],
@@ -377,6 +391,8 @@ class _ProgressManagementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -411,7 +427,13 @@ class _ProgressManagementCard extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
                 onPressed: state.isBusy ? null : onReset,
-                icon: const Icon(Icons.restart_alt),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: scheme.error,
+                  side: BorderSide(
+                    color: scheme.error.withValues(alpha: 0.72),
+                  ),
+                ),
+                icon: const Icon(Icons.delete_forever_outlined),
                 label: const Text('진행도 초기화'),
               ),
             ),

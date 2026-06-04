@@ -44,7 +44,11 @@ class MapScreen extends ConsumerWidget {
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
-              _ExplorationBriefing(state: state),
+              _ExplorationBriefing(
+                state: state,
+                onUseDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+              ),
               const SizedBox(height: 12),
               _MapExplorationLayout(state: state, nearby: nearby),
               const SizedBox(height: 16),
@@ -140,9 +144,13 @@ class _NearbyPoiList extends StatelessWidget {
 }
 
 class _ExplorationBriefing extends StatelessWidget {
-  const _ExplorationBriefing({required this.state});
+  const _ExplorationBriefing({
+    required this.state,
+    required this.onUseDeviceLocation,
+  });
 
   final MasilPetState state;
+  final VoidCallback? onUseDeviceLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +210,17 @@ class _ExplorationBriefing extends StatelessWidget {
                     : '현재 위치를 확인하면 150m 체크인 판정이 활성화됩니다.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
+              if (!state.hasFreshVerifiedLocation) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: onUseDeviceLocation,
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('현재 위치 확인'),
+                  ),
+                ),
+              ],
             ],
           ],
         ),
@@ -454,7 +473,9 @@ class _PoiTile extends ConsumerWidget {
     final checked = state.hasCheckedInToday(poi);
     final inRange =
         state.hasFreshVerifiedLocation && distance <= checkInRadiusMeters;
+    final needsLocation = !state.hasFreshVerifiedLocation;
     final canCheckIn = inRange && !checked && !state.isBusy;
+    final canRequestLocation = needsLocation && !checked && !state.isBusy;
     final reward = const GrowthEngine().rewardFor(poi.category);
 
     return Card(
@@ -512,22 +533,25 @@ class _PoiTile extends ConsumerWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed:
-                    canCheckIn ? () => controller.attemptCheckIn(poi) : null,
+                onPressed: canCheckIn
+                    ? () => controller.attemptCheckIn(poi)
+                    : canRequestLocation
+                        ? controller.useDeviceLocation
+                        : null,
                 icon: Icon(checked
                     ? Icons.task_alt
-                    : canCheckIn
-                        ? Icons.check_circle
-                        : state.hasFreshVerifiedLocation
-                            ? Icons.near_me_disabled
-                            : Icons.my_location),
+                    : needsLocation
+                        ? Icons.my_location
+                        : canCheckIn
+                            ? Icons.check_circle
+                            : Icons.near_me_disabled),
                 label: Text(checked
                     ? '오늘 체크인 완료'
-                    : inRange
-                        ? '체크인'
-                        : state.hasFreshVerifiedLocation
-                            ? '150m 안에서 가능'
-                            : '현재 위치 확인 필요'),
+                    : needsLocation
+                        ? '현재 위치 확인'
+                        : inRange
+                            ? '체크인'
+                            : '150m 안에서 가능'),
               ),
             ),
           ],

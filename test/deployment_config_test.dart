@@ -231,7 +231,8 @@ void main() {
     );
     expect(profileSource,
         contains('state.isBusy ? null : controller.useStarterBusanLocation'));
-    expect(mapSource, contains('현재 위치 확인 필요'));
+    expect(mapSource, contains('현재 위치 확인'));
+    expect(mapSource, contains('controller.useDeviceLocation'));
     expect(mapSource, contains('미확인'));
     expect(mapSource, contains('key: ValueKey'));
     expect(

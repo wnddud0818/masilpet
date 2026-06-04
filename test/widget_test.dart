@@ -285,6 +285,36 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map screen offers location confirmation when check-in is locked',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final briefingAction = find.widgetWithText(OutlinedButton, '현재 위치 확인');
+    expect(briefingAction, findsOneWidget);
+    expect(tester.widget<OutlinedButton>(briefingAction).onPressed, isNotNull);
+    expect(find.widgetWithText(FilledButton, '현재 위치 확인'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pet screen pairs play field and care details on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

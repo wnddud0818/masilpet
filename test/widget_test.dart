@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:masilpet/src/app.dart';
+import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
 
@@ -60,6 +61,35 @@ void main() {
     expect(find.text('local'), findsOneWidget);
     expect(find.text('빌드 시각'), findsOneWidget);
     expect(find.text('local build'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding primary action stays visible on phone width',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: OnboardingScreen()),
+      ),
+    );
+    await tester.pump();
+
+    final startButton =
+        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
+    expect(startButton, findsOneWidget);
+    expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
     expect(tester.takeException(), isNull);
   });
 

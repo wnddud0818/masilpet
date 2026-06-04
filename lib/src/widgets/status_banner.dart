@@ -10,12 +10,22 @@ class StatusBanner extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(masilPetControllerProvider);
     final message = state.statusMessage;
-    return Container(
+    final scheme = Theme.of(context).colorScheme;
+    final isActive = state.isBusy || state.firebaseReady;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
+        color:
+            isActive ? scheme.primaryContainer : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isActive
+              ? scheme.primary.withValues(alpha: 0.14)
+              : scheme.outlineVariant,
+        ),
       ),
       child: Row(
         children: [
@@ -25,21 +35,25 @@ class StatusBanner extends ConsumerWidget {
               height: 18,
               child: CircularProgressIndicator(
                 strokeWidth: 2.2,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: isActive ? scheme.onPrimaryContainer : scheme.primary,
               ),
             )
           else
             Icon(
               state.firebaseReady ? Icons.cloud_done : Icons.offline_bolt,
               size: 18,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              color: isActive ? scheme.onPrimaryContainer : scheme.primary,
             ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: isActive
+                        ? scheme.onPrimaryContainer
+                        : scheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
             ),

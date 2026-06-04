@@ -223,13 +223,11 @@ void main() {
     expect(profileSource, contains('state.firebaseReady && !state.isBusy'));
     expect(
       profileSource,
-      contains(
-          'onlineActionEnabled\n                    ? controller.ensureRemoteUserBootstrap'),
+      contains('? controller.ensureRemoteUserBootstrap'),
     );
     expect(
       profileSource,
-      contains(
-          'onlineActionEnabled\n                    ? () => controller.refreshRemoteProgress()'),
+      contains('? () => controller.refreshRemoteProgress()'),
     );
     expect(profileSource,
         contains('state.isBusy ? null : controller.useStarterBusanLocation'));

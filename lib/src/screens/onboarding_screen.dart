@@ -13,6 +13,25 @@ class OnboardingScreen extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
 
     return Scaffold(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1040),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: controller.completeOnboarding,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('마실펫 시작'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -110,15 +129,7 @@ class OnboardingScreen extends ConsumerWidget {
                                 : state.firebaseStartupIssue.fallbackMessage,
                             style: Theme.of(context).textTheme.bodyMedium,
                           ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: controller.completeOnboarding,
-                              icon: const Icon(Icons.play_arrow_rounded),
-                              label: const Text('마실펫 시작'),
-                            ),
-                          ),
+                          const SizedBox(height: 24),
                         ],
                       ),
                     ),

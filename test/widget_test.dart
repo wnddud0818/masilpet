@@ -766,6 +766,50 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dex screen empty TourAPI mapping links back to map',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(3);
+    controller.state = controller.state.copyWith(pois: const []);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: DexScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('TourAPI 장소 데이터가 없습니다'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, '지도에서 다시 조회'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.widgetWithText(OutlinedButton, '지도에서 다시 조회'),
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(OutlinedButton, '지도에서 다시 조회'));
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('onboarding primary action stays visible on phone width',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);

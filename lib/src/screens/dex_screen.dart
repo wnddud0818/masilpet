@@ -113,13 +113,15 @@ class _DexPetsSection extends StatelessWidget {
   }
 }
 
-class _TourApiMappingSection extends StatelessWidget {
+class _TourApiMappingSection extends ConsumerWidget {
   const _TourApiMappingSection({required this.pois});
 
   final List<Poi> pois;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -127,7 +129,17 @@ class _TourApiMappingSection extends StatelessWidget {
           title: 'TourAPI 카테고리 매핑',
           icon: Icons.route_outlined,
         ),
-        _PoiMappingCard(pois: pois),
+        if (pois.isEmpty)
+          EmptyStateCard(
+            icon: Icons.route_outlined,
+            title: 'TourAPI 장소 데이터가 없습니다',
+            body: '현재 위치를 다시 확인하면 가까운 여행지 매핑을 다시 볼 수 있습니다.',
+            actionIcon: Icons.map_outlined,
+            actionLabel: '지도에서 다시 조회',
+            onAction: () => controller.setTab(0),
+          )
+        else
+          _PoiMappingCard(pois: pois),
       ],
     );
   }

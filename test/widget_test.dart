@@ -334,6 +334,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+      'map screen lets users refresh location when outside check-in range',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      currentLocation:
+          const Coordinates(latitude: 35.1796, longitude: 129.0756),
+      locationVerified: true,
+      locationVerifiedAt: DateTime.now(),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final refreshAction = find.widgetWithText(FilledButton, '현재 위치 다시 확인');
+    expect(refreshAction, findsWidgets);
+    final firstRefreshButton =
+        tester.widgetList<FilledButton>(refreshAction).first;
+    expect(firstRefreshButton.onPressed, isNotNull);
+    expect(find.widgetWithText(FilledButton, '150m 안에서 가능'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pet screen pairs play field and care details on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

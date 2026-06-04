@@ -476,6 +476,8 @@ class _PoiTile extends ConsumerWidget {
     final needsLocation = !state.hasFreshVerifiedLocation;
     final canCheckIn = inRange && !checked && !state.isBusy;
     final canRequestLocation = needsLocation && !checked && !state.isBusy;
+    final canRefreshLocation =
+        !needsLocation && !inRange && !checked && !state.isBusy;
     final reward = const GrowthEngine().rewardFor(poi.category);
 
     return Card(
@@ -535,12 +537,12 @@ class _PoiTile extends ConsumerWidget {
               child: FilledButton.icon(
                 onPressed: canCheckIn
                     ? () => controller.attemptCheckIn(poi)
-                    : canRequestLocation
+                    : canRequestLocation || canRefreshLocation
                         ? controller.useDeviceLocation
                         : null,
                 icon: Icon(checked
                     ? Icons.task_alt
-                    : needsLocation
+                    : needsLocation || canRefreshLocation
                         ? Icons.my_location
                         : canCheckIn
                             ? Icons.check_circle
@@ -549,9 +551,11 @@ class _PoiTile extends ConsumerWidget {
                     ? '오늘 체크인 완료'
                     : needsLocation
                         ? '현재 위치 확인'
-                        : inRange
-                            ? '체크인'
-                            : '150m 안에서 가능'),
+                        : canRefreshLocation
+                            ? '현재 위치 다시 확인'
+                            : inRange
+                                ? '체크인'
+                                : '150m 안에서 가능'),
               ),
             ),
           ],

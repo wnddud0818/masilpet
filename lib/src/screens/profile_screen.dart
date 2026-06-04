@@ -193,24 +193,38 @@ class _ProfileActionsCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: useStarterLocation,
-                    icon: const Icon(Icons.location_city_outlined),
-                    label: const Text('해운대 지도 보기'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: refreshRemoteProgress,
-                    icon: const Icon(Icons.cloud_sync_outlined),
-                    label: const Text('새로고침'),
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stackButtons = constraints.maxWidth < 300;
+                final starterButton = OutlinedButton.icon(
+                  onPressed: useStarterLocation,
+                  icon: const Icon(Icons.location_city_outlined),
+                  label: const Text('해운대 지도 보기'),
+                );
+                final refreshButton = OutlinedButton.icon(
+                  onPressed: refreshRemoteProgress,
+                  icon: const Icon(Icons.cloud_sync_outlined),
+                  label: const Text('새로고침'),
+                );
+
+                if (stackButtons) {
+                  return Column(
+                    children: [
+                      SizedBox(width: double.infinity, child: starterButton),
+                      const SizedBox(height: 8),
+                      SizedBox(width: double.infinity, child: refreshButton),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: starterButton),
+                    const SizedBox(width: 8),
+                    Expanded(child: refreshButton),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 8),
             SizedBox(

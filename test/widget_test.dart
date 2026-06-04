@@ -66,6 +66,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile quick actions adapt on narrow phones',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(320, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('빠른 작업'), findsOneWidget);
+    expect(find.text('현재 위치 사용'), findsOneWidget);
+    expect(find.text('해운대 지도 보기'), findsOneWidget);
+    expect(find.text('새로고침'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('onboarding primary action stays visible on phone width',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -7,6 +8,7 @@ import 'package:masilpet/src/app.dart';
 import 'package:masilpet/src/screens/dex_screen.dart';
 import 'package:masilpet/src/screens/home_shell.dart';
 import 'package:masilpet/src/screens/house_screen.dart';
+import 'package:masilpet/src/screens/map_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
@@ -211,6 +213,36 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
     expect(rail.extended, isTrue);
     expect(rail.destinations, hasLength(5));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map screen pairs map and POI list on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final mapTopLeft = tester.getTopLeft(find.byType(FlutterMap));
+    final poiTitleTopLeft = tester.getTopLeft(find.text('가까운 POI'));
+    expect(poiTitleTopLeft.dx, greaterThan(mapTopLeft.dx));
+    expect((poiTitleTopLeft.dy - mapTopLeft.dy).abs(), lessThan(80));
     expect(tester.takeException(), isNull);
   });
 

@@ -10,6 +10,7 @@ import '../state.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
+import '../widgets/section_header.dart';
 import '../widgets/status_banner.dart';
 
 final Uri _openStreetMapCopyrightUri =
@@ -45,17 +46,8 @@ class MapScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _ExplorationBriefing(state: state),
               const SizedBox(height: 12),
-              _LivePoiMap(state: state),
+              _MapExplorationLayout(state: state, nearby: nearby),
               const SizedBox(height: 16),
-              Text(
-                '가까운 POI',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              for (final poi in nearby) _PoiTile(poi: poi),
-              const SizedBox(height: 8),
               PetPlayField(
                 templates: state.templates,
                 pets: state.pets,
@@ -68,6 +60,80 @@ class MapScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _MapExplorationLayout extends StatelessWidget {
+  const _MapExplorationLayout({
+    required this.state,
+    required this.nearby,
+  });
+
+  static const _wideBreakpoint = 840.0;
+
+  final MasilPetState state;
+  final List<Poi> nearby;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTwoColumns = constraints.maxWidth >= _wideBreakpoint;
+        final map = _LivePoiMap(
+          state: state,
+          height: useTwoColumns ? 420 : 260,
+        );
+        final poiList = _NearbyPoiList(nearby: nearby);
+
+        if (!useTwoColumns) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              map,
+              const SizedBox(height: 16),
+              poiList,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 6, child: map),
+            const SizedBox(width: 16),
+            Expanded(flex: 5, child: poiList),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _NearbyPoiList extends StatelessWidget {
+  const _NearbyPoiList({required this.nearby});
+
+  final List<Poi> nearby;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: '가까운 POI',
+          detail: '${nearby.length}곳',
+          icon: Icons.near_me_outlined,
+        ),
+        if (nearby.isEmpty)
+          const EmptyStateCard(
+            icon: Icons.location_off_outlined,
+            title: '근처 POI가 없습니다',
+            body: '현재 위치를 다시 확인하면 가까운 여행지가 표시됩니다.',
+          )
+        else
+          for (final poi in nearby) _PoiTile(poi: poi),
       ],
     );
   }
@@ -145,9 +211,13 @@ class _ExplorationBriefing extends StatelessWidget {
 }
 
 class _LivePoiMap extends StatelessWidget {
-  const _LivePoiMap({required this.state});
+  const _LivePoiMap({
+    required this.state,
+    required this.height,
+  });
 
   final MasilPetState state;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -159,7 +229,7 @@ class _LivePoiMap extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 260,
+        height: height,
         child: Stack(
           children: [
             FlutterMap(

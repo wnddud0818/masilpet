@@ -270,7 +270,8 @@ class _EggTile extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
     final controller = ref.read(masilPetControllerProvider.notifier);
     final template = controller.templateFor(egg.templateId);
-    final hatchable = egg.status == EggStatus.hatchable && !state.isBusy;
+    final isReadyToHatch = egg.status == EggStatus.hatchable;
+    final canHatch = isReadyToHatch && !state.isBusy;
     final remainingSteps =
         (egg.requiredSteps - egg.progress).clamp(0, egg.requiredSteps);
 
@@ -303,10 +304,10 @@ class _EggTile extends ConsumerWidget {
                     ],
                   ),
                 ),
-                FilledButton(
-                  onPressed:
-                      hatchable ? () => controller.hatchEgg(egg.id) : null,
-                  child: const Text('부화'),
+                _EggActionButton(
+                  isReadyToHatch: isReadyToHatch,
+                  canHatch: canHatch,
+                  onHatch: () => controller.hatchEgg(egg.id),
                 ),
               ],
             ),
@@ -315,6 +316,35 @@ class _EggTile extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EggActionButton extends StatelessWidget {
+  const _EggActionButton({
+    required this.isReadyToHatch,
+    required this.canHatch,
+    required this.onHatch,
+  });
+
+  final bool isReadyToHatch;
+  final bool canHatch;
+  final VoidCallback onHatch;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isReadyToHatch) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.directions_walk),
+        label: const Text('걸음 필요'),
+      );
+    }
+
+    return FilledButton.icon(
+      onPressed: canHatch ? onHatch : null,
+      icon: const Icon(Icons.egg_alt_outlined),
+      label: const Text('부화'),
     );
   }
 }

@@ -420,6 +420,35 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('house screen labels locked eggs as needing more steps',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.widgetWithText(OutlinedButton, '걸음 필요'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '부화'), findsNothing);
+    expect(find.textContaining('걸음 남음'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'dex screen pairs collection and TourAPI mapping on desktop width',
       (WidgetTester tester) async {

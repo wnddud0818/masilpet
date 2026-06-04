@@ -45,8 +45,8 @@ class OnboardingScreen extends ConsumerWidget {
                     constraints: const BoxConstraints(maxWidth: 1040),
                     child: Padding(
                       padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: _OnboardingAdaptiveLayout(
+                        isWide: isWide,
                         children: [
                           SizedBox(height: isWide ? 28 : 12),
                           Text(
@@ -140,6 +140,63 @@ class OnboardingScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _OnboardingAdaptiveLayout extends StatelessWidget {
+  const _OnboardingAdaptiveLayout({
+    required this.isWide,
+    required this.children,
+  }) : assert(children.length == 19);
+
+  final bool isWide;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isWide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        children[0],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...children.sublist(1, 7),
+                  children[9],
+                  children[16],
+                  children[17],
+                ],
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  children[7],
+                  children[8],
+                  ...children.sublist(11, 16),
+                ],
+              ),
+            ),
+          ],
+        ),
+        children[18],
+      ],
     );
   }
 }

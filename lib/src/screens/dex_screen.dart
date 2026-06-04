@@ -23,26 +23,111 @@ class DexScreen extends ConsumerWidget {
             children: [
               _DexProgressCard(state: state),
               const SizedBox(height: 16),
-              SectionHeader(
-                title: '수집한 마실펫',
-                detail:
-                    '${state.discoveredTemplateIds.length}/${state.templates.length}',
-                icon: Icons.pets_outlined,
+              _DexCollectionLayout(
+                templates: state.templates,
+                discoveredTemplateIds: state.discoveredTemplateIds,
+                pois: state.pois.take(6).toList(),
               ),
-              for (final template in state.templates)
-                _DexPetCard(
-                  template: template,
-                  discovered: state.discoveredTemplateIds.contains(template.id),
-                ),
-              const SizedBox(height: 16),
-              const SectionHeader(
-                title: 'TourAPI 카테고리 매핑',
-                icon: Icons.route_outlined,
-              ),
-              _PoiMappingCard(pois: state.pois.take(6).toList()),
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _DexCollectionLayout extends StatelessWidget {
+  const _DexCollectionLayout({
+    required this.templates,
+    required this.discoveredTemplateIds,
+    required this.pois,
+  });
+
+  static const _wideBreakpoint = 840.0;
+
+  final List<PetTemplate> templates;
+  final Set<String> discoveredTemplateIds;
+  final List<Poi> pois;
+
+  @override
+  Widget build(BuildContext context) {
+    final pets = _DexPetsSection(
+      templates: templates,
+      discoveredTemplateIds: discoveredTemplateIds,
+    );
+    final mapping = _TourApiMappingSection(pois: pois);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTwoColumns = constraints.maxWidth >= _wideBreakpoint;
+        if (!useTwoColumns) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              pets,
+              const SizedBox(height: 16),
+              mapping,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 6, child: pets),
+            const SizedBox(width: 16),
+            Expanded(flex: 5, child: mapping),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DexPetsSection extends StatelessWidget {
+  const _DexPetsSection({
+    required this.templates,
+    required this.discoveredTemplateIds,
+  });
+
+  final List<PetTemplate> templates;
+  final Set<String> discoveredTemplateIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(
+          title: '수집한 마실펫',
+          detail: '${discoveredTemplateIds.length}/${templates.length}',
+          icon: Icons.pets_outlined,
+        ),
+        for (final template in templates)
+          _DexPetCard(
+            template: template,
+            discovered: discoveredTemplateIds.contains(template.id),
+          ),
+      ],
+    );
+  }
+}
+
+class _TourApiMappingSection extends StatelessWidget {
+  const _TourApiMappingSection({required this.pois});
+
+  final List<Poi> pois;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader(
+          title: 'TourAPI 카테고리 매핑',
+          icon: Icons.route_outlined,
+        ),
+        _PoiMappingCard(pois: pois),
       ],
     );
   }

@@ -429,8 +429,11 @@ void main() {
 
     final titleTopLeft = tester.getTopLeft(find.text('MasilPet'));
     final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
+    final startButton =
+        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
     expect(fieldTopLeft.dx, greaterThan(titleTopLeft.dx));
     expect((fieldTopLeft.dy - titleTopLeft.dy).abs(), lessThan(80));
+    expect(tester.getRect(startButton).width, lessThanOrEqualTo(430));
     expect(tester.takeException(), isNull);
   });
 

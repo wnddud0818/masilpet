@@ -28,36 +28,109 @@ class PetScreen extends ConsumerWidget {
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
-              PetPlayField(
-                templates: state.templates,
-                pets: state.pets,
-                eggs: state.eggs,
-                activePetId: state.activePetId,
-                activity: state.fieldActivity,
-                activityNonce: state.fieldActivityNonce,
-              ),
-              const SizedBox(height: 12),
-              if (pet != null) _CareReadinessCard(pet: pet),
-              if (pet != null) const SizedBox(height: 12),
-              _CareActionRow(
+              _PetCareLayout(
+                state: state,
+                pet: pet,
                 isBusy: state.isBusy,
                 onTalk: controller.talkWithActivePet,
                 onFeed: controller.feedActivePet,
               ),
-              const SizedBox(height: 12),
-              if (pet == null)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('아직 함께할 마실펫이 없습니다. 알을 부화해 보세요.'),
-                  ),
-                )
-              else
-                _ActivePetPanel(petId: pet.id),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PetCareLayout extends StatelessWidget {
+  const _PetCareLayout({
+    required this.state,
+    required this.pet,
+    required this.isBusy,
+    required this.onTalk,
+    required this.onFeed,
+  });
+
+  static const _wideBreakpoint = 840.0;
+
+  final MasilPetState state;
+  final Pet? pet;
+  final bool isBusy;
+  final VoidCallback onTalk;
+  final VoidCallback onFeed;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final useTwoColumns = constraints.maxWidth >= _wideBreakpoint;
+        final playField = PetPlayField(
+          templates: state.templates,
+          pets: state.pets,
+          eggs: state.eggs,
+          activePetId: state.activePetId,
+          activity: state.fieldActivity,
+          activityNonce: state.fieldActivityNonce,
+          height: useTwoColumns ? 420 : 260,
+        );
+        final actions = _CareActionRow(
+          isBusy: isBusy,
+          onTalk: onTalk,
+          onFeed: onFeed,
+        );
+        final details = pet == null
+            ? const _NoActivePetCard()
+            : _ActivePetPanel(petId: pet!.id);
+
+        if (!useTwoColumns) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              playField,
+              const SizedBox(height: 12),
+              if (pet != null) ...[
+                _CareReadinessCard(pet: pet!),
+                const SizedBox(height: 12),
+              ],
+              actions,
+              const SizedBox(height: 12),
+              details,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 6,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  playField,
+                  const SizedBox(height: 12),
+                  actions,
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 5,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (pet != null) ...[
+                    _CareReadinessCard(pet: pet!),
+                    const SizedBox(height: 12),
+                  ],
+                  details,
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -93,6 +166,20 @@ class _CareActionRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _NoActivePetCard extends StatelessWidget {
+  const _NoActivePetCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('아직 함께할 마실펫이 없습니다. 알을 부화해 보세요.'),
+      ),
     );
   }
 }

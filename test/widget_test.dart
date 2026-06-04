@@ -10,9 +10,11 @@ import 'package:masilpet/src/screens/home_shell.dart';
 import 'package:masilpet/src/screens/house_screen.dart';
 import 'package:masilpet/src/screens/map_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
+import 'package:masilpet/src/screens/pet_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
 import 'package:masilpet/src/state.dart';
 import 'package:masilpet/src/widgets/metric_grid.dart';
+import 'package:masilpet/src/widgets/pet_play_field.dart';
 
 void main() {
   testWidgets('MasilPet app starts with local progress fallback',
@@ -243,6 +245,36 @@ void main() {
     final poiTitleTopLeft = tester.getTopLeft(find.text('가까운 POI'));
     expect(poiTitleTopLeft.dx, greaterThan(mapTopLeft.dx));
     expect((poiTitleTopLeft.dy - mapTopLeft.dy).abs(), lessThan(80));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet screen pairs play field and care details on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
+    final routineTopLeft = tester.getTopLeft(find.text('오늘의 돌봄 루틴'));
+    expect(routineTopLeft.dx, greaterThan(fieldTopLeft.dx));
+    expect((routineTopLeft.dy - fieldTopLeft.dy).abs(), lessThan(80));
     expect(tester.takeException(), isNull);
   });
 

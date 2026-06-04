@@ -137,13 +137,15 @@ class _OwnedPetsSection extends StatelessWidget {
   }
 }
 
-class _EggsSection extends StatelessWidget {
+class _EggsSection extends ConsumerWidget {
   const _EggsSection({required this.eggs});
 
   final List<Egg> eggs;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -153,10 +155,13 @@ class _EggsSection extends StatelessWidget {
           icon: Icons.egg_alt_outlined,
         ),
         if (eggs.isEmpty)
-          const EmptyStateCard(
+          EmptyStateCard(
             icon: Icons.egg_alt_outlined,
             title: '부화할 알이 없습니다',
             body: '체크인 보상으로 새 알을 발견하면 이곳에 표시됩니다.',
+            actionIcon: Icons.map_outlined,
+            actionLabel: '지도에서 체크인하기',
+            onAction: () => controller.setTab(0),
           )
         else
           for (final egg in eggs) _EggTile(egg: egg),
@@ -313,6 +318,17 @@ class _EggTile extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             LinearProgressIndicator(value: egg.progressRatio),
+            if (!isReadyToHatch) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: state.isBusy ? null : () => controller.setTab(0),
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('지도에서 체크인하기'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

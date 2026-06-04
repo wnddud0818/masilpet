@@ -430,7 +430,14 @@ void main() {
 
   testWidgets('house screen labels locked eggs as needing more steps',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(2);
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -441,9 +448,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
           ),
         ],
         child: const MaterialApp(home: Scaffold(body: HouseScreen())),
@@ -453,7 +459,13 @@ void main() {
 
     expect(find.widgetWithText(OutlinedButton, '걸음 필요'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, '부화'), findsNothing);
+    expect(find.widgetWithText(TextButton, '지도에서 체크인하기'), findsOneWidget);
     expect(find.textContaining('걸음 남음'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, '지도에서 체크인하기'));
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
   });
 

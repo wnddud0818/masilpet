@@ -50,12 +50,18 @@ class EmptyStateCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.actionLabel,
+    this.actionIcon,
+    this.onAction,
     super.key,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final String? actionLabel;
+  final IconData? actionIcon;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -88,6 +94,17 @@ class EmptyStateCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(body),
+                  if (actionLabel != null && onAction != null) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: onAction,
+                        icon: Icon(actionIcon ?? Icons.arrow_forward),
+                        label: Text(actionLabel!),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

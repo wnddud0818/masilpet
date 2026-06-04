@@ -38,6 +38,12 @@ class PetScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               if (pet != null) _CareReadinessCard(pet: pet),
               if (pet != null) const SizedBox(height: 12),
+              _CareActionRow(
+                isBusy: state.isBusy,
+                onTalk: controller.talkWithActivePet,
+                onFeed: controller.feedActivePet,
+              ),
+              const SizedBox(height: 12),
               if (pet == null)
                 const Card(
                   child: Padding(
@@ -47,28 +53,42 @@ class PetScreen extends ConsumerWidget {
                 )
               else
                 _ActivePetPanel(petId: pet.id),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed:
-                          state.isBusy ? null : controller.talkWithActivePet,
-                      icon: const Icon(Icons.forum_outlined),
-                      label: const Text('대화'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: state.isBusy ? null : controller.feedActivePet,
-                      icon: const Icon(Icons.restaurant_outlined),
-                      label: const Text('먹이주기'),
-                    ),
-                  ),
-                ],
-              ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CareActionRow extends StatelessWidget {
+  const _CareActionRow({
+    required this.isBusy,
+    required this.onTalk,
+    required this.onFeed,
+  });
+
+  final bool isBusy;
+  final VoidCallback onTalk;
+  final VoidCallback onFeed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: isBusy ? null : onTalk,
+            icon: const Icon(Icons.forum_outlined),
+            label: const Text('대화'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: isBusy ? null : onFeed,
+            icon: const Icon(Icons.restaurant_outlined),
+            label: const Text('먹이주기'),
           ),
         ),
       ],

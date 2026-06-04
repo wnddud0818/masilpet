@@ -27,16 +27,6 @@ class HouseScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _HouseOverviewCard(state: state),
               const SizedBox(height: 16),
-              PetPlayField(
-                templates: state.templates,
-                pets: state.pets,
-                eggs: state.eggs,
-                activePetId: state.activePetId,
-                activity: state.fieldActivity,
-                activityNonce: state.fieldActivityNonce,
-                height: 220,
-              ),
-              const SizedBox(height: 16),
               Text(
                 '보유 마실펫',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -67,6 +57,16 @@ class HouseScreen extends ConsumerWidget {
                 )
               else
                 for (final egg in state.eggs) _EggTile(egg: egg),
+              const SizedBox(height: 16),
+              PetPlayField(
+                templates: state.templates,
+                pets: state.pets,
+                eggs: state.eggs,
+                activePetId: state.activePetId,
+                activity: state.fieldActivity,
+                activityNonce: state.fieldActivityNonce,
+                height: 180,
+              ),
             ],
           ),
         ),

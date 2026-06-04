@@ -70,33 +70,17 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: state.isBusy ? null : controller.useDeviceLocation,
-                icon: const Icon(Icons.my_location),
-                label: const Text('현재 위치 사용'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed:
+              _ProfileActionsCard(
+                useDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+                useStarterLocation:
                     state.isBusy ? null : controller.useStarterBusanLocation,
-                icon: const Icon(Icons.location_city_outlined),
-                label: const Text('해운대 지도 보기'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: onlineActionEnabled
+                ensureRemoteUserBootstrap: onlineActionEnabled
                     ? controller.ensureRemoteUserBootstrap
                     : null,
-                icon: const Icon(Icons.verified_user_outlined),
-                label: const Text('계정 상태 확인'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: onlineActionEnabled
+                refreshRemoteProgress: onlineActionEnabled
                     ? () => controller.refreshRemoteProgress()
                     : null,
-                icon: const Icon(Icons.cloud_sync_outlined),
-                label: const Text('진행도 새로고침'),
               ),
               const SizedBox(height: 16),
               const _PrivacyCard(),
@@ -169,6 +153,78 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed == true) {
       await controller.resetProgress();
     }
+  }
+}
+
+class _ProfileActionsCard extends StatelessWidget {
+  const _ProfileActionsCard({
+    required this.useDeviceLocation,
+    required this.useStarterLocation,
+    required this.ensureRemoteUserBootstrap,
+    required this.refreshRemoteProgress,
+  });
+
+  final VoidCallback? useDeviceLocation;
+  final VoidCallback? useStarterLocation;
+  final VoidCallback? ensureRemoteUserBootstrap;
+  final VoidCallback? refreshRemoteProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '빠른 작업',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: useDeviceLocation,
+                icon: const Icon(Icons.my_location),
+                label: const Text('현재 위치 사용'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: useStarterLocation,
+                    icon: const Icon(Icons.location_city_outlined),
+                    label: const Text('해운대 지도 보기'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: refreshRemoteProgress,
+                    icon: const Icon(Icons.cloud_sync_outlined),
+                    label: const Text('새로고침'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: ensureRemoteUserBootstrap,
+                icon: const Icon(Icons.verified_user_outlined),
+                label: const Text('계정 상태 확인'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

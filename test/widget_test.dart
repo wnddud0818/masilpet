@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:masilpet/src/app.dart';
 import 'package:masilpet/src/screens/dex_screen.dart';
+import 'package:masilpet/src/screens/home_shell.dart';
 import 'package:masilpet/src/screens/house_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
@@ -152,6 +153,64 @@ void main() {
       tester.getTopLeft(find.text('가장 가까운 곳')).dy,
       greaterThan(tester.getTopLeft(find.text('체크인 가능')).dy),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('home shell keeps bottom navigation on phone width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: HomeShell()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('home shell uses navigation rail on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: HomeShell()),
+      ),
+    );
+    await tester.pump();
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(rail.extended, isTrue);
+    expect(rail.destinations, hasLength(5));
     expect(tester.takeException(), isNull);
   });
 

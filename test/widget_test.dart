@@ -707,6 +707,48 @@ void main() {
     }
   });
 
+  testWidgets('map card exposes a marker legend', (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [busanPoiSeed.first, busanPoiSeed[2], busanPoiSeed[4]],
+    );
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    await tester.ensureVisible(find.byType(FlutterMap));
+    await tester.pump();
+
+    expect(find.text('현재 위치'), findsWidgets);
+    expect(find.text('체크인 완료'), findsOneWidget);
+    expect(find.text('자연'), findsWidgets);
+    expect(find.text('문화'), findsWidgets);
+    expect(find.text('음식'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map screen offers location confirmation when check-in is locked',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

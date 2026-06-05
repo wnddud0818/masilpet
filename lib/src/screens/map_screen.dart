@@ -705,87 +705,185 @@ class _LivePoiMap extends StatelessWidget {
       state.currentLocation.latitude,
       state.currentLocation.longitude,
     );
+    final legendCategories = _visiblePoiCategories(state.pois);
 
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: height,
-        child: Stack(
-          children: [
-            FlutterMap(
-              key: ValueKey(
-                '${state.currentLocation.latitude.toStringAsFixed(6)},'
-                '${state.currentLocation.longitude.toStringAsFixed(6)}',
-              ),
-              options: MapOptions(
-                initialCenter: currentPoint,
-                initialZoom: 12.7,
-                interactionOptions: const InteractionOptions(
-                  flags: InteractiveFlag.drag |
-                      InteractiveFlag.pinchZoom |
-                      InteractiveFlag.doubleTapZoom,
-                ),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: height,
+            child: Stack(
               children: [
-                TileLayer(
-                  urlTemplate: mapTileBuildConfig.urlTemplate,
-                  userAgentPackageName: mapTileBuildConfig.userAgentPackageName,
-                ),
-                CircleLayer(
-                  circles: [
-                    CircleMarker(
-                      point: currentPoint,
-                      radius: checkInRadiusMeters,
-                      useRadiusInMeter: true,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.14),
-                      borderColor: Theme.of(context).colorScheme.primary,
-                      borderStrokeWidth: 1.5,
+                FlutterMap(
+                  key: ValueKey(
+                    '${state.currentLocation.latitude.toStringAsFixed(6)},'
+                    '${state.currentLocation.longitude.toStringAsFixed(6)}',
+                  ),
+                  options: MapOptions(
+                    initialCenter: currentPoint,
+                    initialZoom: 12.7,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.drag |
+                          InteractiveFlag.pinchZoom |
+                          InteractiveFlag.doubleTapZoom,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: mapTileBuildConfig.urlTemplate,
+                      userAgentPackageName:
+                          mapTileBuildConfig.userAgentPackageName,
+                    ),
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: currentPoint,
+                          radius: checkInRadiusMeters,
+                          useRadiusInMeter: true,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.14),
+                          borderColor: Theme.of(context).colorScheme.primary,
+                          borderStrokeWidth: 1.5,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        for (final poi in state.pois)
+                          Marker(
+                            point: LatLng(
+                              poi.coordinates.latitude,
+                              poi.coordinates.longitude,
+                            ),
+                            width: 44,
+                            height: 44,
+                            child: _PoiMarker(
+                              poi: poi,
+                              checked: state.hasCheckedInToday(poi),
+                            ),
+                          ),
+                        Marker(
+                          point: currentPoint,
+                          width: 48,
+                          height: 48,
+                          child: const _CurrentLocationMarker(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                MarkerLayer(
-                  markers: [
-                    for (final poi in state.pois)
-                      Marker(
-                        point: LatLng(
-                          poi.coordinates.latitude,
-                          poi.coordinates.longitude,
-                        ),
-                        width: 44,
-                        height: 44,
-                        child: _PoiMarker(
-                          poi: poi,
-                          checked: state.hasCheckedInToday(poi),
-                        ),
-                      ),
-                    Marker(
-                      point: currentPoint,
-                      width: 48,
-                      height: 48,
-                      child: const _CurrentLocationMarker(),
-                    ),
-                  ],
+                Positioned(
+                  left: 12,
+                  top: 12,
+                  child: _MapBadge(
+                    text: '${state.region.name} POI ${state.pois.length}곳',
+                    icon: Icons.map_outlined,
+                  ),
+                ),
+                const Positioned(
+                  right: 8,
+                  bottom: 6,
+                  child: _MapAttribution(),
                 ),
               ],
             ),
-            Positioned(
-              left: 12,
-              top: 12,
-              child: _MapBadge(
-                text: '${state.region.name} POI ${state.pois.length}곳',
-                icon: Icons.map_outlined,
-              ),
-            ),
-            const Positioned(
-              right: 8,
-              bottom: 6,
-              child: _MapAttribution(),
-            ),
-          ],
+          ),
+          _MapLegend(categories: legendCategories),
+        ],
+      ),
+    );
+  }
+}
+
+List<PoiCategory> _visiblePoiCategories(List<Poi> pois) {
+  final categories = pois.map((poi) => poi.category).toSet().toList();
+  categories.sort((left, right) => left.index.compareTo(right.index));
+  return categories;
+}
+
+class _MapLegend extends StatelessWidget {
+  const _MapLegend({required this.categories});
+
+  final List<PoiCategory> categories;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      container: true,
+      label: '지도 마커 범례',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border(top: BorderSide(color: scheme.outlineVariant)),
         ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _LegendChip(
+                icon: Icons.navigation,
+                label: '현재 위치',
+                color: scheme.primary,
+              ),
+              const _LegendChip(
+                icon: Icons.task_alt,
+                label: '체크인 완료',
+                color: Color(0xFF16A34A),
+              ),
+              for (final category in categories)
+                _LegendChip(
+                  icon: Icons.location_on,
+                  label: category.label,
+                  color: _categoryColor(category),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LegendChip extends StatelessWidget {
+  const _LegendChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
       ),
     );
   }

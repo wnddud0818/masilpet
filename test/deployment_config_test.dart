@@ -473,6 +473,7 @@ void main() {
         File('tools/hosting_smoke.ps1').readAsStringSync();
     final releaseEvidenceScript =
         File('tools/release_evidence.ps1').readAsStringSync();
+    final readme = File('README.md').readAsStringSync();
     final checklist = File('docs/RELEASE_CHECKLIST.md').readAsStringSync();
     final runbook = File('docs/OPERATIONS_RUNBOOK.md').readAsStringSync();
 
@@ -502,11 +503,17 @@ void main() {
     expect(checklist, contains('tools/release_preflight.ps1'));
     expect(checklist, contains('tools/hosting_smoke.ps1'));
     expect(checklist, contains('tools/release_evidence.ps1'));
+    expect(checklist, contains('-AllowDraftEvidence'));
+    expect(
+        readme,
+        contains(
+            'tools/release_evidence.ps1 -AllowDirtyWorktree -AllowDraftEvidence'));
     expect(runbook, contains('tools/release_preflight.ps1'));
     expect(runbook, contains('tools/hosting_smoke.ps1'));
     expect(runbook, contains('tools/release_evidence.ps1'));
     expect(runbook, contains('MASILPET_BUILD_CHANNEL'));
     expect(runbook, contains('UTC 빌드 시각'));
+    expect(runbook, contains('-AllowDraftEvidence'));
 
     expect(hostingSmokeScript, contains('param('));
     expect(hostingSmokeScript, contains('[string]\$HostingUrl'));
@@ -527,6 +534,8 @@ void main() {
     expect(releaseEvidenceScript, contains('Release evidence written'));
     expect(releaseEvidenceScript, contains('build/release-evidence.md'));
     expect(releaseEvidenceScript, contains('Overall status: \$OverallStatus'));
+    expect(releaseEvidenceScript, contains('[switch]\$AllowDraftEvidence'));
+    expect(releaseEvidenceScript, contains('required for submission evidence'));
     expect(releaseEvidenceScript, contains('build/web/index.html'));
     expect(releaseEvidenceScript, contains('PWA manifest id'));
     expect(releaseEvidenceScript, contains('Security headers'));

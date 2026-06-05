@@ -2,7 +2,8 @@ param(
   [string]$ProjectId = "masilpet-6ff8d",
   [string]$HostingUrl = "",
   [string]$OutputPath = "build/release-evidence.md",
-  [switch]$AllowDirtyWorktree
+  [switch]$AllowDirtyWorktree,
+  [switch]$AllowDraftEvidence
 )
 
 $ErrorActionPreference = "Stop"
@@ -193,7 +194,11 @@ if ($GitStatus.Count -eq 0) {
 }
 
 if ([string]::IsNullOrWhiteSpace($HostingUrl)) {
-  Add-Check -Name "Hosting URL" -Status "WARN" -Detail "not provided; pass -HostingUrl after Firebase deploy"
+  if ($AllowDraftEvidence) {
+    Add-Check -Name "Hosting URL" -Status "WARN" -Detail "not provided; draft evidence only"
+  } else {
+    Add-Check -Name "Hosting URL" -Status "FAIL" -Detail "required for submission evidence; pass -HostingUrl after Firebase deploy or -AllowDraftEvidence for local drafts"
+  }
 } else {
   $ParsedHostingUrl = [Uri]$HostingUrl
   Assert-Condition `

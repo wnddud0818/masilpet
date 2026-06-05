@@ -113,7 +113,7 @@ test/
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1 -SkipFirebase
-powershell -ExecutionPolicy Bypass -File tools/release_evidence.ps1 -AllowDirtyWorktree
+powershell -ExecutionPolicy Bypass -File tools/release_evidence.ps1 -AllowDirtyWorktree -AllowDraftEvidence
 ```
 
 출품 전 확인 절차는 [릴리즈 체크리스트](docs/RELEASE_CHECKLIST.md), [운영 런북](docs/OPERATIONS_RUNBOOK.md), [개인정보 처리방침](docs/PRIVACY_POLICY.md), [제출 패키지](docs/SUBMISSION_PACKAGE.md)에 정리되어 있습니다.

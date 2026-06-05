@@ -24,6 +24,7 @@ powershell -ExecutionPolicy Bypass -File tools/release_evidence.ps1 -HostingUrl 
 ```
 
 preflight는 `pubspec.yaml` 버전과 UTC 빌드 시각을 Flutter Web 산출물에 주입한다. 배포 후 내 정보 화면에서 `앱 버전`, `빌드 채널`, `빌드 시각`이 의도한 제출 빌드와 일치하는지 확인한다.
+`release_evidence.ps1`는 실제 제출 증빙에서 Hosting URL을 필수로 요구한다. 로컬 초안 리포트가 필요할 때만 `-AllowDraftEvidence`를 함께 사용한다.
 
 ## 운영자 권한과 지역 데이터 반영
 

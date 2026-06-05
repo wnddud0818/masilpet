@@ -6,6 +6,7 @@ import '../services.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/rarity_badge.dart';
+import '../widgets/reward_chip_row.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/section_header.dart';
 
@@ -88,6 +89,9 @@ class _NextDiscoveryCard extends ConsumerWidget {
     final routeLabel = poi == null
         ? '${target.primaryCategory.label} 장소 탐험'
         : '${poi.title} · ${target.primaryCategory.label}';
+    final sourceLabel = poi == null
+        ? 'TourAPI ${target.primaryCategory.tourApiHint}'
+        : _poiSourceLabel(poi);
 
     return Card(
       child: Padding(
@@ -150,8 +154,13 @@ class _NextDiscoveryCard extends ConsumerWidget {
                             color: const Color(0xFF0F766E),
                           ),
                           _DiscoveryHintChip(
-                            icon: Icons.egg_alt_outlined,
-                            label: '알 +${reward.eggProgress}',
+                            icon: Icons.near_me_outlined,
+                            label: _discoveryDistanceLabel(state, poi),
+                            color: const Color(0xFF2563EB),
+                          ),
+                          _DiscoveryHintChip(
+                            icon: Icons.dataset_linked_outlined,
+                            label: sourceLabel,
                             color: const Color(0xFFB45309),
                           ),
                           _DiscoveryHintChip(
@@ -174,6 +183,41 @@ class _NextDiscoveryCard extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: scheme.onSurfaceVariant,
                   ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '체크인 시 예상 보상',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  RewardChipRow(
+                    reward: reward,
+                    spacing: 6,
+                    runSpacing: 6,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    poi == null
+                        ? '${target.primaryCategory.tourApiHint} 매핑의 가까운 장소를 찾으면 후보가 갱신됩니다.'
+                        : '${poi.title} 방문 후보 · ${target.primaryCategory.tourApiHint} 매핑',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             Align(
@@ -251,6 +295,24 @@ Poi? _nextDiscoveryPoi(MasilPetState state, PoiCategory category) {
         .compareTo(state.currentLocation.distanceTo(right.coordinates)),
   );
   return candidates.first;
+}
+
+String _discoveryDistanceLabel(MasilPetState state, Poi? poi) {
+  if (poi == null) {
+    return '장소 확인 필요';
+  }
+  if (!state.hasFreshVerifiedLocation) {
+    return '위치 확인 필요';
+  }
+  return '${state.currentLocation.distanceTo(poi.coordinates).round()}m';
+}
+
+String _poiSourceLabel(Poi poi) {
+  if (poi.tourApiContentId.isEmpty ||
+      poi.tourApiContentId.startsWith('seed-')) {
+    return '부산 기본 장소';
+  }
+  return 'TourAPI ID ${poi.tourApiContentId}';
 }
 
 class _DexCollectionLayout extends StatelessWidget {
@@ -573,8 +635,20 @@ class _PoiMappingCard extends StatelessWidget {
                 dense: true,
                 leading: const Icon(Icons.place_outlined),
                 title: Text(poi.title),
-                subtitle:
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text('${poi.category.label} · ${poi.category.tourApiHint}'),
+                    const SizedBox(height: 2),
+                    Text(
+                      _poiSourceLabel(poi),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
               ),
           ],
         ),

@@ -1779,7 +1779,15 @@ void main() {
     expect(find.text('다음 발견 후보'), findsOneWidget);
     expect(find.textContaining('항구마루 · 음식 카테고리'), findsOneWidget);
     expect(find.textContaining('자갈치시장 · 음식'), findsOneWidget);
+    expect(find.text('위치 확인 필요'), findsOneWidget);
+    expect(find.text('체크인 시 예상 보상'), findsOneWidget);
+    expect(find.text('EXP +18'), findsOneWidget);
+    expect(find.text('기분 +16'), findsOneWidget);
+    expect(find.text('지식 +1'), findsOneWidget);
+    expect(find.text('친밀도 +5'), findsOneWidget);
     expect(find.text('알 +620'), findsOneWidget);
+    expect(find.textContaining('음식점 매핑'), findsOneWidget);
+    expect(find.text('부산 기본 장소'), findsWidgets);
     expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
 
     final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
@@ -1791,6 +1799,54 @@ void main() {
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex TourAPI mapping surfaces POI source ids',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(3);
+    controller.state = controller.state.copyWith(
+      pois: const [
+        Poi(
+          id: 'poi-tourapi-dex',
+          tourApiContentId: '2785118',
+          title: '동백섬 산책로',
+          regionId: 'busan',
+          category: PoiCategory.nature,
+          coordinates: Coordinates(latitude: 35.1532, longitude: 129.1526),
+          shortDescription: 'TourAPI에서 동기화된 도감 후보 장소',
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: DexScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('TourAPI 카테고리 매핑'), findsOneWidget);
+    expect(find.text('동백섬 산책로'), findsOneWidget);
+    expect(find.text('TourAPI ID 2785118'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

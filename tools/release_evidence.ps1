@@ -265,6 +265,11 @@ if (Test-Path -LiteralPath "functions/src/index.ts") {
   Assert-TextContains -Name "Check-in reward evidence fields" -Text $FunctionsSource -Needles @("rewardApplied: true", "reward,", "eggProgress,")
 }
 
+if (Test-Path -LiteralPath "functions/lib/index.js") {
+  $FunctionsBuild = Get-TextFile "functions/lib/index.js"
+  Assert-TextContains -Name "Compiled Functions reward evidence fields" -Text $FunctionsBuild -Needles @("rewardApplied: true", "reward,", "eggProgress,")
+}
+
 if ((Test-Path -LiteralPath "lib/src/models.dart") -and
     (Test-Path -LiteralPath "lib/src/screens/profile_screen.dart")) {
   $ModelsSource = Get-TextFile "lib/src/models.dart"

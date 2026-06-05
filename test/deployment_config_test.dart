@@ -540,6 +540,9 @@ void main() {
     expect(releaseEvidenceScript, contains('PWA manifest id'));
     expect(releaseEvidenceScript, contains('Security headers'));
     expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
+    expect(releaseEvidenceScript,
+        contains('Compiled Functions reward evidence fields'));
+    expect(releaseEvidenceScript, contains('functions/lib/index.js'));
     expect(releaseEvidenceScript, contains('Client reward snapshot model'));
     expect(releaseEvidenceScript, contains('Profile visit reward breakdown'));
     expect(

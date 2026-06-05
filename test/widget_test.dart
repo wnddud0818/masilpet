@@ -588,6 +588,73 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map markers expose accessible semantics',
+      (WidgetTester tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      final now = DateTime.now();
+      final controller = MasilPetController(
+        firebaseReady: false,
+        firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+        locationService: const DeviceLocationService(),
+        backend: null,
+        userRepository: null,
+        localProgressRepository: null,
+      );
+      controller.state = controller.state.copyWith(
+        pois: [busanPoiSeed.first, busanPoiSeed[11]],
+        currentLocation: busanPoiSeed.first.coordinates,
+        locationVerified: true,
+        locationVerifiedAt: now,
+        checkIns: [
+          CheckIn(
+            id: 'checkin-map-semantics',
+            poiId: busanPoiSeed.first.id,
+            regionId: busanPoiSeed.first.regionId,
+            category: busanPoiSeed.first.category,
+            createdAt: now,
+            distanceMeters: 0,
+            rewardApplied: true,
+          ),
+        ],
+      );
+      tester.view.physicalSize = const Size(1180, 820);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            masilPetControllerProvider.overrideWith(
+              (ref) => controller,
+            ),
+          ],
+          child: const MaterialApp(home: Scaffold(body: MapScreen())),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.bySemanticsLabel('POI 마커: 해운대 해수욕장, 자연, 오늘 체크인 완료'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('POI 마커: 동백섬, 자연, 체크인 후보'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('현재 위치 마커: 150m 체크인 반경 중심'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets('map screen offers location confirmation when check-in is locked',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

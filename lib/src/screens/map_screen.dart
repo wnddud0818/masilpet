@@ -784,19 +784,26 @@ class _PoiMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _categoryColor(poi.category);
-    return Tooltip(
-      message: poi.title,
-      child: Icon(
-        checked ? Icons.task_alt : Icons.location_on,
-        color: color,
-        size: checked ? 30 : 36,
-        shadows: const [
-          Shadow(
-            color: Colors.black26,
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
+    final statusLabel = checked ? '오늘 체크인 완료' : '체크인 후보';
+
+    return Semantics(
+      container: true,
+      label: 'POI 마커: ${poi.title}, ${poi.category.label}, $statusLabel',
+      child: Tooltip(
+        message: poi.title,
+        excludeFromSemantics: true,
+        child: Icon(
+          checked ? Icons.task_alt : Icons.location_on,
+          color: color,
+          size: checked ? 30 : 36,
+          shadows: const [
+            Shadow(
+              color: Colors.black26,
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -807,20 +814,24 @@ class _CurrentLocationMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+    return Semantics(
+      container: true,
+      label: '현재 위치 마커: 150m 체크인 반경 중심',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.navigation, color: Colors.white, size: 20),
       ),
-      child: const Icon(Icons.navigation, color: Colors.white, size: 20),
     );
   }
 }

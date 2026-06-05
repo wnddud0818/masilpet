@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
+import '../services.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/rarity_badge.dart';
@@ -24,6 +25,8 @@ class DexScreen extends ConsumerWidget {
             children: [
               _DexProgressCard(state: state),
               const SizedBox(height: 16),
+              _NextDiscoveryCard(state: state),
+              const SizedBox(height: 16),
               _DexPassportCard(state: state),
               const SizedBox(height: 16),
               _DexCollectionLayout(
@@ -37,6 +40,217 @@ class DexScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _NextDiscoveryCard extends ConsumerWidget {
+  const _NextDiscoveryCard({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final target = _nextDiscoveryTemplate(state);
+    final scheme = Theme.of(context).colorScheme;
+
+    if (target == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.workspace_premium_outlined, color: scheme.primary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '부산 도감 완성',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text('모든 마실펫을 발견했습니다. 방문 기록을 더 쌓아 지역 친밀도를 높여보세요.'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final poi = _nextDiscoveryPoi(state, target.primaryCategory);
+    final reward = const GrowthEngine().rewardFor(target.primaryCategory);
+    final routeLabel = poi == null
+        ? '${target.primaryCategory.label} 장소 탐험'
+        : '${poi.title} · ${target.primaryCategory.label}';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Opacity(
+                      opacity: 0.46,
+                      child: PetAvatar(template: target, size: 62),
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.surface.withValues(alpha: 0.9),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(7),
+                        child: Icon(
+                          Icons.travel_explore,
+                          size: 18,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '다음 발견 후보',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${target.name} · ${target.primaryCategory.label} 카테고리',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _DiscoveryHintChip(
+                            icon: Icons.place_outlined,
+                            label: routeLabel,
+                            color: const Color(0xFF0F766E),
+                          ),
+                          _DiscoveryHintChip(
+                            icon: Icons.egg_alt_outlined,
+                            label: '알 +${reward.eggProgress}',
+                            color: const Color(0xFFB45309),
+                          ),
+                          _DiscoveryHintChip(
+                            icon: Icons.auto_awesome_outlined,
+                            label: target.rarityLabel,
+                            color: const Color(0xFF7C3AED),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              poi == null
+                  ? '${target.primaryCategory.label} 장소 체크인과 알 부화를 이어가면 새 스탬프가 열립니다.'
+                  : '${poi.title} 같은 ${target.primaryCategory.label} 장소를 방문하면 도감 후보와 알 진행도가 함께 가까워집니다.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => controller.setTab(0),
+                icon: const Icon(Icons.map_outlined),
+                label: Text('지도에서 ${target.primaryCategory.label} 장소 찾기'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DiscoveryHintChip extends StatelessWidget {
+  const _DiscoveryHintChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+PetTemplate? _nextDiscoveryTemplate(MasilPetState state) {
+  final discovered = state.discoveredTemplateIds;
+  for (final template in state.templates) {
+    if (!discovered.contains(template.id)) {
+      return template;
+    }
+  }
+  return null;
+}
+
+Poi? _nextDiscoveryPoi(MasilPetState state, PoiCategory category) {
+  final candidates = state.pois
+      .where((poi) => poi.category == category && !state.hasCheckedInToday(poi))
+      .toList();
+  if (candidates.isEmpty) {
+    return null;
+  }
+  candidates.sort(
+    (left, right) => state.currentLocation
+        .distanceTo(left.coordinates)
+        .compareTo(state.currentLocation.distanceTo(right.coordinates)),
+  );
+  return candidates.first;
 }
 
 class _DexCollectionLayout extends StatelessWidget {

@@ -1337,9 +1337,18 @@ void main() {
 
     expect(find.text('탐험 필요'), findsWidgets);
     expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    expect(find.text('다음 발견 후보'), findsOneWidget);
+    expect(find.textContaining('항구마루 · 음식 카테고리'), findsOneWidget);
+    expect(find.textContaining('자갈치시장 · 음식'), findsOneWidget);
+    expect(find.text('알 +620'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'));
+    final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
+    expect(categoryAction, findsOneWidget);
+
+    await tester.ensureVisible(categoryAction);
+    await tester.pump();
+    await tester.tap(categoryAction);
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);

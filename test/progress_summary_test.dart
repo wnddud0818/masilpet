@@ -356,6 +356,55 @@ void main() {
     expect(controller.state.launchReadinessScore, greaterThanOrEqualTo(60));
   });
 
+  test('readiness score reserves completion for online sync', () {
+    final now = DateTime.now();
+    final state = MasilPetState.initial(firebaseReady: false);
+    final secondTemplate = busanPetTemplates[1];
+    final locallyReady = state.copyWith(
+      onboardingComplete: true,
+      checkIns: [
+        CheckIn(
+          id: 'checkin-readiness',
+          poiId: busanPoiSeed.first.id,
+          regionId: busanPoiSeed.first.regionId,
+          category: busanPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+        ),
+      ],
+      pets: [
+        ...state.pets,
+        Pet(
+          id: 'pet-readiness-${secondTemplate.id}',
+          templateId: secondTemplate.id,
+          name: secondTemplate.name,
+          stage: PetStage.baby,
+          level: 1,
+          stats: const GrowthStats(
+            exp: 10,
+            mood: 12,
+            knowledge: 4,
+            affinity: 7,
+          ),
+          originRegionId: secondTemplate.regionId,
+          hatchedAt: now,
+          lastInteractedAt: null,
+        ),
+      ],
+      eggs: const [],
+      dialogueCountToday: 5,
+      dialogueDay: now,
+    );
+
+    expect(state.launchReadinessScore, 50);
+    expect(locallyReady.launchReadinessScore, 75);
+    expect(
+      locallyReady.copyWith(firebaseReady: true).launchReadinessScore,
+      100,
+    );
+  });
+
   test('recent check-ins are sorted by newest visit first', () {
     final older = DateTime.now().subtract(const Duration(days: 1));
     final newer = DateTime.now();

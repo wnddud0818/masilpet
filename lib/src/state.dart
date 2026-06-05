@@ -297,23 +297,20 @@ class MasilPetState {
   }
 
   int get launchReadinessScore {
-    var score = 35;
-    if (onboardingComplete) {
-      score += 15;
+    var score = 0;
+    if (firebaseReady) {
+      score += 25;
     }
     if (todayCheckInCount > 0) {
-      score += 20;
+      score += 25;
     }
-    if (pets.length > 1) {
-      score += 15;
+    if (pets.isNotEmpty) {
+      score += 25;
     }
-    if (dialogueCountToday > 0) {
-      score += 10;
+    if (eggs.isNotEmpty || pets.length > 1) {
+      score += 25;
     }
-    if (hatchableEggCount > 0 || eggs.isNotEmpty) {
-      score += 5;
-    }
-    return score.clamp(0, 100);
+    return score;
   }
 
   bool hasCheckedInToday(Poi poi) {

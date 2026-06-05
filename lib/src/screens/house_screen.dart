@@ -733,6 +733,9 @@ class _EggTile extends ConsumerWidget {
     final canHatch = isReadyToHatch && !state.isBusy;
     final remainingSteps =
         (egg.requiredSteps - egg.progress).clamp(0, egg.requiredSteps);
+    final routePoi = _eggRoutePoi(state, template.primaryCategory);
+    final routeReward =
+        const GrowthEngine().rewardFor(template.primaryCategory);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -774,17 +777,94 @@ class _EggTile extends ConsumerWidget {
             LinearProgressIndicator(value: egg.progressRatio),
             if (!isReadyToHatch) ...[
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: state.isBusy ? null : () => controller.setTab(0),
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('지도에서 체크인하기'),
-                ),
+              _EggRouteHint(
+                category: template.primaryCategory,
+                reward: routeReward,
+                poi: routePoi,
+                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EggRouteHint extends StatelessWidget {
+  const _EggRouteHint({
+    required this.category,
+    required this.reward,
+    required this.poi,
+    required this.onOpenMap,
+  });
+
+  final PoiCategory category;
+  final CheckInReward reward;
+  final Poi? poi;
+  final VoidCallback? onOpenMap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = poi == null
+        ? '${category.label} 장소 보상 알 +${reward.eggProgress}'
+        : '${poi!.title} · ${category.label} 보상 알 +${reward.eggProgress}';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.route_outlined,
+              color: Color(0xFFB45309),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '체크인 보상으로 이 알의 부화 진행도를 더 채울 수 있습니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: onOpenMap,
+                    icon: const Icon(Icons.map_outlined),
+                    label: const Text('지도에서 체크인하기'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -817,4 +897,19 @@ class _EggActionButton extends StatelessWidget {
       label: const Text('부화'),
     );
   }
+}
+
+Poi? _eggRoutePoi(MasilPetState state, PoiCategory category) {
+  final candidates = state.pois
+      .where((poi) => poi.category == category && !state.hasCheckedInToday(poi))
+      .toList();
+  if (candidates.isEmpty) {
+    return null;
+  }
+  candidates.sort(
+    (left, right) => state.currentLocation
+        .distanceTo(left.coordinates)
+        .compareTo(state.currentLocation.distanceTo(right.coordinates)),
+  );
+  return candidates.first;
 }

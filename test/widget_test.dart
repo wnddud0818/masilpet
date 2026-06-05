@@ -1263,6 +1263,8 @@ void main() {
     expect(find.widgetWithText(FilledButton, '부화'), findsNothing);
     expect(checkInAction, findsOneWidget);
     expect(find.textContaining('걸음 남음'), findsWidgets);
+    expect(find.textContaining('자갈치시장 · 음식 보상 알 +620'), findsOneWidget);
+    expect(find.textContaining('부화 진행도'), findsOneWidget);
 
     await tester.ensureVisible(checkInAction);
     await tester.pump();

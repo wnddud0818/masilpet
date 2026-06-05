@@ -77,6 +77,23 @@ function Assert-HeaderContains {
   Assert-Contains -Value $Value -Expected $Expected -Label $Name
 }
 
+function Assert-StaticPngAsset {
+  param(
+    [string]$BaseUrl,
+    [string]$Path
+  )
+
+  $Response = Invoke-CheckedRequest -BaseUrl $BaseUrl -Path $Path
+  Assert-HeaderContains `
+    -Response $Response `
+    -Name "Content-Type" `
+    -Expected "image/png"
+  Assert-HeaderContains `
+    -Response $Response `
+    -Name "Cache-Control" `
+    -Expected "public, max-age=31536000, immutable"
+}
+
 function Assert-ManifestScreenshot {
   param(
     [hashtable]$ScreenshotsByFormFactor,
@@ -101,11 +118,7 @@ function Assert-ManifestScreenshot {
     throw "manifest.json $FormFactor screenshot type must be image/png."
   }
 
-  $ScreenshotResponse = Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/$Src"
-  Assert-HeaderContains `
-    -Response $ScreenshotResponse `
-    -Name "Content-Type" `
-    -Expected "image/png"
+  Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/$Src"
 }
 
 $BaseUrl = Normalize-HostingUrl $HostingUrl
@@ -185,8 +198,11 @@ Assert-ManifestScreenshot `
   -BaseUrl $BaseUrl
 Assert-HeaderContains -Response $ManifestResponse -Name "Cache-Control" -Expected "no-cache"
 
-Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/icons/Icon-192.png" | Out-Null
-Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/icons/Icon-512.png" | Out-Null
+Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/favicon.png"
+Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/icons/Icon-192.png"
+Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/icons/Icon-512.png"
+Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/icons/Icon-maskable-192.png"
+Assert-StaticPngAsset -BaseUrl $BaseUrl -Path "/icons/Icon-maskable-512.png"
 
 Write-Host ""
 Write-Host "Hosting smoke check passed for $BaseUrl." -ForegroundColor Green

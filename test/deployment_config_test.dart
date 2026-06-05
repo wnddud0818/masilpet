@@ -67,16 +67,20 @@ void main() {
     expect(noCacheSources, contains('/manifest.json'));
     expect(noCacheSources, contains('/privacy.html'));
 
-    final immutableAssetHeader = headers.any(
-      (entry) =>
-          entry['source'] == '/assets/**' &&
-          (entry['headers'] as List<dynamic>).any(
+    final immutableSources = headers
+        .where(
+          (entry) => (entry['headers'] as List<dynamic>).any(
             (header) =>
                 header['key'] == 'Cache-Control' &&
                 header['value'] == 'public, max-age=31536000, immutable',
           ),
-    );
-    expect(immutableAssetHeader, isTrue);
+        )
+        .map((entry) => entry['source'])
+        .toSet();
+    expect(immutableSources, contains('/assets/**'));
+    expect(immutableSources, contains('/icons/**'));
+    expect(immutableSources, contains('/screenshots/**'));
+    expect(immutableSources, contains('/favicon.png'));
 
     final globalHeaders = headers.singleWhere(
       (entry) => entry['source'] == '**',
@@ -567,9 +571,17 @@ void main() {
     expect(hostingSmokeScript, contains('TourAPI'));
     expect(hostingSmokeScript, contains('Firebase'));
     expect(hostingSmokeScript, contains('manifest.json'));
+    expect(hostingSmokeScript, contains('Assert-StaticPngAsset'));
     expect(hostingSmokeScript, contains('Assert-ManifestScreenshot'));
     expect(hostingSmokeScript, contains('screenshots/onboarding-wide.png'));
     expect(hostingSmokeScript, contains('screenshots/onboarding-mobile.png'));
+    expect(hostingSmokeScript, contains('Icon-maskable-192.png'));
+    expect(hostingSmokeScript, contains('Icon-maskable-512.png'));
+    expect(hostingSmokeScript, contains('favicon.png'));
+    expect(
+      hostingSmokeScript,
+      contains('public, max-age=31536000, immutable'),
+    );
     expect(hostingSmokeScript, contains('form_factor'));
     expect(hostingSmokeScript, contains('X-Content-Type-Options'));
     expect(hostingSmokeScript, contains('Referrer-Policy'));

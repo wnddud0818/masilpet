@@ -56,6 +56,7 @@ class MapScreen extends ConsumerWidget {
                 state: state,
                 onUseDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
+                onCheckInPoi: (poi) => controller.attemptCheckIn(poi),
                 onOpenPet: state.isBusy ? null : () => controller.setTab(1),
                 onOpenHouse: state.isBusy ? null : () => controller.setTab(2),
               ),
@@ -260,12 +261,14 @@ class _DailyRouteCard extends StatelessWidget {
   const _DailyRouteCard({
     required this.state,
     required this.onUseDeviceLocation,
+    required this.onCheckInPoi,
     required this.onOpenPet,
     required this.onOpenHouse,
   });
 
   final MasilPetState state;
   final VoidCallback? onUseDeviceLocation;
+  final ValueChanged<Poi> onCheckInPoi;
   final VoidCallback? onOpenPet;
   final VoidCallback? onOpenHouse;
 
@@ -282,6 +285,10 @@ class _DailyRouteCard extends StatelessWidget {
         : (nextEgg.requiredSteps - nextEgg.progress)
             .clamp(0, nextEgg.requiredSteps);
     final talkedToday = _hasTalkedToday(state);
+    final recommendationReasons = _recommendationReasons(
+      state: state,
+      recommended: recommended,
+    );
     final completedSteps = [
       state.hasFreshVerifiedLocation,
       state.todayCheckInCount > 0,
@@ -290,8 +297,10 @@ class _DailyRouteCard extends StatelessWidget {
     ].where((done) => done).length;
     final action = _nextRouteAction(
       state: state,
+      recommended: recommended,
       talkedToday: talkedToday,
       onUseDeviceLocation: onUseDeviceLocation,
+      onCheckInPoi: onCheckInPoi,
       onOpenPet: onOpenPet,
       onOpenHouse: onOpenHouse,
     );
@@ -327,9 +336,13 @@ class _DailyRouteCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              _recommendationText(recommended, recommendedDistance),
+              _recommendationText(state, recommended, recommendedDistance),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            if (recommendationReasons.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _RecommendationReasonWrap(reasons: recommendationReasons),
+            ],
             const SizedBox(height: 12),
             MetricGrid(
               items: [
@@ -410,15 +423,128 @@ class _DailyRouteCard extends StatelessWidget {
     );
   }
 
-  String _recommendationText(Poi? recommended, int? recommendedDistance) {
+  String _recommendationText(
+    MasilPetState state,
+    Poi? recommended,
+    int? recommendedDistance,
+  ) {
     if (recommended == null) {
       return '현재 위치를 확인하면 가까운 장소와 다음 성장 보상이 표시됩니다.';
+    }
+    if (state.hasCheckedInToday(recommended)) {
+      return '오늘 방문 가능한 POI를 모두 기록했습니다. 내일 다시 성장 보상을 이어갈 수 있습니다.';
     }
     if (recommendedDistance == null) {
       return '${recommended.title}의 ${recommended.category.label} 보상을 먼저 노려보세요.';
     }
     return '${recommended.title}까지 ${recommendedDistance}m · ${recommended.category.label} 보상';
   }
+}
+
+class _RecommendationReason {
+  const _RecommendationReason({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+}
+
+class _RecommendationReasonWrap extends StatelessWidget {
+  const _RecommendationReasonWrap({required this.reasons});
+
+  final List<_RecommendationReason> reasons;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final reason in reasons) _RecommendationReasonChip(reason: reason),
+      ],
+    );
+  }
+}
+
+class _RecommendationReasonChip extends StatelessWidget {
+  const _RecommendationReasonChip({required this.reason});
+
+  final _RecommendationReason reason;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: reason.color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(reason.icon, size: 15, color: reason.color),
+          const SizedBox(width: 5),
+          Text(
+            reason.label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: reason.color,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<_RecommendationReason> _recommendationReasons({
+  required MasilPetState state,
+  required Poi? recommended,
+}) {
+  if (recommended == null) {
+    return const [];
+  }
+
+  final reward = const GrowthEngine().rewardFor(recommended.category);
+  final checked = state.hasCheckedInToday(recommended);
+  return [
+    if (checked)
+      const _RecommendationReason(
+        icon: Icons.task_alt,
+        label: '오늘 방문 완료',
+        color: Color(0xFF16A34A),
+      ),
+    if (state.canCheckInToday(recommended))
+      const _RecommendationReason(
+        icon: Icons.check_circle_outline,
+        label: '지금 체크인 가능',
+        color: Color(0xFF16A34A),
+      ),
+    if (!checked &&
+        !state.todayVisitedCategories.contains(recommended.category))
+      _RecommendationReason(
+        icon: Icons.category_outlined,
+        label: '오늘 새 카테고리',
+        color: _categoryColor(recommended.category),
+      ),
+    if (!checked &&
+        state.undiscoveredCategoryGoals.contains(recommended.category))
+      const _RecommendationReason(
+        icon: Icons.auto_awesome_outlined,
+        label: '도감 후보',
+        color: Color(0xFF7C3AED),
+      ),
+    if (!checked)
+      _RecommendationReason(
+        icon: Icons.egg_alt_outlined,
+        label: '알 +${reward.eggProgress}',
+        color: const Color(0xFFB45309),
+      ),
+  ];
 }
 
 class _RouteStep extends StatelessWidget {
@@ -500,8 +626,10 @@ class _RouteAction {
 
 _RouteAction? _nextRouteAction({
   required MasilPetState state,
+  required Poi? recommended,
   required bool talkedToday,
   required VoidCallback? onUseDeviceLocation,
+  required ValueChanged<Poi> onCheckInPoi,
   required VoidCallback? onOpenPet,
   required VoidCallback? onOpenHouse,
 }) {
@@ -510,6 +638,15 @@ _RouteAction? _nextRouteAction({
       icon: Icons.my_location,
       label: '현재 위치 확인',
       onPressed: onUseDeviceLocation,
+    );
+  }
+  if (recommended != null &&
+      state.todayCheckInCount == 0 &&
+      state.canCheckInToday(recommended)) {
+    return _RouteAction(
+      icon: Icons.check_circle_outline,
+      label: '추천 장소 체크인하기',
+      onPressed: state.isBusy ? null : () => onCheckInPoi(recommended),
     );
   }
   if (state.todayCheckInCount > 0 && !talkedToday) {

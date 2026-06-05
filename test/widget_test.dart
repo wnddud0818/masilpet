@@ -543,7 +543,7 @@ void main() {
     expect(find.text('기분 +8'), findsOneWidget);
     expect(find.text('지식 +4'), findsOneWidget);
     expect(find.text('친밀도 +12'), findsOneWidget);
-    expect(find.text('알 +680'), findsOneWidget);
+    expect(find.text('알 +680'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -606,6 +606,135 @@ void main() {
     expect(find.text('마실펫 교감'), findsOneWidget);
     expect(find.text('알 부화 준비'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '현재 위치 확인'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map route guide explains the recommended place',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('오늘 새 카테고리'), findsOneWidget);
+    expect(find.text('알 +680'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map route guide checks in the in-range recommendation',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [busanPoiSeed.first],
+      currentLocation: busanPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: DateTime.now(),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final checkInAction = find.widgetWithText(TextButton, '추천 장소 체크인하기');
+    expect(find.text('지금 체크인 가능'), findsOneWidget);
+    expect(checkInAction, findsOneWidget);
+
+    await tester.ensureVisible(checkInAction);
+    await tester.pump();
+    await tester.tap(checkInAction);
+    await tester.pump();
+
+    expect(controller.state.todayCheckInCount, 1);
+    expect(controller.state.todayCheckIns.single.poiId, busanPoiSeed.first.id);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map route guide marks completed recommendations as visited',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [busanPoiSeed.first],
+      currentLocation: busanPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: now,
+      checkIns: [
+        CheckIn(
+          id: 'checkin-complete',
+          poiId: busanPoiSeed.first.id,
+          regionId: busanPoiSeed.first.regionId,
+          category: busanPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('오늘 방문 완료'), findsOneWidget);
+    expect(find.textContaining('오늘 방문 가능한 POI를 모두 기록'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

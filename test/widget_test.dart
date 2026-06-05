@@ -459,6 +459,58 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('status banner gives success and failure distinct signals',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      statusMessage: '해운대 해수욕장 체크인 완료: EXP +18 · 알 +680',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(16),
+              child: StatusBanner(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+    expect(find.byIcon(Icons.offline_bolt), findsNothing);
+
+    controller.state = controller.state.copyWith(
+      statusMessage: '위치 권한이 거부되었습니다.',
+    );
+    await tester.pump();
+
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_outline), findsNothing);
+
+    controller.state = controller.state.copyWith(
+      statusMessage: 'Firebase Web 설정값이 없어 기기 내 진행으로 시작합니다.',
+    );
+    await tester.pump();
+
+    expect(find.byIcon(Icons.offline_bolt), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_outline), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('home shell keeps bottom navigation on phone width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

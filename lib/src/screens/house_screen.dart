@@ -7,6 +7,7 @@ import '../state.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
+import '../widgets/rarity_badge.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/section_header.dart';
 import '../widgets/status_banner.dart';
@@ -325,7 +326,7 @@ class _HouseCarePlanCard extends ConsumerWidget {
               title: '대표 펫',
               body: activePet == null || activeTemplate == null
                   ? '부화한 마실펫이 생기면 오늘 돌봄 대상이 표시됩니다.'
-                  : '${activePet.name} · Lv.${activePet.level} · ${activeTemplate.rarity}',
+                  : '${activePet.name} · Lv.${activePet.level} · ${activeTemplate.rarityLabel}',
               trailing: activePet == null
                   ? '대기'
                   : talksLeft > 0
@@ -607,7 +608,15 @@ class _PetHouseTile extends ConsumerWidget {
                         ),
                   ),
                   const SizedBox(height: 2),
-                  Text('Lv.${pet.level} · ${pet.stage.label} 단계'),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text('Lv.${pet.level} · ${pet.stage.label} 단계'),
+                      RarityBadge(rarity: template.rarity, compact: true),
+                    ],
+                  ),
                 ],
               ),
             ),

@@ -866,6 +866,8 @@ void main() {
     expect(find.text('대표 펫'), findsOneWidget);
     expect(find.text('집중 부화 알'), findsOneWidget);
     expect(find.text('다음 외출'), findsOneWidget);
+    expect(find.textContaining('일반'), findsWidgets);
+    expect(find.textContaining('common'), findsNothing);
     expect(mapAction, findsOneWidget);
     expect(petAction, findsOneWidget);
 
@@ -1151,6 +1153,8 @@ void main() {
     final nextStampAction = find.widgetWithText(TextButton, '다음 스탬프 찾기');
     expect(find.text('부산 탐험 여권'), findsOneWidget);
     expect(find.text('파도나루'), findsWidgets);
+    expect(find.text('일반'), findsWidgets);
+    expect(find.textContaining('common'), findsNothing);
     expect(find.text('스탬프 대기'), findsWidgets);
     expect(nextStampAction, findsOneWidget);
 

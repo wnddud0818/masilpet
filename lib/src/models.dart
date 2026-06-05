@@ -216,6 +216,23 @@ class PetTemplate {
   final String assetKey;
 }
 
+extension PetTemplateRarityLabel on PetTemplate {
+  String get rarityLabel => rarityDisplayLabel(rarity);
+}
+
+String rarityDisplayLabel(String rarity) {
+  switch (rarity.trim().toLowerCase()) {
+    case 'common':
+      return '일반';
+    case 'rare':
+      return '희귀';
+    case 'epic':
+      return '영웅';
+    default:
+      return rarity;
+  }
+}
+
 class Pet {
   const Pet({
     required this.id,

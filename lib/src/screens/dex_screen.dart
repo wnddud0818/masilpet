@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models.dart';
 import '../state.dart';
 import '../widgets/pet_avatar.dart';
+import '../widgets/rarity_badge.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/section_header.dart';
 
@@ -258,13 +259,19 @@ class _PassportStamp extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  discovered ? template.rarity : '체크인과 부화로 발견',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                if (discovered)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: RarityBadge(rarity: template.rarity, compact: true),
+                  )
+                else
+                  Text(
+                    '체크인과 부화로 발견',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -476,8 +483,15 @@ class _DexPetCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                      '${template.primaryCategory.label} · ${template.rarity}'),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(template.primaryCategory.label),
+                      RarityBadge(rarity: template.rarity, compact: true),
+                    ],
+                  ),
                   const SizedBox(height: 6),
                   Text(
                     discovered

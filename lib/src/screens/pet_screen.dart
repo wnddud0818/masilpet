@@ -7,6 +7,7 @@ import '../state.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
+import '../widgets/rarity_badge.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/stat_bar.dart';
 import '../widgets/status_banner.dart';
@@ -336,8 +337,15 @@ class _ActivePetPanel extends ConsumerWidget {
                                 ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                          'Lv.${pet.level} · ${pet.stage.label} 단계 · ${template.rarity}'),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text('Lv.${pet.level} · ${pet.stage.label} 단계'),
+                          RarityBadge(rarity: template.rarity, compact: true),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       Text(template.basePersonality),
                     ],

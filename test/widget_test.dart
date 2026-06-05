@@ -453,6 +453,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map poi cards show full growth reward breakdown',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [busanPoiSeed.first],
+    );
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('해운대 해수욕장'), findsOneWidget);
+    expect(find.text('EXP +18'), findsOneWidget);
+    expect(find.text('기분 +8'), findsOneWidget);
+    expect(find.text('지식 +4'), findsOneWidget);
+    expect(find.text('친밀도 +12'), findsOneWidget);
+    expect(find.text('알 +680'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map screen offers location confirmation when check-in is locked',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

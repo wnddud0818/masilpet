@@ -819,20 +819,7 @@ class _PoiTile extends ConsumerWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                _RewardChip(
-                  icon: Icons.auto_graph,
-                  label: 'EXP +${reward.stats.exp}',
-                ),
-                _RewardChip(
-                  icon: Icons.favorite_outline,
-                  label: '친밀도 +${reward.stats.affinity}',
-                ),
-                _RewardChip(
-                  icon: Icons.egg_alt_outlined,
-                  label: '알 +${reward.eggProgress}',
-                ),
-              ],
+              children: _rewardChipsFor(reward),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -866,6 +853,34 @@ class _PoiTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+List<Widget> _rewardChipsFor(CheckInReward reward) {
+  return [
+    _RewardChip(
+      icon: Icons.auto_graph,
+      label: 'EXP +${reward.stats.exp}',
+    ),
+    if (reward.stats.mood > 0)
+      _RewardChip(
+        icon: Icons.sentiment_satisfied_alt_outlined,
+        label: '기분 +${reward.stats.mood}',
+      ),
+    if (reward.stats.knowledge > 0)
+      _RewardChip(
+        icon: Icons.menu_book_outlined,
+        label: '지식 +${reward.stats.knowledge}',
+      ),
+    if (reward.stats.affinity > 0)
+      _RewardChip(
+        icon: Icons.favorite_outline,
+        label: '친밀도 +${reward.stats.affinity}',
+      ),
+    _RewardChip(
+      icon: Icons.egg_alt_outlined,
+      label: '알 +${reward.eggProgress}',
+    ),
+  ];
 }
 
 class _CategoryChip extends StatelessWidget {

@@ -18,6 +18,7 @@ import 'package:masilpet/src/services.dart';
 import 'package:masilpet/src/state.dart';
 import 'package:masilpet/src/widgets/metric_grid.dart';
 import 'package:masilpet/src/widgets/pet_play_field.dart';
+import 'package:masilpet/src/widgets/status_banner.dart';
 
 class _EmptyPetController extends MasilPetController {
   _EmptyPetController()
@@ -367,6 +368,49 @@ void main() {
       tester.getTopLeft(find.text('가장 가까운 곳')).dy,
       greaterThan(tester.getTopLeft(find.text('체크인 가능')).dy),
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('status banner shows full detailed reward on phone width',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    const message =
+        '해운대 해수욕장 체크인 완료: EXP +18 · 기분 +8 · 지식 +4 · 친밀도 +12 · 알 +680';
+    controller.state = controller.state.copyWith(statusMessage: message);
+    tester.view.physicalSize = const Size(320, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Padding(
+              padding: EdgeInsets.all(16),
+              child: StatusBanner(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final text = tester.widget<Text>(find.text(message));
+    expect(text.maxLines, isNull);
+    expect(text.overflow, isNull);
     expect(tester.takeException(), isNull);
   });
 

@@ -28,28 +28,33 @@ class StatusBanner extends ConsumerWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (state.isBusy)
-            SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.2,
-                color: isActive ? scheme.onPrimaryContainer : scheme.primary,
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: isActive ? scheme.onPrimaryContainer : scheme.primary,
+                ),
               ),
             )
           else
-            Icon(
-              state.firebaseReady ? Icons.cloud_done : Icons.offline_bolt,
-              size: 18,
-              color: isActive ? scheme.onPrimaryContainer : scheme.primary,
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(
+                state.firebaseReady ? Icons.cloud_done : Icons.offline_bolt,
+                size: 18,
+                color: isActive ? scheme.onPrimaryContainer : scheme.primary,
+              ),
             ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     color: isActive
                         ? scheme.onPrimaryContainer

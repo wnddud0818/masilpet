@@ -24,8 +24,23 @@ class MapTileBuildConfig {
     required this.userAgentPackageName,
   });
 
+  static const defaultOpenStreetMapUrlTemplate =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
   final String urlTemplate;
   final String userAgentPackageName;
+
+  bool get usesDefaultOpenStreetMapTiles {
+    return urlTemplate == defaultOpenStreetMapUrlTemplate;
+  }
+
+  String get providerLabel {
+    return usesDefaultOpenStreetMapTiles ? 'OpenStreetMap 기본 타일' : '사용자 지정 타일';
+  }
+
+  String get userAgentLabel {
+    return userAgentPackageName.isEmpty ? '요청 식별자 미설정' : userAgentPackageName;
+  }
 }
 
 const appBuildInfo = AppBuildInfo(
@@ -46,7 +61,7 @@ const appBuildInfo = AppBuildInfo(
 const mapTileBuildConfig = MapTileBuildConfig(
   urlTemplate: String.fromEnvironment(
     'MASILPET_MAP_TILE_URL_TEMPLATE',
-    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    defaultValue: MapTileBuildConfig.defaultOpenStreetMapUrlTemplate,
   ),
   userAgentPackageName: String.fromEnvironment(
     'MASILPET_MAP_TILE_USER_AGENT',

@@ -453,6 +453,9 @@ void main() {
     expect(profileSource, contains('데이터·지도 출처'));
     expect(profileSource, contains('TourAPI 지역 장소'));
     expect(profileSource, contains('OpenStreetMap 지도'));
+    expect(profileSource, contains('지도 타일 설정'));
+    expect(profileSource, contains('mapTileBuildConfig.providerLabel'));
+    expect(profileSource, contains('mapTileBuildConfig.userAgentLabel'));
     expect(profileSource, contains('Firebase Functions 검증'));
     expect(profileSource, contains('openPrivacyPolicyPage()'));
     expect(
@@ -515,6 +518,9 @@ void main() {
     expect(buildInfoSource, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
     expect(buildInfoSource, contains('MASILPET_MAP_TILE_USER_AGENT'));
     expect(buildInfoSource, contains('mapTileBuildConfig'));
+    expect(buildInfoSource, contains('defaultOpenStreetMapUrlTemplate'));
+    expect(buildInfoSource, contains('providerLabel'));
+    expect(buildInfoSource, contains('userAgentLabel'));
     expect(mainSource, contains('missingWebConfiguration'));
     expect(mainSource, contains('initializationFailed'));
     expect(mainSource, contains('firebaseStartupIssueProvider'));
@@ -718,6 +724,7 @@ void main() {
     expect(submission, contains('앱 버전'));
     expect(submission, contains('빌드 채널'));
     expect(submission, contains('빌드 시각'));
+    expect(submission, contains('지도 타일 설정'));
     expect(submission, contains('Flutter Web'));
     expect(submission, contains('Firebase Auth'));
     expect(submission, contains('TourAPI'));

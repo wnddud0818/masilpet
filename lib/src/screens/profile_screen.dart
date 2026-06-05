@@ -649,6 +649,13 @@ class _DataSourceCard extends StatelessWidget {
               detail: '지도 타일과 저작권 고지는 지도 화면에 표시됩니다.',
             ),
             const SizedBox(height: 8),
+            _SourceRow(
+              icon: Icons.layers_outlined,
+              title: '지도 타일 설정',
+              detail:
+                  '${mapTileBuildConfig.providerLabel} · 요청 식별자 ${mapTileBuildConfig.userAgentLabel}',
+            ),
+            const SizedBox(height: 8),
             const _SourceRow(
               icon: Icons.verified_user_outlined,
               title: 'Firebase Functions 검증',

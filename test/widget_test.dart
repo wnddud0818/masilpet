@@ -160,6 +160,11 @@ void main() {
     expect(find.text('데이터·지도 출처'), findsOneWidget);
     expect(find.text('TourAPI 지역 장소'), findsOneWidget);
     expect(find.text('OpenStreetMap 지도'), findsOneWidget);
+    expect(find.text('지도 타일 설정'), findsOneWidget);
+    expect(
+      find.text('OpenStreetMap 기본 타일 · 요청 식별자 com.masilpet.app'),
+      findsOneWidget,
+    );
     expect(find.text('Firebase Functions 검증'), findsOneWidget);
     expect(
       find.text('150m 체크인, 중복 방지, 보상 지급을 서버에서 처리합니다.'),

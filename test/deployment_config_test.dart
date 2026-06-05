@@ -652,6 +652,8 @@ void main() {
     final submission = File('docs/SUBMISSION_PACKAGE.md').readAsStringSync();
 
     expect(readme, contains('docs/SUBMISSION_PACKAGE.md'));
+    expect(readme, contains('web/screenshots/onboarding-wide.png'));
+    expect(readme, contains('web/screenshots/onboarding-mobile.png'));
     expect(checklist, contains('SUBMISSION_PACKAGE.md'));
     expect(submission, contains('앱 URL'));
     expect(submission, contains('개인정보 처리방침 URL'));

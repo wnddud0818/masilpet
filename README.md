@@ -2,6 +2,13 @@
 
 MasilPet은 사용자가 실제 지역을 걸으며 체크인하고, 지역 맥락을 가진 마실펫을 수집·성장시키는 위치 기반 펫 성장 앱입니다. 첫 출품 지역은 부산이며, Flutter Web, Firebase Auth/Firestore/Functions, TourAPI 연동 구조를 기준으로 제작되어 있습니다.
 
+## 미리보기
+
+<p>
+  <img src="web/screenshots/onboarding-wide.png" alt="MasilPet 온보딩 데스크톱 화면" width="640">
+  <img src="web/screenshots/onboarding-mobile.png" alt="MasilPet 모바일 PWA 온보딩 화면" width="220">
+</p>
+
 ## 핵심 기능
 
 - 실제 위치 기반 150m 체크인 판정

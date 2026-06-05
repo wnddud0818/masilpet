@@ -350,11 +350,20 @@ void main() {
 
     final screenshots =
         (manifest['screenshots'] as List<dynamic>).cast<Map<String, dynamic>>();
-    expect(screenshots.single['src'], 'screenshots/onboarding-wide.png');
-    expect(screenshots.single['sizes'], '1280x720');
-    expect(screenshots.single['form_factor'], 'wide');
-    expect(screenshots.single['label'], contains('MasilPet'));
+    final screenshotsByFormFactor = {
+      for (final screenshot in screenshots)
+        screenshot['form_factor'] as String: screenshot,
+    };
+    expect(screenshotsByFormFactor.keys, containsAll(['wide', 'narrow']));
+    final wideScreenshot = screenshotsByFormFactor['wide']!;
+    final narrowScreenshot = screenshotsByFormFactor['narrow']!;
+    expect(wideScreenshot['src'], 'screenshots/onboarding-wide.png');
+    expect(wideScreenshot['sizes'], '1280x720');
+    expect(narrowScreenshot['src'], 'screenshots/onboarding-mobile.png');
+    expect(narrowScreenshot['sizes'], '390x844');
     for (final screenshot in screenshots) {
+      expect(screenshot['type'], 'image/png');
+      expect(screenshot['label'], contains('MasilPet'));
       expect(File('web/${screenshot['src']}').existsSync(), isTrue);
     }
 
@@ -570,6 +579,8 @@ void main() {
     expect(releaseEvidenceScript, contains('PWA screenshots'));
     expect(releaseEvidenceScript,
         contains('build/web/screenshots/onboarding-wide.png'));
+    expect(releaseEvidenceScript,
+        contains('build/web/screenshots/onboarding-mobile.png'));
     expect(releaseEvidenceScript, contains('Web preview metadata'));
     expect(releaseEvidenceScript, contains('summary_large_image'));
     expect(releaseEvidenceScript, contains('Security headers'));

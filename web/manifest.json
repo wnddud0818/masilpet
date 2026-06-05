@@ -24,6 +24,13 @@
             "type": "image/png",
             "form_factor": "wide",
             "label": "MasilPet 온보딩과 지역 탐험 소개"
+        },
+        {
+            "src": "screenshots/onboarding-mobile.png",
+            "sizes": "390x844",
+            "type": "image/png",
+            "form_factor": "narrow",
+            "label": "MasilPet 모바일 온보딩과 시작 화면"
         }
     ],
     "shortcuts": [

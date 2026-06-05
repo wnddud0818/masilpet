@@ -271,6 +271,11 @@ void main() {
     expect(find.textContaining('12m · 보상 적용'), findsOneWidget);
     expect(find.textContaining('12m'), findsOneWidget);
     expect(find.textContaining('보상 적용'), findsOneWidget);
+    expect(find.text('EXP +18'), findsOneWidget);
+    expect(find.text('기분 +8'), findsOneWidget);
+    expect(find.text('지식 +4'), findsOneWidget);
+    expect(find.text('친밀도 +12'), findsOneWidget);
+    expect(find.text('알 +680'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

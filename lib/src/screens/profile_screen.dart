@@ -6,6 +6,7 @@ import '../models.dart';
 import '../services.dart';
 import '../services/privacy_navigation.dart';
 import '../state.dart';
+import '../widgets/reward_chip_row.dart';
 import '../widgets/status_banner.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -324,6 +325,9 @@ class _VisitJournalTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final title = poi?.title ?? '저장된 방문 장소';
+    final reward = checkIn.rewardApplied
+        ? const GrowthEngine().rewardFor(checkIn.category)
+        : null;
     final description = [
       _formatVisitTime(checkIn.createdAt),
       '${checkIn.distanceMeters.round()}m',
@@ -373,6 +377,10 @@ class _VisitJournalTile extends StatelessWidget {
                       color: scheme.onSurfaceVariant,
                     ),
               ),
+              if (reward != null) ...[
+                const SizedBox(height: 8),
+                RewardChipRow(reward: reward),
+              ],
             ],
           ),
         ),

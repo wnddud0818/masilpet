@@ -26,6 +26,8 @@ void main() {
       expect(source, isNot(contains('demo')));
       expect(source, isNot(contains('Demo')));
       expect(source, isNot(contains('MVP')));
+      expect(source, isNot(contains('placeholder')));
+      expect(source, isNot(contains('You can customize')));
     }
   });
 

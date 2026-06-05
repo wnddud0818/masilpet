@@ -2,17 +2,8 @@
 <html lang="ko">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    Firebase Hosting 루트 배포 기준의 base href입니다.
+    Flutter Web 빌드가 $FLUTTER_BASE_HREF를 실제 배포 경로로 치환합니다.
   -->
   <base href="$FLUTTER_BASE_HREF">
 
@@ -152,14 +143,7 @@
       }
     });
   </script>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <!-- Flutter Web 부트스트랩. 첫 프레임 전에는 위 로딩 셸이 표시됩니다. -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

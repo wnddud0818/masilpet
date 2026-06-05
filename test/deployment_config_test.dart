@@ -280,6 +280,16 @@ void main() {
     expect(stateSource, contains('await refreshRemoteProgress(silent: true);'));
   });
 
+  test('remote pet interactions return an updated pet identity', () {
+    final functionsSource = File('functions/src/index.ts').readAsStringSync();
+    final backendSource =
+        File('lib/src/data/masilpet_backend.dart').readAsStringSync();
+
+    expect(functionsSource,
+        contains('updatedPet = {id: petId, stats, level, stage};'));
+    expect(backendSource, contains('final String? id;'));
+  });
+
   test('PWA manifest is contest-ready and uses production branding', () {
     final manifest = _readJson('web/manifest.json');
 

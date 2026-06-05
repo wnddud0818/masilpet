@@ -718,7 +718,7 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
 
   const userRef = db.collection('users').doc(uid);
   const petRef = userRef.collection('pets').doc(petId);
-  let updatedPet: {stats: GrowthStats; level: number; stage: PetStage} | null = null;
+  let updatedPet: {id: string; stats: GrowthStats; level: number; stage: PetStage} | null = null;
 
   await db.runTransaction(async (transaction) => {
     const userSnap = await transaction.get(userRef);
@@ -747,7 +747,7 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
       },
       {merge: true},
     );
-    updatedPet = {stats, level, stage};
+    updatedPet = {id: petId, stats, level, stage};
   });
 
   return {reward, updatedPet};

@@ -49,10 +49,15 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
       'lng': location.longitude,
     });
 
-    final pois = (data['pois'] as List<dynamic>? ?? const []);
+    final pois = data['pois'];
+    if (pois is! List) {
+      return const [];
+    }
+
     return pois
-        .map(
-            (item) => RemotePoi.fromMap(Map<String, dynamic>.from(item as Map)))
+        .whereType<Map>()
+        .map((item) => RemotePoi.tryFromMap(_mapFromValue(item)))
+        .whereType<RemotePoi>()
         .toList();
   }
 
@@ -142,16 +147,32 @@ class RemotePoi {
   });
 
   factory RemotePoi.fromMap(Map<String, dynamic> map) {
+    final poi = tryFromMap(map);
+    if (poi == null) {
+      throw const FormatException('Remote POI response is incomplete.');
+    }
+    return poi;
+  }
+
+  static RemotePoi? tryFromMap(Map<String, dynamic> map) {
+    final id = _stringFromValue(map['id']);
+    final title = _stringFromValue(map['title']);
+    final latitude = _doubleFromValue(map['lat']);
+    final longitude = _doubleFromValue(map['lng']);
+    if (id.isEmpty || title.isEmpty || latitude == null || longitude == null) {
+      return null;
+    }
+
     return RemotePoi(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      regionId: map['regionId'] as String,
-      category: _categoryFromName(map['category'] as String?),
+      id: id,
+      title: title,
+      regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+      category: _categoryFromName(_stringFromValue(map['category'])),
       coordinates: Coordinates(
-        latitude: (map['lat'] as num).toDouble(),
-        longitude: (map['lng'] as num).toDouble(),
+        latitude: latitude,
+        longitude: longitude,
       ),
-      distanceMeters: (map['distanceMeters'] as num).toDouble(),
+      distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
     );
   }
 
@@ -181,9 +202,9 @@ class RemoteCheckInResult {
 
     return RemoteCheckInResult(
       success: map['success'] == true,
-      distanceMeters: (map['distanceMeters'] as num? ?? 0).toDouble(),
-      reward: _statsFromMap(Map<String, dynamic>.from(map['reward'] as Map)),
-      eggProgress: (map['eggProgress'] as num?)?.toInt(),
+      distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
+      reward: _statsFromMap(_mapFromValue(map['reward'])),
+      eggProgress: _intFromValue(map['eggProgress']),
       updatedPet: updatedPet,
     );
   }
@@ -203,8 +224,8 @@ class RemoteStepProgressResult {
 
   factory RemoteStepProgressResult.fromMap(Map<String, dynamic> map) {
     return RemoteStepProgressResult(
-      hatchableCount: (map['hatchableCount'] as num? ?? 0).toInt(),
-      appliedStepDelta: (map['appliedStepDelta'] as num? ?? 0).toInt(),
+      hatchableCount: _intFromValue(map['hatchableCount']) ?? 0,
+      appliedStepDelta: _intFromValue(map['appliedStepDelta']) ?? 0,
     );
   }
 
@@ -226,7 +247,7 @@ class RemotePetInteractionResult {
         : null;
 
     return RemotePetInteractionResult(
-      reward: _statsFromMap(Map<String, dynamic>.from(map['reward'] as Map)),
+      reward: _statsFromMap(_mapFromValue(map['reward'])),
       updatedPet: updatedPet,
     );
   }
@@ -244,11 +265,13 @@ class RemotePetUpdate {
   });
 
   factory RemotePetUpdate.fromMap(Map<String, dynamic> map) {
+    final id = _stringFromValue(map['id']);
+
     return RemotePetUpdate(
-      id: map['id'] as String?,
-      stats: _statsFromMap(Map<String, dynamic>.from(map['stats'] as Map)),
-      level: (map['level'] as num? ?? 1).toInt(),
-      stage: _petStageFromName(map['stage'] as String?),
+      id: id.isEmpty ? null : id,
+      stats: _statsFromMap(_mapFromValue(map['stats'])),
+      level: _intFromValue(map['level']) ?? 1,
+      stage: _petStageFromName(_stringFromValue(map['stage'])),
     );
   }
 
@@ -274,9 +297,40 @@ PetStage _petStageFromName(String? name) {
 
 GrowthStats _statsFromMap(Map<String, dynamic> map) {
   return GrowthStats(
-    exp: (map['exp'] as num? ?? 0).toInt(),
-    mood: (map['mood'] as num? ?? 0).toInt(),
-    knowledge: (map['knowledge'] as num? ?? 0).toInt(),
-    affinity: (map['affinity'] as num? ?? 0).toInt(),
+    exp: _intFromValue(map['exp']) ?? 0,
+    mood: _intFromValue(map['mood']) ?? 0,
+    knowledge: _intFromValue(map['knowledge']) ?? 0,
+    affinity: _intFromValue(map['affinity']) ?? 0,
   );
+}
+
+Map<String, dynamic> _mapFromValue(Object? value) {
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String) entry.key as String: entry.value,
+    };
+  }
+  return const {};
+}
+
+String _stringFromValue(Object? value, {String fallback = ''}) {
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+  return fallback;
+}
+
+int? _intFromValue(Object? value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
+}
+
+double? _doubleFromValue(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return null;
 }

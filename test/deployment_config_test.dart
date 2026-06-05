@@ -66,6 +66,7 @@ void main() {
     expect(noCacheSources, contains('/flutter_bootstrap.js'));
     expect(noCacheSources, contains('/manifest.json'));
     expect(noCacheSources, contains('/privacy.html'));
+    expect(noCacheSources, contains('/robots.txt'));
 
     final immutableSources = headers
         .where(
@@ -128,6 +129,7 @@ void main() {
 
   test('web shell provides loading and no-script fallbacks', () {
     final indexHtml = File('web/index.html').readAsStringSync();
+    final robotsTxt = File('web/robots.txt').readAsStringSync();
 
     expect(indexHtml, contains('<html lang="ko">'));
     expect(indexHtml, contains('id="loading-shell"'));
@@ -150,6 +152,8 @@ void main() {
       contains('name="twitter:card" content="summary_large_image"'),
     );
     expect(indexHtml, contains('name="twitter:image"'));
+    expect(robotsTxt, contains('User-agent: *'));
+    expect(robotsTxt, contains('Allow: /'));
   });
 
   test('Firestore rules keep user progress server-owned', () {
@@ -536,6 +540,7 @@ void main() {
     expect(script, contains('@AppDartDefineArgs'));
     expect(script, contains('@FirebaseDartDefineArgs'));
     expect(script, contains('build/web/privacy.html'));
+    expect(script, contains('build/web/robots.txt'));
     expect(script, contains('build/web/icons/Icon-maskable-192.png'));
     expect(script, contains('build/web/icons/Icon-maskable-512.png'));
     expect(script, contains('build/web/screenshots/onboarding-wide.png'));
@@ -568,6 +573,8 @@ void main() {
     expect(hostingSmokeScript, contains('flutter-first-frame'));
     expect(hostingSmokeScript, contains('<noscript>'));
     expect(hostingSmokeScript, contains('privacy.html'));
+    expect(hostingSmokeScript, contains('robots.txt'));
+    expect(hostingSmokeScript, contains('User-agent: *'));
     expect(hostingSmokeScript, contains('TourAPI'));
     expect(hostingSmokeScript, contains('Firebase'));
     expect(hostingSmokeScript, contains('manifest.json'));
@@ -595,6 +602,8 @@ void main() {
     expect(releaseEvidenceScript, contains('[switch]\$AllowDraftEvidence'));
     expect(releaseEvidenceScript, contains('required for submission evidence'));
     expect(releaseEvidenceScript, contains('build/web/index.html'));
+    expect(releaseEvidenceScript, contains('build/web/robots.txt'));
+    expect(releaseEvidenceScript, contains('Robots file'));
     expect(releaseEvidenceScript, contains('PWA manifest id'));
     expect(releaseEvidenceScript, contains('PWA screenshots'));
     expect(releaseEvidenceScript,

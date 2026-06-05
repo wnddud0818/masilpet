@@ -163,6 +163,7 @@ $RequiredFiles = @(
   "web/index.html",
   "web/manifest.json",
   "web/privacy.html",
+  "web/robots.txt",
   "web/screenshots/onboarding-wide.png",
   "web/screenshots/onboarding-mobile.png",
   "build/web/index.html",
@@ -170,6 +171,7 @@ $RequiredFiles = @(
   "build/web/main.dart.js",
   "build/web/manifest.json",
   "build/web/privacy.html",
+  "build/web/robots.txt",
   "build/web/icons/Icon-192.png",
   "build/web/icons/Icon-512.png",
   "build/web/screenshots/onboarding-wide.png",
@@ -272,6 +274,11 @@ if (Test-Path -LiteralPath "build/web/index.html") {
 if (Test-Path -LiteralPath "build/web/privacy.html") {
   $PrivacyHtml = Get-TextFile "build/web/privacy.html"
   Assert-TextContains -Name "Privacy page" -Text $PrivacyHtml -Needles @("MasilPet", "TourAPI", "Firebase")
+}
+
+if (Test-Path -LiteralPath "build/web/robots.txt") {
+  $RobotsTxt = Get-TextFile "build/web/robots.txt"
+  Assert-TextContains -Name "Robots file" -Text $RobotsTxt -Needles @("User-agent: *", "Allow: /")
 }
 
 if (Test-Path -LiteralPath "firestore.rules") {

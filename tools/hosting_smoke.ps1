@@ -147,6 +147,11 @@ Assert-Contains -Value $Privacy.Content -Expected "TourAPI" -Label "Privacy page
 Assert-Contains -Value $Privacy.Content -Expected "Firebase" -Label "Privacy page"
 Assert-HeaderContains -Response $Privacy -Name "Cache-Control" -Expected "no-cache"
 
+$Robots = Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/robots.txt"
+Assert-Contains -Value $Robots.Content -Expected "User-agent: *" -Label "Robots file"
+Assert-Contains -Value $Robots.Content -Expected "Allow: /" -Label "Robots file"
+Assert-HeaderContains -Response $Robots -Name "Cache-Control" -Expected "no-cache"
+
 $ManifestResponse = Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/manifest.json"
 $Manifest = $ManifestResponse.Content | ConvertFrom-Json
 if ($Manifest.name -notlike "*MasilPet*") {

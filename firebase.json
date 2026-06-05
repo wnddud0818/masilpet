@@ -72,6 +72,15 @@
         ]
       },
       {
+        "source": "/robots.txt",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "/favicon.png",
         "headers": [
           {

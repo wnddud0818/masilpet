@@ -253,6 +253,18 @@ if (Test-Path -LiteralPath "firebase.json") {
 if (Test-Path -LiteralPath "build/web/index.html") {
   $IndexHtml = Get-TextFile "build/web/index.html"
   Assert-TextContains -Name "Web loading shell" -Text $IndexHtml -Needles @("id=`"loading-shell`"", "role=`"status`"", "flutter-first-frame", "<noscript>", "/privacy.html")
+  Assert-TextContains `
+    -Name "Web preview metadata" `
+    -Text $IndexHtml `
+    -Needles @(
+      "name=`"application-name`" content=`"MasilPet`"",
+      "property=`"og:site_name`" content=`"MasilPet`"",
+      "property=`"og:locale`" content=`"ko_KR`"",
+      "property=`"og:image`"",
+      "/screenshots/onboarding-wide.png",
+      "name=`"twitter:card`" content=`"summary_large_image`"",
+      "name=`"twitter:image`""
+    )
 }
 
 if (Test-Path -LiteralPath "build/web/privacy.html") {

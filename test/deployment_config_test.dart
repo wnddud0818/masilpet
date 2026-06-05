@@ -136,6 +136,16 @@ void main() {
     expect(indexHtml, contains('JavaScript를 켜야 합니다'));
     expect(indexHtml, contains('/privacy.html'));
     expect(indexHtml, contains('prefers-reduced-motion'));
+    expect(indexHtml, contains('name="application-name" content="MasilPet"'));
+    expect(indexHtml, contains('property="og:site_name" content="MasilPet"'));
+    expect(indexHtml, contains('property="og:locale" content="ko_KR"'));
+    expect(indexHtml, contains('property="og:image"'));
+    expect(indexHtml, contains('/screenshots/onboarding-wide.png'));
+    expect(
+      indexHtml,
+      contains('name="twitter:card" content="summary_large_image"'),
+    );
+    expect(indexHtml, contains('name="twitter:image"'));
   });
 
   test('Firestore rules keep user progress server-owned', () {
@@ -560,6 +570,8 @@ void main() {
     expect(releaseEvidenceScript, contains('PWA screenshots'));
     expect(releaseEvidenceScript,
         contains('build/web/screenshots/onboarding-wide.png'));
+    expect(releaseEvidenceScript, contains('Web preview metadata'));
+    expect(releaseEvidenceScript, contains('summary_large_image'));
     expect(releaseEvidenceScript, contains('Security headers'));
     expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
     expect(releaseEvidenceScript,

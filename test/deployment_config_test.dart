@@ -431,6 +431,10 @@ void main() {
     expect(mapSource, contains('LinkTarget.blank'));
     expect(profileSource, contains('개인정보 처리방침: /privacy.html'));
     expect(profileSource, contains('개인정보 처리방침 열기'));
+    expect(profileSource, contains('데이터·지도 출처'));
+    expect(profileSource, contains('TourAPI 지역 장소'));
+    expect(profileSource, contains('OpenStreetMap 지도'));
+    expect(profileSource, contains('Firebase Functions 검증'));
     expect(profileSource, contains('openPrivacyPolicyPage()'));
     expect(
         privacyNavigationSource, contains("location.assign('/privacy.html')"));

@@ -94,6 +94,8 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               const _PrivacyCard(),
               const SizedBox(height: 12),
+              const _DataSourceCard(),
+              const SizedBox(height: 12),
               _ProgressManagementCard(
                 state: state,
                 onReset: () => _confirmResetProgress(
@@ -603,6 +605,111 @@ class _PrivacyCard extends StatelessWidget {
         const SnackBar(content: Text('개인정보 처리방침을 열 수 없습니다.')),
       );
     }
+  }
+}
+
+class _DataSourceCard extends StatelessWidget {
+  const _DataSourceCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.dataset_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '데이터·지도 출처',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const _SourceRow(
+              icon: Icons.travel_explore_outlined,
+              title: 'TourAPI 지역 장소',
+              detail: '부산 POI와 카테고리를 운영자 동기화로 반영합니다.',
+            ),
+            const SizedBox(height: 8),
+            const _SourceRow(
+              icon: Icons.map_outlined,
+              title: 'OpenStreetMap 지도',
+              detail: '지도 타일과 저작권 고지는 지도 화면에 표시됩니다.',
+            ),
+            const SizedBox(height: 8),
+            const _SourceRow(
+              icon: Icons.verified_user_outlined,
+              title: 'Firebase Functions 검증',
+              detail: '150m 체크인, 중복 방지, 보상 지급을 서버에서 처리합니다.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SourceRow extends StatelessWidget {
+  const _SourceRow({
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
+
+  final IconData icon;
+  final String title;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: scheme.primary, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                detail,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

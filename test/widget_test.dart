@@ -127,6 +127,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile explains data and map provenance',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.ensureVisible(find.text('데이터·지도 출처'));
+    await tester.pump();
+
+    expect(find.text('데이터·지도 출처'), findsOneWidget);
+    expect(find.text('TourAPI 지역 장소'), findsOneWidget);
+    expect(find.text('OpenStreetMap 지도'), findsOneWidget);
+    expect(find.text('Firebase Functions 검증'), findsOneWidget);
+    expect(
+      find.text('150m 체크인, 중복 방지, 보상 지급을 서버에서 처리합니다.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profile readiness links missing check-in to map',
       (WidgetTester tester) async {
     final controller = MasilPetController(

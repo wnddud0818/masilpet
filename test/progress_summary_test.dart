@@ -422,6 +422,10 @@ void main() {
     expect(egg.progress, 1323);
     expect(controller.state.todayCheckInCount, 1);
     expect(controller.state.statusMessage, contains('EXP +77'));
+    expect(controller.state.statusMessage, contains('기분 +3'));
+    expect(controller.state.statusMessage, contains('지식 +4'));
+    expect(controller.state.statusMessage, contains('친밀도 +5'));
+    expect(controller.state.statusMessage, contains('알 +123'));
   });
 
   test('remote duplicate check-in shows the server rejection reason', () async {

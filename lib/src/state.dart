@@ -906,8 +906,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       activePetId: nextActivePetId,
       lastVisitedCategory: poi.category,
       isBusy: false,
-      statusMessage:
-          '$messagePrefix: EXP +${rewardStats.exp}, ${poi.category.label} 보상 적용',
+      statusMessage: '$messagePrefix: ${CheckInReward(
+        stats: rewardStats,
+        eggProgress: eggProgress,
+      ).summaryLabel}',
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );

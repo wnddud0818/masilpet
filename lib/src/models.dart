@@ -349,6 +349,18 @@ class CheckInReward {
   final int eggProgress;
 }
 
+extension CheckInRewardSummary on CheckInReward {
+  String get summaryLabel {
+    return [
+      'EXP +${stats.exp}',
+      if (stats.mood > 0) '기분 +${stats.mood}',
+      if (stats.knowledge > 0) '지식 +${stats.knowledge}',
+      if (stats.affinity > 0) '친밀도 +${stats.affinity}',
+      '알 +$eggProgress',
+    ].join(' · ');
+  }
+}
+
 class DialogueLine {
   const DialogueLine({
     required this.id,

@@ -462,6 +462,9 @@ void main() {
     expect(buildInfoSource, contains('MASILPET_APP_VERSION'));
     expect(buildInfoSource, contains('MASILPET_BUILD_CHANNEL'));
     expect(buildInfoSource, contains('MASILPET_BUILD_TIME_UTC'));
+    expect(buildInfoSource, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
+    expect(buildInfoSource, contains('MASILPET_MAP_TILE_USER_AGENT'));
+    expect(buildInfoSource, contains('mapTileBuildConfig'));
     expect(mainSource, contains('missingWebConfiguration'));
     expect(mainSource, contains('initializationFailed'));
     expect(mainSource, contains('firebaseStartupIssueProvider'));
@@ -477,6 +480,7 @@ void main() {
     expect(onboardingSource, contains('firebaseStartupIssue.fallbackMessage'));
     expect(checklist, contains('기기 내 진행 (설정 필요)'));
     expect(checklist, contains('MASILPET_BUILD_CHANNEL'));
+    expect(checklist, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
   });
 
   test('release preflight script covers local and Firebase gates', () {
@@ -504,6 +508,8 @@ void main() {
     expect(script, contains('MASILPET_APP_VERSION'));
     expect(script, contains('MASILPET_BUILD_CHANNEL'));
     expect(script, contains('MASILPET_BUILD_TIME_UTC'));
+    expect(script, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
+    expect(script, contains('MASILPET_MAP_TILE_USER_AGENT'));
     expect(script, contains('@AppDartDefineArgs'));
     expect(script, contains('@FirebaseDartDefineArgs'));
     expect(script, contains('build/web/privacy.html'));
@@ -524,6 +530,7 @@ void main() {
     expect(runbook, contains('tools/hosting_smoke.ps1'));
     expect(runbook, contains('tools/release_evidence.ps1'));
     expect(runbook, contains('MASILPET_BUILD_CHANNEL'));
+    expect(runbook, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
     expect(runbook, contains('UTC 빌드 시각'));
     expect(runbook, contains('-AllowDraftEvidence'));
 
@@ -560,6 +567,7 @@ void main() {
     expect(releaseEvidenceScript, contains('functions/lib/index.js'));
     expect(releaseEvidenceScript, contains('Client reward snapshot model'));
     expect(releaseEvidenceScript, contains('Profile visit reward breakdown'));
+    expect(releaseEvidenceScript, contains('Map tile provider configuration'));
     expect(
         releaseEvidenceScript,
         contains(

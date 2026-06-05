@@ -17,6 +17,9 @@ $env:FIREBASE_WEB_API_KEY="..."
 $env:FIREBASE_WEB_APP_ID="..."
 $env:FIREBASE_MESSAGING_SENDER_ID="..."
 $env:MASILPET_BUILD_CHANNEL="contest"
+# 선택: OpenStreetMap 공개 타일 대신 승인된 지도 타일 서비스나 프록시를 사용한다.
+$env:MASILPET_MAP_TILE_URL_TEMPLATE="https://tiles.example.com/{z}/{x}/{y}.png"
+$env:MASILPET_MAP_TILE_USER_AGENT="com.masilpet.app"
 powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1
 firebase deploy --only functions,firestore,hosting
 powershell -ExecutionPolicy Bypass -File tools/hosting_smoke.ps1 -HostingUrl "https://{hosting-domain}"
@@ -24,6 +27,7 @@ powershell -ExecutionPolicy Bypass -File tools/release_evidence.ps1 -HostingUrl 
 ```
 
 preflight는 `pubspec.yaml` 버전과 UTC 빌드 시각을 Flutter Web 산출물에 주입한다. 배포 후 내 정보 화면에서 `앱 버전`, `빌드 채널`, `빌드 시각`이 의도한 제출 빌드와 일치하는지 확인한다.
+지도 타일은 기본적으로 OpenStreetMap 공개 타일을 사용한다. 공개 타일 사용량 정책이나 공모전 시연 환경상 별도 제공자가 필요하면 `MASILPET_MAP_TILE_URL_TEMPLATE`으로 승인된 타일 URL 템플릿을 주입한다.
 `release_evidence.ps1`는 실제 제출 증빙에서 Hosting URL을 필수로 요구한다. 로컬 초안 리포트가 필요할 때만 `-AllowDraftEvidence`를 함께 사용한다.
 
 ## 운영자 권한과 지역 데이터 반영

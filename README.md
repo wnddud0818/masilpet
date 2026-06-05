@@ -53,6 +53,7 @@ $env:FIREBASE_MESSAGING_SENDER_ID="..."
 ```
 
 `tools/release_preflight.ps1`는 `pubspec.yaml`의 버전, 빌드 채널, UTC 빌드 시각을 `MASILPET_APP_VERSION`, `MASILPET_BUILD_CHANNEL`, `MASILPET_BUILD_TIME_UTC`로 함께 주입합니다. 빌드 채널을 바꾸려면 실행 전에 `$env:MASILPET_BUILD_CHANNEL="contest"`처럼 설정합니다.
+지도 타일은 기본적으로 OpenStreetMap 공개 타일을 사용합니다. 제출 후 트래픽 규모나 심사 환경에 맞춰 별도 타일 서비스 또는 프록시를 사용해야 하면 `$env:MASILPET_MAP_TILE_URL_TEMPLATE="https://tiles.example.com/{z}/{x}/{y}.png"`와 `$env:MASILPET_MAP_TILE_USER_AGENT="com.masilpet.app"`를 설정한 뒤 preflight를 실행합니다.
 
 ## Firebase 배포
 

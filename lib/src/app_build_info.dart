@@ -18,6 +18,16 @@ class AppBuildInfo {
   String get buildTimeLabel => hasBuildTime ? builtAtUtc : 'local build';
 }
 
+class MapTileBuildConfig {
+  const MapTileBuildConfig({
+    required this.urlTemplate,
+    required this.userAgentPackageName,
+  });
+
+  final String urlTemplate;
+  final String userAgentPackageName;
+}
+
 const appBuildInfo = AppBuildInfo(
   version: String.fromEnvironment(
     'MASILPET_APP_VERSION',
@@ -30,5 +40,16 @@ const appBuildInfo = AppBuildInfo(
   builtAtUtc: String.fromEnvironment(
     'MASILPET_BUILD_TIME_UTC',
     defaultValue: 'not-set',
+  ),
+);
+
+const mapTileBuildConfig = MapTileBuildConfig(
+  urlTemplate: String.fromEnvironment(
+    'MASILPET_MAP_TILE_URL_TEMPLATE',
+    defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  ),
+  userAgentPackageName: String.fromEnvironment(
+    'MASILPET_MAP_TILE_USER_AGENT',
+    defaultValue: 'com.masilpet.app',
   ),
 );

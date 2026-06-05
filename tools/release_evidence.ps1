@@ -284,6 +284,13 @@ if ((Test-Path -LiteralPath "lib/src/models.dart") -and
   Assert-TextContains -Name "Profile visit reward breakdown" -Text $ProfileSource -Needles @("checkIn.reward ??", "RewardChipRow(reward: reward)")
 }
 
+if ((Test-Path -LiteralPath "lib/src/app_build_info.dart") -and
+    (Test-Path -LiteralPath "lib/src/screens/map_screen.dart")) {
+  $BuildInfoSource = Get-TextFile "lib/src/app_build_info.dart"
+  $MapSource = Get-TextFile "lib/src/screens/map_screen.dart"
+  Assert-TextContains -Name "Map tile provider configuration" -Text ($BuildInfoSource + $MapSource) -Needles @("MASILPET_MAP_TILE_URL_TEMPLATE", "MASILPET_MAP_TILE_USER_AGENT", "mapTileBuildConfig.urlTemplate", "userAgentPackageName")
+}
+
 $EmbeddedBuildTime = "not found"
 if (Test-Path -LiteralPath "build/web/main.dart.js") {
   $MainJs = Get-TextFile "build/web/main.dart.js"

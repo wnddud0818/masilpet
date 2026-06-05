@@ -66,11 +66,25 @@ function Get-AppDartDefineArgs {
   Write-Host "Version: $AppVersion" -ForegroundColor Green
   Write-Host "Channel: $BuildChannel" -ForegroundColor Green
 
-  return @(
+  $Args = @(
     "--dart-define=MASILPET_APP_VERSION=$AppVersion",
     "--dart-define=MASILPET_BUILD_CHANNEL=$BuildChannel",
     "--dart-define=MASILPET_BUILD_TIME_UTC=$BuildTimeUtc"
   )
+
+  $OptionalNames = @(
+    "MASILPET_MAP_TILE_URL_TEMPLATE",
+    "MASILPET_MAP_TILE_USER_AGENT"
+  )
+  foreach ($Name in $OptionalNames) {
+    $Value = [Environment]::GetEnvironmentVariable($Name)
+    if (-not [string]::IsNullOrWhiteSpace($Value)) {
+      $Args += "--dart-define=$Name=$Value"
+      Write-Host "${Name}: configured" -ForegroundColor Green
+    }
+  }
+
+  return $Args
 }
 
 function Get-FirebaseDartDefineArgs {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/link.dart';
 
+import '../app_build_info.dart';
 import '../models.dart';
 import '../services.dart';
 import '../state.dart';
@@ -571,8 +572,8 @@ class _LivePoiMap extends StatelessWidget {
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.masilpet.app',
+                  urlTemplate: mapTileBuildConfig.urlTemplate,
+                  userAgentPackageName: mapTileBuildConfig.userAgentPackageName,
                 ),
                 CircleLayer(
                   circles: [

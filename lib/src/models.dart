@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 const checkInRadiusMeters = 150.0;
+const dailyCheckInLimit = 20;
 
 enum PoiCategory {
   nature,

@@ -737,6 +737,70 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map screen surfaces the daily check-in limit',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [busanPoiSeed.first],
+      currentLocation: busanPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: now,
+      checkIns: List.generate(
+        dailyCheckInLimit,
+        (index) => CheckIn(
+          id: 'daily-limit-map-$index',
+          poiId: 'poi-$index',
+          regionId: busanRegion.id,
+          category: PoiCategory.nature,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+        ),
+      ),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('남은 체크인'), findsOneWidget);
+    expect(find.text('완료'), findsOneWidget);
+    expect(
+      find.textContaining('오늘 체크인 한도 $dailyCheckInLimit회'),
+      findsWidgets,
+    );
+
+    await tester.ensureVisible(find.widgetWithText(FilledButton, '오늘 한도 완료'));
+    await tester.pump();
+
+    final limitAction = find.widgetWithText(FilledButton, '오늘 한도 완료');
+    expect(limitAction, findsOneWidget);
+    expect(tester.widget<FilledButton>(limitAction).onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map screen shows a daily walking route guide',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});

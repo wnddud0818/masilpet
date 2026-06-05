@@ -224,6 +224,13 @@ class _ExplorationBriefing extends StatelessWidget {
                   icon: Icons.flag_outlined,
                 ),
                 MetricGridItem(
+                  label: '남은 체크인',
+                  value: state.remainingDailyCheckIns == 0
+                      ? '완료'
+                      : '${state.remainingDailyCheckIns}회',
+                  icon: Icons.event_available_outlined,
+                ),
+                MetricGridItem(
                   label: '가장 가까운 곳',
                   value: nearestDistance == null ? '-' : '${nearestDistance}m',
                   icon: Icons.near_me_outlined,
@@ -233,12 +240,11 @@ class _ExplorationBriefing extends StatelessWidget {
             if (nearest != null) ...[
               const SizedBox(height: 12),
               Text(
-                state.hasFreshVerifiedLocation
-                    ? '${nearest.title}부터 시작하면 ${nearest.category.label} 보상을 받을 수 있습니다.'
-                    : '현재 위치를 확인하면 150m 체크인 판정이 활성화됩니다.',
+                _explorationBriefingText(state, nearest),
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              if (!state.hasFreshVerifiedLocation) ...[
+              if (!state.hasFreshVerifiedLocation &&
+                  state.remainingDailyCheckIns > 0) ...[
                 const SizedBox(height: 10),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -255,6 +261,16 @@ class _ExplorationBriefing extends StatelessWidget {
       ),
     );
   }
+}
+
+String _explorationBriefingText(MasilPetState state, Poi nearest) {
+  if (state.remainingDailyCheckIns == 0) {
+    return '오늘 체크인 한도 $dailyCheckInLimit회를 모두 사용했습니다. 내일 다시 성장 보상을 이어갈 수 있습니다.';
+  }
+  if (!state.hasFreshVerifiedLocation) {
+    return '현재 위치를 확인하면 150m 체크인 판정이 활성화됩니다.';
+  }
+  return '${nearest.title}부터 시작하면 ${nearest.category.label} 보상을 받을 수 있습니다.';
 }
 
 class _DailyRouteCard extends StatelessWidget {
@@ -430,6 +446,9 @@ class _DailyRouteCard extends StatelessWidget {
   ) {
     if (recommended == null) {
       return '현재 위치를 확인하면 가까운 장소와 다음 성장 보상이 표시됩니다.';
+    }
+    if (state.remainingDailyCheckIns == 0) {
+      return '오늘 체크인 한도 $dailyCheckInLimit회를 모두 사용했습니다. 내일 다시 새로운 보상을 이어가세요.';
     }
     if (state.hasCheckedInToday(recommended)) {
       return '오늘 방문 가능한 POI를 모두 기록했습니다. 내일 다시 성장 보상을 이어갈 수 있습니다.';
@@ -927,10 +946,15 @@ class _PoiTile extends ConsumerWidget {
     final inRange =
         state.hasFreshVerifiedLocation && distance <= checkInRadiusMeters;
     final needsLocation = !state.hasFreshVerifiedLocation;
-    final canCheckIn = inRange && !checked && !state.isBusy;
-    final canRequestLocation = needsLocation && !checked && !state.isBusy;
-    final canRefreshLocation =
-        !needsLocation && !inRange && !checked && !state.isBusy;
+    final limitReached = state.remainingDailyCheckIns == 0;
+    final canCheckIn = inRange && !checked && !limitReached && !state.isBusy;
+    final canRequestLocation =
+        needsLocation && !checked && !limitReached && !state.isBusy;
+    final canRefreshLocation = !needsLocation &&
+        !inRange &&
+        !checked &&
+        !limitReached &&
+        !state.isBusy;
     final reward = const GrowthEngine().rewardFor(poi.category);
 
     return Card(
@@ -978,20 +1002,24 @@ class _PoiTile extends ConsumerWidget {
                         : null,
                 icon: Icon(checked
                     ? Icons.task_alt
-                    : needsLocation || canRefreshLocation
-                        ? Icons.my_location
-                        : canCheckIn
-                            ? Icons.check_circle
-                            : Icons.near_me_disabled),
+                    : limitReached
+                        ? Icons.event_busy_outlined
+                        : needsLocation || canRefreshLocation
+                            ? Icons.my_location
+                            : canCheckIn
+                                ? Icons.check_circle
+                                : Icons.near_me_disabled),
                 label: Text(checked
                     ? '오늘 체크인 완료'
-                    : needsLocation
-                        ? '현재 위치 확인'
-                        : canRefreshLocation
-                            ? '현재 위치 다시 확인'
-                            : inRange
-                                ? '체크인'
-                                : '150m 안에서 가능'),
+                    : limitReached
+                        ? '오늘 한도 완료'
+                        : needsLocation
+                            ? '현재 위치 확인'
+                            : canRefreshLocation
+                                ? '현재 위치 다시 확인'
+                                : inRange
+                                    ? '체크인'
+                                    : '150m 안에서 가능'),
               ),
             ),
           ],

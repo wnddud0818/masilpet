@@ -193,6 +193,12 @@ class MasilPetState {
 
   int get todayCheckInCount => todayCheckIns.length;
 
+  int get remainingDailyCheckIns {
+    return (dailyCheckInLimit - todayCheckInCount)
+        .clamp(0, dailyCheckInLimit)
+        .toInt();
+  }
+
   Set<PoiCategory> get todayVisitedCategories {
     return todayCheckIns.map((checkIn) => checkIn.category).toSet();
   }
@@ -319,6 +325,7 @@ class MasilPetState {
 
   bool canCheckInToday(Poi poi) {
     return hasFreshVerifiedLocation &&
+        remainingDailyCheckIns > 0 &&
         currentLocation.distanceTo(poi.coordinates) <= checkInRadiusMeters &&
         !hasCheckedInToday(poi);
   }
@@ -744,6 +751,16 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (!state.hasFreshVerifiedLocation) {
       state = state.copyWith(
         statusMessage: '현재 위치를 다시 확인해야 체크인할 수 있습니다.',
+        fieldActivity: PetFieldActivity.walking,
+        bumpFieldActivity: true,
+      );
+      return;
+    }
+
+    if (state.remainingDailyCheckIns == 0) {
+      state = state.copyWith(
+        statusMessage:
+            '오늘 가능한 체크인 $dailyCheckInLimit회를 모두 사용했습니다. 내일 다시 이어갈 수 있습니다.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );

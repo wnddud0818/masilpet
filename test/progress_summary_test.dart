@@ -308,6 +308,7 @@ void main() {
     expect(state.canCheckInToday(busanPoiSeed.first), isFalse);
     expect(state.todayAvailableCheckInCount, 0);
     expect(state.todayCheckIns, isEmpty);
+    expect(state.remainingDailyCheckIns, dailyCheckInLimit);
     expect(state.todayVisitedCategoryCount, 0);
     expect(state.unvisitedPoiCountToday, busanPoiSeed.length);
     expect(state.nextEgg?.id, 'egg-harbor-maru');
@@ -321,6 +322,38 @@ void main() {
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('현재 위치'));
+  });
+
+  test('daily check-in limit blocks additional local rewards', () async {
+    final now = DateTime.now();
+    final controller = _controller();
+    controller.state = controller.state.copyWith(
+      currentLocation: busanPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: now,
+      checkIns: List.generate(
+        dailyCheckInLimit,
+        (index) => CheckIn(
+          id: 'daily-limit-$index',
+          poiId: 'poi-$index',
+          regionId: busanRegion.id,
+          category: PoiCategory.nature,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+        ),
+      ),
+    );
+
+    expect(controller.state.remainingDailyCheckIns, 0);
+    expect(controller.state.todayAvailableCheckInCount, 0);
+    expect(controller.state.canCheckInToday(busanPoiSeed.first), isFalse);
+
+    await controller.attemptCheckIn(busanPoiSeed.first);
+
+    expect(controller.state.todayCheckInCount, dailyCheckInLimit);
+    expect(controller.state.statusMessage, contains('$dailyCheckInLimit회'));
+    expect(controller.state.statusMessage, contains('모두 사용'));
   });
 
   test('expired location verification cannot be used for check-in', () async {

@@ -15,7 +15,7 @@
         "travel",
         "lifestyle"
     ],
-    "orientation": "portrait-primary",
+    "orientation": "any",
     "prefer_related_applications": false,
     "screenshots": [
         {

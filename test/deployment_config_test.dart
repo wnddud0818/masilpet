@@ -334,6 +334,7 @@ void main() {
     expect(manifest['start_url'], '/');
     expect(manifest['scope'], '/');
     expect(manifest['display'], 'standalone');
+    expect(manifest['orientation'], 'any');
     expect(manifest['description'], contains('부산'));
     expect(manifest['description'], isNot(contains('demo')));
 

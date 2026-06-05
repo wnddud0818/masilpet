@@ -217,6 +217,7 @@ if (Test-Path -LiteralPath "build/web/manifest.json") {
   Assert-Condition -Name "PWA manifest id" -Condition ($Manifest.id -eq "/") -PassDetail $Manifest.id -FailDetail "id must be /"
   Assert-Condition -Name "PWA manifest lang" -Condition ($Manifest.lang -eq "ko-KR") -PassDetail $Manifest.lang -FailDetail "lang must be ko-KR"
   Assert-Condition -Name "PWA manifest display" -Condition ($Manifest.display -eq "standalone") -PassDetail $Manifest.display -FailDetail "display must be standalone"
+  Assert-Condition -Name "PWA manifest orientation" -Condition ($Manifest.orientation -eq "any") -PassDetail $Manifest.orientation -FailDetail "orientation must allow responsive portrait and landscape use"
   Assert-Condition -Name "PWA manifest start_url" -Condition ($Manifest.start_url -eq "/") -PassDetail $Manifest.start_url -FailDetail "start_url must be /"
 
   $ShortcutUrls = @($Manifest.shortcuts | ForEach-Object { [string]$_.url })

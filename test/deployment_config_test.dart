@@ -292,6 +292,34 @@ void main() {
     expect(backendSource, contains('final String? id;'));
   });
 
+  test('operator dialogue seed covers every pet and visit category', () {
+    final functionsSource = File('functions/src/index.ts').readAsStringSync();
+    const templateIds = [
+      'wave-naru',
+      'harbor-maru',
+      'film-bori',
+      'spring-dami',
+      'story-goun',
+    ];
+    const triggers = [
+      'default',
+      'nature',
+      'food',
+      'festival',
+      'culture',
+      'history',
+      'shopping',
+      'other',
+    ];
+
+    for (final templateId in templateIds) {
+      for (final trigger in triggers) {
+        expect(functionsSource, contains("id: '$templateId-$trigger'"));
+      }
+    }
+    expect(functionsSource, contains('dialogueCount: dialogueSeed.length'));
+  });
+
   test('PWA manifest is contest-ready and uses production branding', () {
     final manifest = _readJson('web/manifest.json');
 

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masilpet/src/models.dart';
+import 'package:masilpet/src/seed_data.dart';
 import 'package:masilpet/src/services.dart';
 
 void main() {
@@ -44,5 +45,30 @@ void main() {
     );
 
     expect(stage, PetStage.evolved);
+  });
+
+  test('dialogue seed covers every pet and visit category', () {
+    const dialogue = StaticDialogueService();
+
+    for (final template in busanPetTemplates) {
+      expect(
+        busanDialogueSeed,
+        contains(
+          isA<DialogueLine>()
+              .having((line) => line.templateId, 'templateId', template.id)
+              .having((line) => line.trigger, 'trigger', 'default'),
+        ),
+      );
+
+      for (final category in PoiCategory.values) {
+        final line = dialogue.lineFor(
+          template: template,
+          lastCategory: category,
+        );
+        expect(line.templateId, template.id);
+        expect(line.trigger, category.name);
+        expect(line.text, isNotEmpty);
+      }
+    }
   });
 }

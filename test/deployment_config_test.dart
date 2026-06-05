@@ -532,6 +532,10 @@ void main() {
     expect(script, contains('@AppDartDefineArgs'));
     expect(script, contains('@FirebaseDartDefineArgs'));
     expect(script, contains('build/web/privacy.html'));
+    expect(script, contains('build/web/icons/Icon-maskable-192.png'));
+    expect(script, contains('build/web/icons/Icon-maskable-512.png'));
+    expect(script, contains('build/web/screenshots/onboarding-wide.png'));
+    expect(script, contains('build/web/screenshots/onboarding-mobile.png'));
     expect(checklist, contains('Firebase Web 빌드 설정'));
     expect(checklist, contains('FIREBASE_WEB_API_KEY'));
     expect(checklist, contains('앱 버전'));

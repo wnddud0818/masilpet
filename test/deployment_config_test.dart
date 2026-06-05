@@ -131,6 +131,7 @@ void main() {
     expect(indexHtml, contains('aria-live="polite"'));
     expect(indexHtml, contains('flutter-first-frame'));
     expect(indexHtml, contains('loadingShell.remove()'));
+    expect(indexHtml, isNot(contains('name="viewport"')));
     expect(indexHtml, contains('<noscript>'));
     expect(indexHtml, contains('JavaScript를 켜야 합니다'));
     expect(indexHtml, contains('/privacy.html'));

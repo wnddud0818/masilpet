@@ -405,9 +405,16 @@ class _StageGoal extends ConsumerWidget {
       PetStage.evolved => '최종 진화 완료',
     };
     final description = switch (pet.stage) {
-      PetStage.baby => 'Lv.3을 달성하면 성장 단계로 올라갑니다.',
-      PetStage.grown => 'Lv.5, 지식 50, 친밀도 100을 채우면 진화합니다.',
-      PetStage.evolved => '부산 탐험의 깊은 기억을 간직한 상태입니다.',
+      PetStage.baby =>
+        'Lv.${GrowthEngine.grownLevelRequirement}까지 탐험 보상을 모으면 성장 단계가 열립니다.',
+      PetStage.grown => '진화에는 레벨, 지식, 지역 친밀도가 모두 필요합니다.',
+      PetStage.evolved => '부산 탐험의 깊은 기억을 모두 간직한 상태입니다.',
+    };
+    final requirements = _growthRequirementsFor(pet);
+    final requirementTitle = switch (pet.stage) {
+      PetStage.baby => '성장 조건',
+      PetStage.grown => '진화 조건',
+      PetStage.evolved => '완료 조건',
     };
 
     return Container(
@@ -438,6 +445,21 @@ class _StageGoal extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(description),
+                if (requirements.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    requirementTitle,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  for (final requirement in requirements) ...[
+                    _GrowthRequirementRow(requirement: requirement),
+                    if (requirement != requirements.last)
+                      const SizedBox(height: 8),
+                  ],
+                ],
                 if (!isComplete) ...[
                   const SizedBox(height: 10),
                   Align(
@@ -454,6 +476,181 @@ class _StageGoal extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+List<_GrowthRequirement> _growthRequirementsFor(Pet pet) {
+  return switch (pet.stage) {
+    PetStage.baby => [
+        _GrowthRequirement.level(
+          currentLevel: pet.level,
+          targetLevel: GrowthEngine.grownLevelRequirement,
+        ),
+      ],
+    PetStage.grown => [
+        _GrowthRequirement.level(
+          currentLevel: pet.level,
+          targetLevel: GrowthEngine.evolvedLevelRequirement,
+        ),
+        _GrowthRequirement.stat(
+          icon: Icons.menu_book_outlined,
+          label: '지식',
+          current: pet.stats.knowledge,
+          target: GrowthEngine.evolvedKnowledgeRequirement,
+        ),
+        _GrowthRequirement.stat(
+          icon: Icons.handshake_outlined,
+          label: '지역 친밀도',
+          current: pet.stats.affinity,
+          target: GrowthEngine.evolvedAffinityRequirement,
+        ),
+      ],
+    PetStage.evolved => const [],
+  };
+}
+
+class _GrowthRequirement {
+  const _GrowthRequirement({
+    required this.icon,
+    required this.label,
+    required this.current,
+    required this.target,
+    required this.valueLabel,
+    required this.remainingLabel,
+  });
+
+  factory _GrowthRequirement.level({
+    required int currentLevel,
+    required int targetLevel,
+  }) {
+    final remaining = (targetLevel - currentLevel).clamp(0, targetLevel);
+    return _GrowthRequirement(
+      icon: Icons.auto_graph,
+      label: '레벨',
+      current: currentLevel,
+      target: targetLevel,
+      valueLabel: 'Lv.$currentLevel/$targetLevel',
+      remainingLabel: remaining == 0 ? '완료' : '$remaining레벨 필요',
+    );
+  }
+
+  factory _GrowthRequirement.stat({
+    required IconData icon,
+    required String label,
+    required int current,
+    required int target,
+  }) {
+    final remaining = (target - current).clamp(0, target);
+    return _GrowthRequirement(
+      icon: icon,
+      label: label,
+      current: current,
+      target: target,
+      valueLabel: '$current/$target',
+      remainingLabel: remaining == 0 ? '완료' : '$remaining 필요',
+    );
+  }
+
+  final IconData icon;
+  final String label;
+  final int current;
+  final int target;
+  final String valueLabel;
+  final String remainingLabel;
+
+  bool get isComplete => current >= target;
+
+  double get progress {
+    if (target <= 0) {
+      return 1;
+    }
+    return (current / target).clamp(0.0, 1.0).toDouble();
+  }
+}
+
+class _GrowthRequirementRow extends StatelessWidget {
+  const _GrowthRequirementRow({required this.requirement});
+
+  final _GrowthRequirement requirement;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final statusColor =
+        requirement.isComplete ? const Color(0xFF0F766E) : scheme.primary;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            requirement.isComplete
+                ? Icons.check_circle_outline
+                : requirement.icon,
+            size: 18,
+            color: statusColor,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      requirement.label,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                  Text(
+                    requirement.valueLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  minHeight: 6,
+                  value: requirement.progress,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            requirement.remainingLabel,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: statusColor,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ),
+      ],
     );
   }
 }

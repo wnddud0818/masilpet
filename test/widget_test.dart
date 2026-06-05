@@ -1204,12 +1204,71 @@ void main() {
     await tester.pump();
 
     expect(find.text('성장 단계'), findsOneWidget);
+    expect(find.text('성장 조건'), findsOneWidget);
+    expect(find.text('Lv.1/3'), findsOneWidget);
+    expect(find.text('2레벨 필요'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'));
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet evolution goal shows unmet stat requirements',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(1);
+    final activePet = controller.state.activePet!;
+    controller.state = controller.state.copyWith(
+      pets: [
+        activePet.copyWith(
+          level: 4,
+          stage: PetStage.grown,
+          stats: const GrowthStats(
+            exp: 320,
+            mood: 44,
+            knowledge: 38,
+            affinity: 72,
+          ),
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('진화 단계'), findsOneWidget);
+    expect(find.text('진화 조건'), findsOneWidget);
+    expect(find.text('Lv.4/5'), findsOneWidget);
+    expect(find.text('1레벨 필요'), findsOneWidget);
+    expect(find.text('38/50'), findsOneWidget);
+    expect(find.text('12 필요'), findsOneWidget);
+    expect(find.text('72/100'), findsOneWidget);
+    expect(find.text('28 필요'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

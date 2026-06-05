@@ -8,6 +8,11 @@ import 'seed_data.dart';
 class GrowthEngine {
   const GrowthEngine();
 
+  static const grownLevelRequirement = 3;
+  static const evolvedLevelRequirement = 5;
+  static const evolvedKnowledgeRequirement = 50;
+  static const evolvedAffinityRequirement = 100;
+
   CheckInReward rewardFor(PoiCategory category) {
     switch (category) {
       case PoiCategory.food:
@@ -57,10 +62,12 @@ class GrowthEngine {
     required GrowthStats stats,
     required PetStage currentStage,
   }) {
-    if (level >= 5 && stats.affinity >= 100 && stats.knowledge >= 50) {
+    if (level >= evolvedLevelRequirement &&
+        stats.affinity >= evolvedAffinityRequirement &&
+        stats.knowledge >= evolvedKnowledgeRequirement) {
       return PetStage.evolved;
     }
-    if (level >= 3) {
+    if (level >= grownLevelRequirement) {
       return PetStage.grown;
     }
     return currentStage;

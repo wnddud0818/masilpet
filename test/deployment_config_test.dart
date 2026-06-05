@@ -607,12 +607,19 @@ void main() {
     expect(releaseEvidenceScript, contains('PWA manifest id'));
     expect(releaseEvidenceScript, contains('PWA screenshots'));
     expect(releaseEvidenceScript,
+        contains('build/web/icons/Icon-maskable-192.png'));
+    expect(releaseEvidenceScript,
+        contains('build/web/icons/Icon-maskable-512.png'));
+    expect(releaseEvidenceScript,
         contains('build/web/screenshots/onboarding-wide.png'));
     expect(releaseEvidenceScript,
         contains('build/web/screenshots/onboarding-mobile.png'));
     expect(releaseEvidenceScript, contains('Web preview metadata'));
     expect(releaseEvidenceScript, contains('summary_large_image'));
     expect(releaseEvidenceScript, contains('Security headers'));
+    expect(releaseEvidenceScript, contains('Immutable static media cache'));
+    expect(releaseEvidenceScript, contains('/screenshots/**'));
+    expect(releaseEvidenceScript, contains('/icons/**'));
     expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
     expect(releaseEvidenceScript,
         contains('Compiled Functions reward evidence fields'));

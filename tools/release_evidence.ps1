@@ -174,6 +174,8 @@ $RequiredFiles = @(
   "build/web/robots.txt",
   "build/web/icons/Icon-192.png",
   "build/web/icons/Icon-512.png",
+  "build/web/icons/Icon-maskable-192.png",
+  "build/web/icons/Icon-maskable-512.png",
   "build/web/screenshots/onboarding-wide.png",
   "build/web/screenshots/onboarding-mobile.png"
 )
@@ -243,7 +245,7 @@ if (Test-Path -LiteralPath "firebase.json") {
   $GlobalHeaders = Get-HeaderValues -Headers $Headers -Source "**"
   Assert-Condition -Name "Security headers" -Condition (($GlobalHeaders["X-Content-Type-Options"] -eq "nosniff") -and ($GlobalHeaders["Referrer-Policy"] -eq "strict-origin-when-cross-origin") -and ($GlobalHeaders["X-Frame-Options"] -eq "DENY") -and ($GlobalHeaders["Permissions-Policy"] -like "*geolocation=(self)*")) -PassDetail "nosniff, referrer policy, frame denial, geolocation permission policy" -FailDetail "required global security headers missing"
 
-  $NoCacheSources = @("/index.html", "/flutter_bootstrap.js", "/manifest.json", "/privacy.html")
+  $NoCacheSources = @("/index.html", "/flutter_bootstrap.js", "/manifest.json", "/privacy.html", "/robots.txt")
   $NoCacheMissing = @()
   foreach ($Source in $NoCacheSources) {
     $HeaderValues = Get-HeaderValues -Headers $Headers -Source $Source
@@ -252,6 +254,16 @@ if (Test-Path -LiteralPath "firebase.json") {
     }
   }
   Assert-Condition -Name "No-cache HTML shell assets" -Condition ($NoCacheMissing.Count -eq 0) -PassDetail ($NoCacheSources -join ", ") -FailDetail ("missing no-cache on " + ($NoCacheMissing -join ", "))
+
+  $ImmutableSources = @("/favicon.png", "/icons/**", "/screenshots/**", "/assets/**")
+  $ImmutableMissing = @()
+  foreach ($Source in $ImmutableSources) {
+    $HeaderValues = Get-HeaderValues -Headers $Headers -Source $Source
+    if ($HeaderValues["Cache-Control"] -ne "public, max-age=31536000, immutable") {
+      $ImmutableMissing += $Source
+    }
+  }
+  Assert-Condition -Name "Immutable static media cache" -Condition ($ImmutableMissing.Count -eq 0) -PassDetail ($ImmutableSources -join ", ") -FailDetail ("missing immutable cache on " + ($ImmutableMissing -join ", "))
 }
 
 if (Test-Path -LiteralPath "build/web/index.html") {

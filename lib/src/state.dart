@@ -178,15 +178,40 @@ class MasilPetState {
     return sorted;
   }
 
-  int get todayCheckInCount {
+  List<CheckIn> get todayCheckIns {
     final now = DateTime.now();
     return checkIns
         .where((checkIn) => isSameLocalDay(checkIn.createdAt, now))
-        .length;
+        .toList(growable: false);
+  }
+
+  List<CheckIn> get recentCheckIns {
+    final sorted = [...checkIns];
+    sorted.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+    return sorted;
+  }
+
+  int get todayCheckInCount => todayCheckIns.length;
+
+  Set<PoiCategory> get todayVisitedCategories {
+    return todayCheckIns.map((checkIn) => checkIn.category).toSet();
+  }
+
+  int get todayVisitedCategoryCount => todayVisitedCategories.length;
+
+  int get unvisitedPoiCountToday {
+    return pois.where((poi) => !hasCheckedInToday(poi)).length;
   }
 
   Set<String> get discoveredTemplateIds {
     return pets.map((pet) => pet.templateId).toSet();
+  }
+
+  Set<PoiCategory> get undiscoveredCategoryGoals {
+    return templates
+        .where((template) => !discoveredTemplateIds.contains(template.id))
+        .map((template) => template.primaryCategory)
+        .toSet();
   }
 
   double get dexCompletionRatio {
@@ -202,6 +227,28 @@ class MasilPetState {
     return eggs.where((egg) => egg.status == EggStatus.hatchable).length;
   }
 
+  Egg? get nextEgg {
+    if (eggs.isEmpty) {
+      return null;
+    }
+
+    final sorted = [...eggs];
+    sorted.sort((left, right) {
+      final leftPriority = _eggPriority(left);
+      final rightPriority = _eggPriority(right);
+      if (leftPriority != rightPriority) {
+        return leftPriority.compareTo(rightPriority);
+      }
+
+      final leftRemaining =
+          (left.requiredSteps - left.progress).clamp(0, left.requiredSteps);
+      final rightRemaining =
+          (right.requiredSteps - right.progress).clamp(0, right.requiredSteps);
+      return leftRemaining.compareTo(rightRemaining);
+    });
+    return sorted.first;
+  }
+
   int get todayAvailableCheckInCount {
     return nearbyPois.where(canCheckInToday).length;
   }
@@ -209,6 +256,31 @@ class MasilPetState {
   Poi? get nearestPoi {
     final sorted = nearbyPois;
     return sorted.isEmpty ? null : sorted.first;
+  }
+
+  Poi? get nextRecommendedPoi {
+    final candidates =
+        nearbyPois.where((poi) => !hasCheckedInToday(poi)).toList();
+    if (candidates.isEmpty) {
+      return nearestPoi;
+    }
+
+    final categoryGoals = undiscoveredCategoryGoals;
+    final visitedCategories = todayVisitedCategories;
+    candidates.sort(
+      (left, right) => _poiRecommendationScore(
+        left,
+        categoryGoals: categoryGoals,
+        visitedCategories: visitedCategories,
+      ).compareTo(
+        _poiRecommendationScore(
+          right,
+          categoryGoals: categoryGoals,
+          visitedCategories: visitedCategories,
+        ),
+      ),
+    );
+    return candidates.first;
   }
 
   bool get hasFreshVerifiedLocation {
@@ -245,11 +317,7 @@ class MasilPetState {
   }
 
   bool hasCheckedInToday(Poi poi) {
-    final now = DateTime.now();
-    return checkIns.any(
-      (checkIn) =>
-          checkIn.poiId == poi.id && isSameLocalDay(checkIn.createdAt, now),
-    );
+    return todayCheckIns.any((checkIn) => checkIn.poiId == poi.id);
   }
 
   bool canCheckInToday(Poi poi) {
@@ -260,6 +328,32 @@ class MasilPetState {
 
   String get firebaseConnectionLabel {
     return firebaseReady ? '온라인 동기화' : firebaseStartupIssue.profileLabel;
+  }
+
+  int _eggPriority(Egg egg) {
+    return switch (egg.status) {
+      EggStatus.hatchable => 0,
+      EggStatus.incubating => 1,
+      EggStatus.hatched => 2,
+    };
+  }
+
+  double _poiRecommendationScore(
+    Poi poi, {
+    required Set<PoiCategory> categoryGoals,
+    required Set<PoiCategory> visitedCategories,
+  }) {
+    var score = currentLocation.distanceTo(poi.coordinates);
+    if (hasFreshVerifiedLocation && score <= checkInRadiusMeters) {
+      score -= 10000;
+    }
+    if (categoryGoals.contains(poi.category)) {
+      score -= 2200;
+    }
+    if (!visitedCategories.contains(poi.category)) {
+      score -= 900;
+    }
+    return score;
   }
 
   MasilPetState copyWith({

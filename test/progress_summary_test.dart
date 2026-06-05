@@ -307,6 +307,11 @@ void main() {
     expect(state.hasFreshVerifiedLocation, isFalse);
     expect(state.canCheckInToday(busanPoiSeed.first), isFalse);
     expect(state.todayAvailableCheckInCount, 0);
+    expect(state.todayCheckIns, isEmpty);
+    expect(state.todayVisitedCategoryCount, 0);
+    expect(state.unvisitedPoiCountToday, busanPoiSeed.length);
+    expect(state.nextEgg?.id, 'egg-harbor-maru');
+    expect(state.nextRecommendedPoi, isNotNull);
   });
 
   test('check-in requires verified current location', () async {
@@ -339,8 +344,46 @@ void main() {
     await controller.attemptCheckIn(busanPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 1);
+    expect(controller.state.todayCheckIns.single.poiId, busanPoiSeed.first.id);
+    expect(
+      controller.state.todayVisitedCategories,
+      contains(PoiCategory.nature),
+    );
+    expect(controller.state.unvisitedPoiCountToday, busanPoiSeed.length - 1);
+    expect(
+        controller.state.nextRecommendedPoi?.id, isNot(busanPoiSeed.first.id));
     expect(controller.state.hasCheckedInToday(busanPoiSeed.first), isTrue);
     expect(controller.state.launchReadinessScore, greaterThanOrEqualTo(60));
+  });
+
+  test('recent check-ins are sorted by newest visit first', () {
+    final older = DateTime.now().subtract(const Duration(days: 1));
+    final newer = DateTime.now();
+    final state = MasilPetState.initial(firebaseReady: false).copyWith(
+      checkIns: [
+        CheckIn(
+          id: 'older-checkin',
+          poiId: busanPoiSeed.first.id,
+          regionId: busanPoiSeed.first.regionId,
+          category: busanPoiSeed.first.category,
+          createdAt: older,
+          distanceMeters: 24,
+          rewardApplied: true,
+        ),
+        CheckIn(
+          id: 'newer-checkin',
+          poiId: busanPoiSeed[1].id,
+          regionId: busanPoiSeed[1].regionId,
+          category: busanPoiSeed[1].category,
+          createdAt: newer,
+          distanceMeters: 18,
+          rewardApplied: true,
+        ),
+      ],
+    );
+
+    expect(state.recentCheckIns.first.id, 'newer-checkin');
+    expect(state.recentCheckIns.last.id, 'older-checkin');
   });
 
   test('remote check-in mirrors the server reward, egg progress, and pet patch',

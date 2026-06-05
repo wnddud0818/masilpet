@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models.dart';
+import '../services.dart';
 import '../state.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/pet_avatar.dart';
@@ -28,6 +29,12 @@ class HouseScreen extends ConsumerWidget {
               const StatusBanner(),
               const SizedBox(height: 12),
               _HouseOverviewCard(state: state),
+              const SizedBox(height: 12),
+              _HouseCarePlanCard(
+                state: state,
+                onOpenMap: () => controller.setTab(0),
+                onOpenPet: () => controller.setTab(1),
+              ),
               const SizedBox(height: 16),
               _HouseCollectionLayout(
                 state: state,
@@ -177,7 +184,7 @@ class _HouseOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextEgg = state.eggs.isEmpty ? null : state.eggs.first;
+    final nextEgg = state.nextEgg;
     final remainingSteps = nextEgg == null
         ? null
         : (nextEgg.requiredSteps - nextEgg.progress)
@@ -251,6 +258,310 @@ class _HouseOverviewCard extends StatelessWidget {
   }
 }
 
+class _HouseCarePlanCard extends ConsumerWidget {
+  const _HouseCarePlanCard({
+    required this.state,
+    required this.onOpenMap,
+    required this.onOpenPet,
+  });
+
+  final MasilPetState state;
+  final VoidCallback onOpenMap;
+  final VoidCallback onOpenPet;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final scheme = Theme.of(context).colorScheme;
+    final activePet = state.activePet;
+    final activeTemplate =
+        activePet == null ? null : controller.templateFor(activePet.templateId);
+    final nextEgg = state.nextEgg;
+    final eggTemplate =
+        nextEgg == null ? null : controller.templateFor(nextEgg.templateId);
+    final remainingSteps = nextEgg == null ? null : _remainingEggSteps(nextEgg);
+    final recommended = state.nextRecommendedPoi;
+    final recommendedDistance = _recommendedDistance(state, recommended);
+    final talksLeft = _houseTalksLeftToday(state);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_available_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '오늘의 하우스 플랜',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                _HousePlanBadge(
+                  label: state.todayCheckInCount == 0
+                      ? '외출 대기'
+                      : '${state.todayCheckInCount}회 체크인',
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _housePlanSummary(
+                activePet: activePet,
+                nextEgg: nextEgg,
+                eggTemplate: eggTemplate,
+                talksLeft: talksLeft,
+                state: state,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _HousePlanItem(
+              icon: Icons.pets_outlined,
+              title: '대표 펫',
+              body: activePet == null || activeTemplate == null
+                  ? '부화한 마실펫이 생기면 오늘 돌봄 대상이 표시됩니다.'
+                  : '${activePet.name} · Lv.${activePet.level} · ${activeTemplate.rarity}',
+              trailing: activePet == null
+                  ? '대기'
+                  : talksLeft > 0
+                      ? '$talksLeft회 대화'
+                      : '돌봄 완료',
+              accentColor: scheme.primary,
+            ),
+            const SizedBox(height: 8),
+            _HousePlanItem(
+              icon: Icons.egg_alt_outlined,
+              title: '집중 부화 알',
+              body: nextEgg == null || eggTemplate == null
+                  ? '체크인 보상으로 새 알을 발견하면 부화 목표가 열립니다.'
+                  : '${eggTemplate.name}의 알 · ${_eggPlanStatus(nextEgg, remainingSteps!)}',
+              trailing: nextEgg == null
+                  ? '없음'
+                  : '${(nextEgg.progressRatio * 100).round()}%',
+              accentColor: const Color(0xFFF59E0B),
+            ),
+            const SizedBox(height: 8),
+            _HousePlanItem(
+              icon: Icons.signpost_outlined,
+              title: '다음 외출',
+              body: recommended == null
+                  ? '지도에서 현재 위치를 확인하면 다음 체크인 후보가 표시됩니다.'
+                  : '${recommended.title} · ${recommended.category.label}',
+              trailing: _distanceLabel(recommendedDistance),
+              accentColor: const Color(0xFF0F766E),
+            ),
+            const SizedBox(height: 12),
+            _HousePlanActions(
+              nextEgg: nextEgg,
+              isBusy: state.isBusy,
+              hasActivePet: activePet != null,
+              talksLeft: talksLeft,
+              onOpenMap: onOpenMap,
+              onOpenPet: onOpenPet,
+              onHatch: nextEgg == null
+                  ? null
+                  : () => controller.hatchEgg(nextEgg.id),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HousePlanBadge extends StatelessWidget {
+  const _HousePlanBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onPrimaryContainer,
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+}
+
+class _HousePlanItem extends StatelessWidget {
+  const _HousePlanItem({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.trailing,
+    required this.accentColor,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String trailing;
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: accentColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  body,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Text(
+              trailing,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HousePlanActions extends StatelessWidget {
+  const _HousePlanActions({
+    required this.nextEgg,
+    required this.isBusy,
+    required this.hasActivePet,
+    required this.talksLeft,
+    required this.onOpenMap,
+    required this.onOpenPet,
+    required this.onHatch,
+  });
+
+  final Egg? nextEgg;
+  final bool isBusy;
+  final bool hasActivePet;
+  final int talksLeft;
+  final VoidCallback onOpenMap;
+  final VoidCallback onOpenPet;
+  final VoidCallback? onHatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final canHatch = nextEgg?.status == EggStatus.hatchable;
+    final Widget primary = canHatch
+        ? FilledButton.icon(
+            onPressed: isBusy ? null : onHatch,
+            icon: const Icon(Icons.egg_alt_outlined),
+            label: const Text('지금 부화하기'),
+          )
+        : FilledButton.icon(
+            onPressed: isBusy ? null : onOpenMap,
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('지도에서 걸음 모으기'),
+          );
+    final Widget? secondary = canHatch
+        ? OutlinedButton.icon(
+            onPressed: isBusy ? null : onOpenMap,
+            icon: const Icon(Icons.travel_explore),
+            label: const Text('다음 알 찾기'),
+          )
+        : hasActivePet
+            ? OutlinedButton.icon(
+                onPressed: isBusy ? null : onOpenPet,
+                icon: Icon(
+                  talksLeft > 0
+                      ? Icons.forum_outlined
+                      : Icons.check_circle_outline,
+                ),
+                label: Text(talksLeft > 0 ? '마실펫 돌보기' : '마실펫 보기'),
+              )
+            : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        Widget fullWidth(Widget child) {
+          return SizedBox(width: double.infinity, child: child);
+        }
+
+        if (secondary == null) {
+          return fullWidth(primary);
+        }
+        if (constraints.maxWidth < 360) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              fullWidth(primary),
+              const SizedBox(height: 8),
+              fullWidth(secondary),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: primary),
+            const SizedBox(width: 8),
+            Expanded(child: secondary),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _PetHouseTile extends ConsumerWidget {
   const _PetHouseTile({
     required this.pet,
@@ -314,6 +625,58 @@ class _PetHouseTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+int _houseTalksLeftToday(MasilPetState state) {
+  final countToday = isSameLocalDay(state.dialogueDay, DateTime.now())
+      ? state.dialogueCountToday
+      : 0;
+  return (5 - countToday).clamp(0, 5).toInt();
+}
+
+int _remainingEggSteps(Egg egg) {
+  return (egg.requiredSteps - egg.progress).clamp(0, egg.requiredSteps).toInt();
+}
+
+int? _recommendedDistance(MasilPetState state, Poi? poi) {
+  if (poi == null || !state.hasFreshVerifiedLocation) {
+    return null;
+  }
+  return state.currentLocation.distanceTo(poi.coordinates).round();
+}
+
+String _distanceLabel(int? distanceMeters) {
+  return distanceMeters == null ? '위치 필요' : '${distanceMeters}m';
+}
+
+String _eggPlanStatus(Egg egg, int remainingSteps) {
+  return switch (egg.status) {
+    EggStatus.hatchable => '부화 준비 완료',
+    EggStatus.incubating => '$remainingSteps 걸음 남음',
+    EggStatus.hatched => '부화 완료',
+  };
+}
+
+String _housePlanSummary({
+  required Pet? activePet,
+  required Egg? nextEgg,
+  required PetTemplate? eggTemplate,
+  required int talksLeft,
+  required MasilPetState state,
+}) {
+  if (nextEgg?.status == EggStatus.hatchable && eggTemplate != null) {
+    return '${eggTemplate.name}의 알이 준비됐습니다. 하우스에서 바로 부화해 수집률을 올릴 수 있습니다.';
+  }
+  if (activePet == null) {
+    return '첫 알을 부화하면 대표 마실펫 돌봄 루틴이 시작됩니다.';
+  }
+  if (state.todayCheckInCount == 0) {
+    return '지도에서 첫 체크인을 완료하면 ${activePet.name}의 성장치와 알 진행도가 함께 올라갑니다.';
+  }
+  if (talksLeft > 0) {
+    return '${activePet.name}에게 오늘 방문한 장소 이야기를 들려줄 차례입니다.';
+  }
+  return '오늘 돌봄이 안정적으로 진행 중입니다. 다음 POI에서 알 진행도를 더 모아보세요.';
 }
 
 class _ActivePetBadge extends StatelessWidget {

@@ -50,6 +50,14 @@ class MapScreen extends ConsumerWidget {
                     state.isBusy ? null : controller.useDeviceLocation,
               ),
               const SizedBox(height: 12),
+              _DailyRouteCard(
+                state: state,
+                onUseDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+                onOpenPet: state.isBusy ? null : () => controller.setTab(1),
+                onOpenHouse: state.isBusy ? null : () => controller.setTab(2),
+              ),
+              const SizedBox(height: 12),
               _MapExplorationLayout(
                 state: state,
                 nearby: nearby,
@@ -244,6 +252,284 @@ class _ExplorationBriefing extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DailyRouteCard extends StatelessWidget {
+  const _DailyRouteCard({
+    required this.state,
+    required this.onUseDeviceLocation,
+    required this.onOpenPet,
+    required this.onOpenHouse,
+  });
+
+  final MasilPetState state;
+  final VoidCallback? onUseDeviceLocation;
+  final VoidCallback? onOpenPet;
+  final VoidCallback? onOpenHouse;
+
+  @override
+  Widget build(BuildContext context) {
+    final recommended = state.nextRecommendedPoi;
+    final recommendedDistance =
+        recommended == null || !state.hasFreshVerifiedLocation
+            ? null
+            : state.currentLocation.distanceTo(recommended.coordinates).round();
+    final nextEgg = state.nextEgg;
+    final eggRemainingSteps = nextEgg == null
+        ? null
+        : (nextEgg.requiredSteps - nextEgg.progress)
+            .clamp(0, nextEgg.requiredSteps);
+    final talkedToday = _hasTalkedToday(state);
+    final completedSteps = [
+      state.hasFreshVerifiedLocation,
+      state.todayCheckInCount > 0,
+      talkedToday,
+      nextEgg?.status == EggStatus.hatchable,
+    ].where((done) => done).length;
+    final action = _nextRouteAction(
+      state: state,
+      talkedToday: talkedToday,
+      onUseDeviceLocation: onUseDeviceLocation,
+      onOpenPet: onOpenPet,
+      onOpenHouse: onOpenHouse,
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.signpost_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '오늘의 산책 루트',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text(
+                  '$completedSteps/4',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _recommendationText(recommended, recommendedDistance),
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            MetricGrid(
+              items: [
+                MetricGridItem(
+                  icon: Icons.category_outlined,
+                  label: '방문 카테고리',
+                  value:
+                      '${state.todayVisitedCategoryCount}/${PoiCategory.values.length}',
+                ),
+                MetricGridItem(
+                  icon: Icons.place_outlined,
+                  label: '남은 POI',
+                  value: state.unvisitedPoiCountToday == 0
+                      ? '완료'
+                      : '${state.unvisitedPoiCountToday}곳',
+                ),
+                MetricGridItem(
+                  icon: Icons.near_me_outlined,
+                  label: '추천 거리',
+                  value: recommendedDistance == null
+                      ? '-'
+                      : '${recommendedDistance}m',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _RouteStep(
+              complete: state.hasFreshVerifiedLocation,
+              icon: Icons.my_location,
+              title: '위치 확인',
+              detail: state.hasFreshVerifiedLocation
+                  ? '최근 위치 기준으로 체크인 반경을 계산 중입니다.'
+                  : '체크인은 최근 15분 안에 확인한 위치에서만 열립니다.',
+            ),
+            _RouteStep(
+              complete: state.todayCheckInCount > 0,
+              icon: Icons.task_alt,
+              title: '첫 체크인',
+              detail: state.todayCheckInCount > 0
+                  ? '${state.todayCheckInCount}회 체크인을 기록했습니다.'
+                  : recommended == null
+                      ? '현재 지역의 POI를 다시 조회해 보세요.'
+                      : '${recommended.title}부터 살펴보세요.',
+            ),
+            _RouteStep(
+              complete: talkedToday,
+              icon: Icons.forum_outlined,
+              title: '마실펫 교감',
+              detail: talkedToday
+                  ? '오늘 ${state.dialogueCountToday}/5회 대화했습니다.'
+                  : '방문 맥락에 맞춘 대사를 한 번 들어보세요.',
+            ),
+            _RouteStep(
+              complete: nextEgg?.status == EggStatus.hatchable,
+              icon: Icons.egg_alt_outlined,
+              title: '알 부화 준비',
+              detail: nextEgg == null
+                  ? '체크인 보상으로 새 알을 발견할 수 있습니다.'
+                  : nextEgg.status == EggStatus.hatchable
+                      ? '부화 가능한 알이 하우스에 있습니다.'
+                      : '$eggRemainingSteps 걸음이 더 필요합니다.',
+              isLast: action == null,
+            ),
+            if (action != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: action.onPressed,
+                  icon: Icon(action.icon),
+                  label: Text(action.label),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _recommendationText(Poi? recommended, int? recommendedDistance) {
+    if (recommended == null) {
+      return '현재 위치를 확인하면 가까운 장소와 다음 성장 보상이 표시됩니다.';
+    }
+    if (recommendedDistance == null) {
+      return '${recommended.title}의 ${recommended.category.label} 보상을 먼저 노려보세요.';
+    }
+    return '${recommended.title}까지 ${recommendedDistance}m · ${recommended.category.label} 보상';
+  }
+}
+
+class _RouteStep extends StatelessWidget {
+  const _RouteStep({
+    required this.complete,
+    required this.icon,
+    required this.title,
+    required this.detail,
+    this.isLast = false,
+  });
+
+  final bool complete;
+  final IconData icon;
+  final String title;
+  final String detail;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = complete ? const Color(0xFF16A34A) : scheme.primary;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              complete ? Icons.check_circle : icon,
+              size: 17,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  detail,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RouteAction {
+  const _RouteAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+}
+
+_RouteAction? _nextRouteAction({
+  required MasilPetState state,
+  required bool talkedToday,
+  required VoidCallback? onUseDeviceLocation,
+  required VoidCallback? onOpenPet,
+  required VoidCallback? onOpenHouse,
+}) {
+  if (!state.hasFreshVerifiedLocation) {
+    return _RouteAction(
+      icon: Icons.my_location,
+      label: '현재 위치 확인',
+      onPressed: onUseDeviceLocation,
+    );
+  }
+  if (state.todayCheckInCount > 0 && !talkedToday) {
+    return _RouteAction(
+      icon: Icons.forum_outlined,
+      label: '마실펫과 대화하기',
+      onPressed: onOpenPet,
+    );
+  }
+  if (state.hatchableEggCount > 0) {
+    return _RouteAction(
+      icon: Icons.egg_alt_outlined,
+      label: '하우스에서 부화하기',
+      onPressed: onOpenHouse,
+    );
+  }
+  return null;
+}
+
+bool _hasTalkedToday(MasilPetState state) {
+  return isSameLocalDay(state.dialogueDay, DateTime.now()) &&
+      state.dialogueCountToday > 0;
 }
 
 class _LivePoiMap extends StatelessWidget {

@@ -23,6 +23,8 @@ class DexScreen extends ConsumerWidget {
             children: [
               _DexProgressCard(state: state),
               const SizedBox(height: 16),
+              _DexPassportCard(state: state),
+              const SizedBox(height: 16),
               _DexCollectionLayout(
                 templates: state.templates,
                 discoveredTemplateIds: state.discoveredTemplateIds,
@@ -80,6 +82,194 @@ class _DexCollectionLayout extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _DexPassportCard extends ConsumerWidget {
+  const _DexPassportCard({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final discovered = state.discoveredTemplateIds.length;
+    final total = state.templates.length;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.confirmation_number_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '부산 탐험 여권',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text(
+                  '$discovered/$total',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '장소 카테고리마다 연결된 마실펫을 발견해 부산 여권을 채웁니다.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            _PassportStampGrid(
+              templates: state.templates,
+              discoveredTemplateIds: state.discoveredTemplateIds,
+            ),
+            if (discovered < total) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => controller.setTab(0),
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('다음 스탬프 찾기'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PassportStampGrid extends StatelessWidget {
+  const _PassportStampGrid({
+    required this.templates,
+    required this.discoveredTemplateIds,
+  });
+
+  final List<PetTemplate> templates;
+  final Set<String> discoveredTemplateIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 360 ? 1 : 2;
+        const spacing = 8.0;
+        final itemWidth =
+            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final template in templates)
+              SizedBox(
+                width: itemWidth,
+                child: _PassportStamp(
+                  template: template,
+                  discovered: discoveredTemplateIds.contains(template.id),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PassportStamp extends StatelessWidget {
+  const _PassportStamp({
+    required this.template,
+    required this.discovered,
+  });
+
+  final PetTemplate template;
+  final bool discovered;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Color(template.colorValue);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: discovered
+            ? color.withValues(alpha: 0.12)
+            : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: discovered
+              ? color.withValues(alpha: 0.44)
+              : scheme.outlineVariant,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: discovered
+                  ? color.withValues(alpha: 0.16)
+                  : scheme.surface.withValues(alpha: 0.74),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              discovered ? Icons.verified_outlined : Icons.explore_outlined,
+              color: discovered ? color : scheme.onSurfaceVariant,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  template.primaryCategory.label,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: discovered ? color : scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  discovered ? template.name : '스탬프 대기',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  discovered ? template.rarity : '체크인과 부화로 발견',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

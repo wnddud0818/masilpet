@@ -1,10 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> _readJson(String path) {
   return jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+}
+
+String _pngDimensions(String path) {
+  final bytes = File(path).readAsBytesSync();
+  const signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  if (bytes.length < 24) {
+    throw FormatException('PNG file is too small: $path');
+  }
+  for (var index = 0; index < signature.length; index += 1) {
+    if (bytes[index] != signature[index]) {
+      throw FormatException('Not a PNG file: $path');
+    }
+  }
+
+  final data = ByteData.sublistView(bytes);
+  return '${data.getUint32(16)}x${data.getUint32(20)}';
 }
 
 void main() {
@@ -372,7 +389,9 @@ void main() {
     for (final screenshot in screenshots) {
       expect(screenshot['type'], 'image/png');
       expect(screenshot['label'], contains('MasilPet'));
-      expect(File('web/${screenshot['src']}').existsSync(), isTrue);
+      final path = 'web/${screenshot['src']}';
+      expect(File(path).existsSync(), isTrue);
+      expect(_pngDimensions(path), screenshot['sizes']);
     }
 
     final iconEntries =

@@ -218,6 +218,66 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile readiness separates core loop from online sync',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        CheckIn(
+          id: 'checkin-readiness-core',
+          poiId: busanPoiSeed.first.id,
+          regionId: busanPoiSeed.first.regionId,
+          category: busanPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 18,
+          rewardApplied: true,
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('심사 플레이 루프'), findsOneWidget);
+    expect(find.text('3/3단계'), findsOneWidget);
+    expect(find.text('배포 동기화'), findsOneWidget);
+    expect(find.text('기기 내 진행 (설정 필요)'), findsWidgets);
+    expect(
+      find.text(
+        '체크인·펫 보유·부화 루프는 기기 내 진행으로 검증 가능합니다. 배포 직전 Firebase 설정만 연결하면 됩니다.',
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profile visit journal links an empty record to map',
       (WidgetTester tester) async {
     final controller = MasilPetController(

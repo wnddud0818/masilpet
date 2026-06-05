@@ -793,6 +793,7 @@ class _LaunchReadinessCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final score = state.launchReadinessScore;
     final controller = ref.read(masilPetControllerProvider.notifier);
+    final coreLoopCount = _readinessCoreLoopCount(state);
     final nextAction = _readinessNextAction(state, controller);
 
     return Card(
@@ -832,6 +833,32 @@ class _LaunchReadinessCard extends ConsumerWidget {
                 value: score / 100,
                 backgroundColor: const Color(0xFFE2E8F0),
               ),
+            ),
+            const SizedBox(height: 12),
+            _ReadinessSummaryLine(
+              icon: Icons.route_outlined,
+              label: '심사 플레이 루프',
+              value: '$coreLoopCount/3단계',
+              passed: coreLoopCount == 3,
+            ),
+            const SizedBox(height: 6),
+            _ReadinessSummaryLine(
+              icon: state.firebaseReady
+                  ? Icons.cloud_done_outlined
+                  : Icons.cloud_off_outlined,
+              label: '배포 동기화',
+              value: state.firebaseReady
+                  ? '연결 완료'
+                  : state.firebaseStartupIssue.profileLabel,
+              passed: state.firebaseReady,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _readinessSummaryText(state, coreLoopCount),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF475569),
+                    height: 1.35,
+                  ),
             ),
             const SizedBox(height: 12),
             Wrap(
@@ -874,6 +901,57 @@ class _LaunchReadinessCard extends ConsumerWidget {
   }
 }
 
+class _ReadinessSummaryLine extends StatelessWidget {
+  const _ReadinessSummaryLine({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.passed,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool passed;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = passed ? const Color(0xFF16A34A) : const Color(0xFF64748B);
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          flex: 3,
+          child: Text(
+            label,
+            style: textTheme.labelLarge?.copyWith(
+              color: const Color(0xFF334155),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 4,
+          child: Text(
+            value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ReadinessAction {
   const _ReadinessAction({
     required this.icon,
@@ -884,6 +962,33 @@ class _ReadinessAction {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+}
+
+int _readinessCoreLoopCount(MasilPetState state) {
+  var count = 0;
+  if (state.todayCheckInCount > 0) {
+    count++;
+  }
+  if (state.pets.isNotEmpty) {
+    count++;
+  }
+  if (state.eggs.isNotEmpty || state.pets.length > 1) {
+    count++;
+  }
+  return count;
+}
+
+String _readinessSummaryText(MasilPetState state, int coreLoopCount) {
+  if (state.firebaseReady && coreLoopCount == 3) {
+    return '온라인 저장까지 연결되어 실제 제출 리허설 기준을 모두 통과했습니다.';
+  }
+  if (!state.firebaseReady && coreLoopCount == 3) {
+    return '체크인·펫 보유·부화 루프는 기기 내 진행으로 검증 가능합니다. 배포 직전 Firebase 설정만 연결하면 됩니다.';
+  }
+  if (coreLoopCount >= 2) {
+    return '심사자는 남은 체크포인트를 따라가며 오늘의 탐험 루프를 완성할 수 있습니다.';
+  }
+  return '지도 체크인부터 시작하면 핵심 탐험 루프가 순서대로 열립니다.';
 }
 
 _ReadinessAction? _readinessNextAction(

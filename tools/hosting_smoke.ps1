@@ -77,6 +77,37 @@ function Assert-HeaderContains {
   Assert-Contains -Value $Value -Expected $Expected -Label $Name
 }
 
+function Assert-ManifestScreenshot {
+  param(
+    [hashtable]$ScreenshotsByFormFactor,
+    [string]$FormFactor,
+    [string]$Src,
+    [string]$Sizes,
+    [string]$BaseUrl
+  )
+
+  if (-not $ScreenshotsByFormFactor.ContainsKey($FormFactor)) {
+    throw "manifest.json screenshots must include $FormFactor form_factor."
+  }
+
+  $Screenshot = $ScreenshotsByFormFactor[$FormFactor]
+  if ([string]$Screenshot.src -ne $Src) {
+    throw "manifest.json $FormFactor screenshot src must be $Src."
+  }
+  if ([string]$Screenshot.sizes -ne $Sizes) {
+    throw "manifest.json $FormFactor screenshot sizes must be $Sizes."
+  }
+  if ([string]$Screenshot.type -ne "image/png") {
+    throw "manifest.json $FormFactor screenshot type must be image/png."
+  }
+
+  $ScreenshotResponse = Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/$Src"
+  Assert-HeaderContains `
+    -Response $ScreenshotResponse `
+    -Name "Content-Type" `
+    -Expected "image/png"
+}
+
 $BaseUrl = Normalize-HostingUrl $HostingUrl
 
 Write-Host ""
@@ -136,6 +167,22 @@ if ($ShortcutUrls -notcontains "/#/home") {
 if ($ShortcutUrls -notcontains "/privacy.html") {
   throw "manifest.json shortcuts must include privacy.html."
 }
+$ScreenshotsByFormFactor = @{}
+foreach ($Screenshot in @($Manifest.screenshots)) {
+  $ScreenshotsByFormFactor[[string]$Screenshot.form_factor] = $Screenshot
+}
+Assert-ManifestScreenshot `
+  -ScreenshotsByFormFactor $ScreenshotsByFormFactor `
+  -FormFactor "wide" `
+  -Src "screenshots/onboarding-wide.png" `
+  -Sizes "1280x720" `
+  -BaseUrl $BaseUrl
+Assert-ManifestScreenshot `
+  -ScreenshotsByFormFactor $ScreenshotsByFormFactor `
+  -FormFactor "narrow" `
+  -Src "screenshots/onboarding-mobile.png" `
+  -Sizes "390x844" `
+  -BaseUrl $BaseUrl
 Assert-HeaderContains -Response $ManifestResponse -Name "Cache-Control" -Expected "no-cache"
 
 Invoke-CheckedRequest -BaseUrl $BaseUrl -Path "/icons/Icon-192.png" | Out-Null

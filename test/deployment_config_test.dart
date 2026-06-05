@@ -563,6 +563,10 @@ void main() {
     expect(hostingSmokeScript, contains('TourAPI'));
     expect(hostingSmokeScript, contains('Firebase'));
     expect(hostingSmokeScript, contains('manifest.json'));
+    expect(hostingSmokeScript, contains('Assert-ManifestScreenshot'));
+    expect(hostingSmokeScript, contains('screenshots/onboarding-wide.png'));
+    expect(hostingSmokeScript, contains('screenshots/onboarding-mobile.png'));
+    expect(hostingSmokeScript, contains('form_factor'));
     expect(hostingSmokeScript, contains('X-Content-Type-Options'));
     expect(hostingSmokeScript, contains('Referrer-Policy'));
     expect(hostingSmokeScript, contains('X-Frame-Options'));

@@ -337,6 +337,16 @@ void main() {
     expect(manifest['description'], contains('부산'));
     expect(manifest['description'], isNot(contains('demo')));
 
+    final screenshots =
+        (manifest['screenshots'] as List<dynamic>).cast<Map<String, dynamic>>();
+    expect(screenshots.single['src'], 'screenshots/onboarding-wide.png');
+    expect(screenshots.single['sizes'], '1280x720');
+    expect(screenshots.single['form_factor'], 'wide');
+    expect(screenshots.single['label'], contains('MasilPet'));
+    for (final screenshot in screenshots) {
+      expect(File('web/${screenshot['src']}').existsSync(), isTrue);
+    }
+
     final iconEntries =
         (manifest['icons'] as List<dynamic>).cast<Map<String, dynamic>>();
     final icons = iconEntries.map((icon) => icon['src']).toSet();

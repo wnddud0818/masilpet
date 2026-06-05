@@ -1369,6 +1369,51 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('reset progress returns to a visible onboarding story',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..completeOnboarding();
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MasilPetApp(),
+      ),
+    );
+    await tester.pump();
+
+    await controller.resetProgress();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final startButton =
+        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
+    expect(find.text('MasilPet'), findsOneWidget);
+    expect(find.text('TourAPI 기반 지역 탐험'), findsOneWidget);
+    expect(startButton, findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('MasilPet')).dy,
+      lessThan(tester.getTopLeft(startButton).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('collection screens expose clear sections on phone width',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(390, 844);

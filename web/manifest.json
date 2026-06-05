@@ -17,6 +17,15 @@
     ],
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "screenshots": [
+        {
+            "src": "screenshots/onboarding-wide.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+            "label": "MasilPet 온보딩과 지역 탐험 소개"
+        }
+    ],
     "shortcuts": [
         {
             "name": "부산 탐험 지도",

@@ -448,6 +448,8 @@ void main() {
     expect(mapSource, contains('© OpenStreetMap contributors'));
     expect(mapSource, contains('https://www.openstreetmap.org/copyright'));
     expect(mapSource, contains('LinkTarget.blank'));
+    expect(mapSource, contains('부산 기본 장소'));
+    expect(mapSource, contains('TourAPI ID'));
     expect(profileSource, contains('개인정보 처리방침: /privacy.html'));
     expect(profileSource, contains('개인정보 처리방침 열기'));
     expect(profileSource, contains('데이터·지도 출처'));
@@ -725,6 +727,7 @@ void main() {
     expect(submission, contains('빌드 채널'));
     expect(submission, contains('빌드 시각'));
     expect(submission, contains('지도 타일 설정'));
+    expect(submission, contains('장소 데이터 출처'));
     expect(submission, contains('Flutter Web'));
     expect(submission, contains('Firebase Auth'));
     expect(submission, contains('TourAPI'));

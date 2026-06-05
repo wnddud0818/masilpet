@@ -637,11 +637,60 @@ void main() {
     await tester.pump();
 
     expect(find.text('해운대 해수욕장'), findsOneWidget);
+    expect(find.text('부산광역시 · 부산 기본 장소'), findsOneWidget);
+    expect(find.textContaining('seed-001'), findsNothing);
     expect(find.text('EXP +18'), findsOneWidget);
     expect(find.text('기분 +8'), findsOneWidget);
     expect(find.text('지식 +4'), findsOneWidget);
     expect(find.text('친밀도 +12'), findsOneWidget);
     expect(find.text('알 +680'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map poi cards surface TourAPI content ids when available',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: const [
+        Poi(
+          id: 'tourapi-poi',
+          tourApiContentId: '2785118',
+          title: '테스트 여행지',
+          regionId: 'busan',
+          category: PoiCategory.culture,
+          coordinates: Coordinates(latitude: 35.1587, longitude: 129.1604),
+          shortDescription: 'TourAPI에서 동기화된 장소',
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('테스트 여행지'), findsOneWidget);
+    expect(find.text('부산광역시 · TourAPI ID 2785118'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

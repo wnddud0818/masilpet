@@ -1087,6 +1087,10 @@ class _PoiTile extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(poi.shortDescription),
+            const SizedBox(height: 8),
+            _PoiSourceLine(
+              label: '${state.region.name} · ${_poiSourceLabel(poi)}',
+            ),
             const SizedBox(height: 10),
             RewardChipRow(reward: reward),
             const SizedBox(height: 10),
@@ -1125,6 +1129,45 @@ class _PoiTile extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _PoiSourceLine extends StatelessWidget {
+  const _PoiSourceLine({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.dataset_linked_outlined,
+          size: 16,
+          color: scheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _poiSourceLabel(Poi poi) {
+  final contentId = poi.tourApiContentId.trim();
+  if (contentId.isEmpty || contentId.startsWith('seed-')) {
+    return '부산 기본 장소';
+  }
+  return 'TourAPI ID $contentId';
 }
 
 class _CategoryChip extends StatelessWidget {

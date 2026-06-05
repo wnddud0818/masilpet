@@ -144,6 +144,68 @@ void main() {
     expect(restored.lastVisitedCategory, PoiCategory.nature);
   });
 
+  test('local progress snapshot tolerates malformed stored values', () {
+    final restored = LocalProgressSnapshot.fromMap({
+      'pois': [
+        7,
+        {
+          'id': 42,
+          'title': 99,
+          'category': false,
+          'coordinates': {'latitude': 'north', 'longitude': 129.16},
+        },
+      ],
+      'pets': [
+        {
+          'id': 99,
+          'name': false,
+          'level': 'high',
+          'stage': 12,
+          'stats': {'exp': 'many', 'mood': null},
+          'lastInteractedAt': 404,
+        },
+      ],
+      'eggs': [
+        {
+          'progress': 'half',
+          'requiredSteps': 'soon',
+          'status': 17,
+        },
+      ],
+      'checkIns': [
+        {
+          'category': 7,
+          'distanceMeters': 'near',
+          'createdAt': 'not-a-date',
+        },
+      ],
+      'currentLocation': {'latitude': 'bad', 'longitude': 129.16},
+      'activePetId': 42,
+      'lastVisitedCategory': false,
+      'dialogueCountToday': 'five',
+    });
+
+    expect(restored.pois, hasLength(1));
+    expect(restored.pois.single.id, '');
+    expect(restored.pois.single.title, '장소');
+    expect(restored.pois.single.category, PoiCategory.other);
+    expect(restored.pois.single.coordinates.latitude, 35.1587);
+    expect(restored.pets.single.name, '마실펫');
+    expect(restored.pets.single.level, 1);
+    expect(restored.pets.single.stage, PetStage.baby);
+    expect(restored.pets.single.stats.exp, 0);
+    expect(restored.pets.single.lastInteractedAt, isNull);
+    expect(restored.eggs.single.progress, 0);
+    expect(restored.eggs.single.requiredSteps, 3500);
+    expect(restored.eggs.single.status, EggStatus.incubating);
+    expect(restored.checkIns.single.category, PoiCategory.other);
+    expect(restored.checkIns.single.distanceMeters, 0);
+    expect(restored.currentLocation.latitude, 35.1587);
+    expect(restored.activePetId, '');
+    expect(restored.lastVisitedCategory, isNull);
+    expect(restored.dialogueCountToday, 0);
+  });
+
   test('controller restores and saves local progress', () async {
     final repository = MemoryLocalProgressRepository(
       LocalProgressSnapshot(

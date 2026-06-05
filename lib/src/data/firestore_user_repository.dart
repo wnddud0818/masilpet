@@ -48,7 +48,7 @@ class FirestoreUserRepository {
         .get();
 
     return UserProgressSnapshot(
-      activePetId: userDoc.data()?['activePetId'] as String? ?? '',
+      activePetId: _stringFromValue(userDoc.data()?['activePetId']),
       pets: petsSnapshot.docs
           .map((doc) => _petFromDoc(doc.id, doc.data()))
           .toList(),
@@ -65,28 +65,25 @@ class FirestoreUserRepository {
 Pet _petFromDoc(String id, Map<String, dynamic> data) {
   return Pet(
     id: id,
-    templateId: data['templateId'] as String? ?? 'wave-naru',
-    name: data['name'] as String? ?? '마실펫',
-    stage: _petStageFromName(data['stage'] as String?),
-    level: (data['level'] as num? ?? 1).toInt(),
-    stats: _statsFromMap(
-        Map<String, dynamic>.from(data['stats'] as Map? ?? const {})),
-    originRegionId: data['originRegionId'] as String? ?? 'busan',
+    templateId: _stringFromValue(data['templateId'], fallback: 'wave-naru'),
+    name: _stringFromValue(data['name'], fallback: '마실펫'),
+    stage: _petStageFromName(_stringFromValue(data['stage'])),
+    level: _intFromValue(data['level']) ?? 1,
+    stats: _statsFromMap(_mapFromValue(data['stats'])),
+    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'busan'),
     hatchedAt: _dateFromValue(data['hatchedAt']),
-    lastInteractedAt: data['lastInteractedAt'] == null
-        ? null
-        : _dateFromValue(data['lastInteractedAt']),
+    lastInteractedAt: _nullableDateFromValue(data['lastInteractedAt']),
   );
 }
 
 Egg _eggFromDoc(String id, Map<String, dynamic> data) {
   return Egg(
     id: id,
-    templateId: data['templateId'] as String? ?? 'wave-naru',
-    originRegionId: data['originRegionId'] as String? ?? 'busan',
-    progress: (data['progress'] as num? ?? 0).toInt(),
-    requiredSteps: (data['requiredSteps'] as num? ?? 3500).toInt(),
-    status: _eggStatusFromName(data['status'] as String?),
+    templateId: _stringFromValue(data['templateId'], fallback: 'wave-naru'),
+    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'busan'),
+    progress: _intFromValue(data['progress']) ?? 0,
+    requiredSteps: _intFromValue(data['requiredSteps']) ?? 3500,
+    status: _eggStatusFromName(_stringFromValue(data['status'])),
     createdAt: _dateFromValue(data['createdAt']),
   );
 }
@@ -94,21 +91,21 @@ Egg _eggFromDoc(String id, Map<String, dynamic> data) {
 CheckIn _checkInFromDoc(String id, Map<String, dynamic> data) {
   return CheckIn(
     id: id,
-    poiId: data['poiId'] as String? ?? '',
-    regionId: data['regionId'] as String? ?? 'busan',
-    category: _categoryFromName(data['category'] as String?),
+    poiId: _stringFromValue(data['poiId']),
+    regionId: _stringFromValue(data['regionId'], fallback: 'busan'),
+    category: _categoryFromName(_stringFromValue(data['category'])),
     createdAt: _dateFromValue(data['createdAt']),
-    distanceMeters: (data['distanceMeters'] as num? ?? 0).toDouble(),
+    distanceMeters: _doubleFromValue(data['distanceMeters']) ?? 0,
     rewardApplied: data['rewardApplied'] == true,
   );
 }
 
 GrowthStats _statsFromMap(Map<String, dynamic> map) {
   return GrowthStats(
-    exp: (map['exp'] as num? ?? 0).toInt(),
-    mood: (map['mood'] as num? ?? 0).toInt(),
-    knowledge: (map['knowledge'] as num? ?? 0).toInt(),
-    affinity: (map['affinity'] as num? ?? 0).toInt(),
+    exp: _intFromValue(map['exp']) ?? 0,
+    mood: _intFromValue(map['mood']) ?? 0,
+    knowledge: _intFromValue(map['knowledge']) ?? 0,
+    affinity: _intFromValue(map['affinity']) ?? 0,
   );
 }
 
@@ -141,4 +138,48 @@ DateTime _dateFromValue(Object? value) {
     return value;
   }
   return DateTime.now();
+}
+
+DateTime? _nullableDateFromValue(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is Timestamp) {
+    return value.toDate();
+  }
+  if (value is DateTime) {
+    return value;
+  }
+  return null;
+}
+
+Map<String, dynamic> _mapFromValue(Object? value) {
+  if (value is Map) {
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String) entry.key as String: entry.value,
+    };
+  }
+  return const {};
+}
+
+String _stringFromValue(Object? value, {String fallback = ''}) {
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+  return fallback;
+}
+
+int? _intFromValue(Object? value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
+}
+
+double? _doubleFromValue(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return null;
 }

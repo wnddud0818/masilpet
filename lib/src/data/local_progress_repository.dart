@@ -79,11 +79,11 @@ class LocalProgressSnapshot {
       ),
       locationVerified: map['locationVerified'] == true,
       locationVerifiedAt: _nullableDateFromValue(map['locationVerifiedAt']),
-      activePetId: map['activePetId'] as String? ?? '',
+      activePetId: _stringFromValue(map['activePetId']),
       lastVisitedCategory: _nullableCategoryFromName(
-        map['lastVisitedCategory'] as String?,
+        _stringFromValue(map['lastVisitedCategory']),
       ),
-      dialogueCountToday: (map['dialogueCountToday'] as num? ?? 0).toInt(),
+      dialogueCountToday: _intFromValue(map['dialogueCountToday']) ?? 0,
       dialogueDay: _dateFromValue(map['dialogueDay']),
     );
   }
@@ -134,13 +134,13 @@ Map<String, dynamic> _poiToMap(Poi poi) {
 
 Poi _poiFromMap(Map<String, dynamic> map) {
   return Poi(
-    id: map['id'] as String? ?? '',
-    tourApiContentId: map['tourApiContentId'] as String? ?? '',
-    title: map['title'] as String? ?? '장소',
-    regionId: map['regionId'] as String? ?? 'busan',
-    category: _categoryFromName(map['category'] as String?),
+    id: _stringFromValue(map['id']),
+    tourApiContentId: _stringFromValue(map['tourApiContentId']),
+    title: _stringFromValue(map['title'], fallback: '장소'),
+    regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+    category: _categoryFromName(_stringFromValue(map['category'])),
     coordinates: _coordinatesFromMap(_mapOrEmpty(map['coordinates'])),
-    shortDescription: map['shortDescription'] as String? ?? '',
+    shortDescription: _stringFromValue(map['shortDescription']),
   );
 }
 
@@ -160,17 +160,15 @@ Map<String, dynamic> _petToMap(Pet pet) {
 
 Pet _petFromMap(Map<String, dynamic> map) {
   return Pet(
-    id: map['id'] as String? ?? '',
-    templateId: map['templateId'] as String? ?? 'wave-naru',
-    name: map['name'] as String? ?? '마실펫',
-    stage: _petStageFromName(map['stage'] as String?),
-    level: (map['level'] as num? ?? 1).toInt(),
+    id: _stringFromValue(map['id']),
+    templateId: _stringFromValue(map['templateId'], fallback: 'wave-naru'),
+    name: _stringFromValue(map['name'], fallback: '마실펫'),
+    stage: _petStageFromName(_stringFromValue(map['stage'])),
+    level: _intFromValue(map['level']) ?? 1,
     stats: _statsFromMap(_mapOrEmpty(map['stats'])),
-    originRegionId: map['originRegionId'] as String? ?? 'busan',
+    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'busan'),
     hatchedAt: _dateFromValue(map['hatchedAt']),
-    lastInteractedAt: map['lastInteractedAt'] == null
-        ? null
-        : _dateFromValue(map['lastInteractedAt']),
+    lastInteractedAt: _nullableDateFromValue(map['lastInteractedAt']),
   );
 }
 
@@ -188,12 +186,12 @@ Map<String, dynamic> _eggToMap(Egg egg) {
 
 Egg _eggFromMap(Map<String, dynamic> map) {
   return Egg(
-    id: map['id'] as String? ?? '',
-    templateId: map['templateId'] as String? ?? 'wave-naru',
-    originRegionId: map['originRegionId'] as String? ?? 'busan',
-    progress: (map['progress'] as num? ?? 0).toInt(),
-    requiredSteps: (map['requiredSteps'] as num? ?? 3500).toInt(),
-    status: _eggStatusFromName(map['status'] as String?),
+    id: _stringFromValue(map['id']),
+    templateId: _stringFromValue(map['templateId'], fallback: 'wave-naru'),
+    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'busan'),
+    progress: _intFromValue(map['progress']) ?? 0,
+    requiredSteps: _intFromValue(map['requiredSteps']) ?? 3500,
+    status: _eggStatusFromName(_stringFromValue(map['status'])),
     createdAt: _dateFromValue(map['createdAt']),
   );
 }
@@ -212,12 +210,12 @@ Map<String, dynamic> _checkInToMap(CheckIn checkIn) {
 
 CheckIn _checkInFromMap(Map<String, dynamic> map) {
   return CheckIn(
-    id: map['id'] as String? ?? '',
-    poiId: map['poiId'] as String? ?? '',
-    regionId: map['regionId'] as String? ?? 'busan',
-    category: _categoryFromName(map['category'] as String?),
+    id: _stringFromValue(map['id']),
+    poiId: _stringFromValue(map['poiId']),
+    regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+    category: _categoryFromName(_stringFromValue(map['category'])),
     createdAt: _dateFromValue(map['createdAt']),
-    distanceMeters: (map['distanceMeters'] as num? ?? 0).toDouble(),
+    distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
     rewardApplied: map['rewardApplied'] == true,
   );
 }
@@ -233,10 +231,10 @@ Map<String, dynamic> _statsToMap(GrowthStats stats) {
 
 GrowthStats _statsFromMap(Map<String, dynamic> map) {
   return GrowthStats(
-    exp: (map['exp'] as num? ?? 0).toInt(),
-    mood: (map['mood'] as num? ?? 0).toInt(),
-    knowledge: (map['knowledge'] as num? ?? 0).toInt(),
-    affinity: (map['affinity'] as num? ?? 0).toInt(),
+    exp: _intFromValue(map['exp']) ?? 0,
+    mood: _intFromValue(map['mood']) ?? 0,
+    knowledge: _intFromValue(map['knowledge']) ?? 0,
+    affinity: _intFromValue(map['affinity']) ?? 0,
   );
 }
 
@@ -252,14 +250,14 @@ Coordinates _coordinatesFromMap(
   Coordinates fallback =
       const Coordinates(latitude: 35.1587, longitude: 129.1604),
 }) {
-  final latitude = map['latitude'] as num?;
-  final longitude = map['longitude'] as num?;
+  final latitude = _doubleFromValue(map['latitude']);
+  final longitude = _doubleFromValue(map['longitude']);
   if (latitude == null || longitude == null) {
     return fallback;
   }
   return Coordinates(
-    latitude: latitude.toDouble(),
-    longitude: longitude.toDouble(),
+    latitude: latitude,
+    longitude: longitude,
   );
 }
 
@@ -285,7 +283,7 @@ PoiCategory _categoryFromName(String? name) {
 }
 
 PoiCategory? _nullableCategoryFromName(String? name) {
-  if (name == null) {
+  if (name == null || name.isEmpty) {
     return null;
   }
   return _categoryFromName(name);
@@ -318,15 +316,40 @@ List<Map<String, dynamic>> _listOfMaps(Object? value) {
   if (value is! List) {
     return const [];
   }
-  return value
-      .whereType<Map>()
-      .map((item) => Map<String, dynamic>.from(item))
-      .toList();
+  return value.whereType<Map>().map(_mapFromValue).toList();
 }
 
 Map<String, dynamic> _mapOrEmpty(Object? value) {
+  return _mapFromValue(value);
+}
+
+Map<String, dynamic> _mapFromValue(Object? value) {
   if (value is Map) {
-    return Map<String, dynamic>.from(value);
+    return {
+      for (final entry in value.entries)
+        if (entry.key is String) entry.key as String: entry.value,
+    };
   }
   return const {};
+}
+
+String _stringFromValue(Object? value, {String fallback = ''}) {
+  if (value is String && value.isNotEmpty) {
+    return value;
+  }
+  return fallback;
+}
+
+int? _intFromValue(Object? value) {
+  if (value is num) {
+    return value.toInt();
+  }
+  return null;
+}
+
+double? _doubleFromValue(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return null;
 }

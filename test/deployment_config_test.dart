@@ -530,6 +530,13 @@ void main() {
     expect(releaseEvidenceScript, contains('build/web/index.html'));
     expect(releaseEvidenceScript, contains('PWA manifest id'));
     expect(releaseEvidenceScript, contains('Security headers'));
+    expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
+    expect(releaseEvidenceScript, contains('Client reward snapshot model'));
+    expect(releaseEvidenceScript, contains('Profile visit reward breakdown'));
+    expect(
+        releaseEvidenceScript,
+        contains(
+            'recent visit reward breakdown from the stored check-in record'));
   });
 
   test('CI runs the same release preflight gate as local release checks', () {
@@ -587,6 +594,7 @@ void main() {
     expect(submission, contains('사용 기술'));
     expect(submission, contains('시연 흐름'));
     expect(submission, contains('제출 전 증빙'));
+    expect(submission, contains('실제 적용된 체크인 보상 상세 표시'));
     expect(submission, contains('운영 전제'));
     expect(submission, contains('앱 버전'));
     expect(submission, contains('빌드 채널'));

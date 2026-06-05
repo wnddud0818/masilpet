@@ -257,6 +257,15 @@ if (Test-Path -LiteralPath "firestore.rules") {
 if (Test-Path -LiteralPath "functions/src/index.ts") {
   $FunctionsSource = Get-TextFile "functions/src/index.ts"
   Assert-TextContains -Name "Callable production controls" -Text $FunctionsSource -Needles @("export const deleteUserProgress = onCall", "function requireOperator", "const maxDailyCheckIns = 20", "checkInDocumentId")
+  Assert-TextContains -Name "Check-in reward evidence fields" -Text $FunctionsSource -Needles @("rewardApplied: true", "reward,", "eggProgress,")
+}
+
+if ((Test-Path -LiteralPath "lib/src/models.dart") -and
+    (Test-Path -LiteralPath "lib/src/screens/profile_screen.dart")) {
+  $ModelsSource = Get-TextFile "lib/src/models.dart"
+  $ProfileSource = Get-TextFile "lib/src/screens/profile_screen.dart"
+  Assert-TextContains -Name "Client reward snapshot model" -Text $ModelsSource -Needles @("final CheckInReward? reward;", "extension CheckInRewardSummary")
+  Assert-TextContains -Name "Profile visit reward breakdown" -Text $ProfileSource -Needles @("checkIn.reward ??", "RewardChipRow(reward: reward)")
 }
 
 $EmbeddedBuildTime = "not found"
@@ -317,6 +326,7 @@ $GitStatusText
 - `tools/hosting_smoke.ps1` terminal result
 - This evidence report
 - Profile screen screenshot showing app version, build channel, and build time
+- Profile screen screenshot showing recent visit reward breakdown from the stored check-in record
 - Map/check-in screenshots showing location permission, 150m gate, success, and duplicate rejection
 "@
 

@@ -97,6 +97,18 @@ CheckIn _checkInFromDoc(String id, Map<String, dynamic> data) {
     createdAt: _dateFromValue(data['createdAt']),
     distanceMeters: _doubleFromValue(data['distanceMeters']) ?? 0,
     rewardApplied: data['rewardApplied'] == true,
+    reward: _rewardFromMap(data['reward'], data['eggProgress']),
+  );
+}
+
+CheckInReward? _rewardFromMap(Object? rewardValue, Object? eggProgressValue) {
+  final rewardMap = _mapFromValue(rewardValue);
+  if (rewardMap.isEmpty && eggProgressValue == null) {
+    return null;
+  }
+  return CheckInReward(
+    stats: _statsFromMap(rewardMap),
+    eggProgress: _intFromValue(eggProgressValue) ?? 0,
   );
 }
 

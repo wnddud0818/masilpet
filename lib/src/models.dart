@@ -328,6 +328,7 @@ class CheckIn {
     required this.createdAt,
     required this.distanceMeters,
     required this.rewardApplied,
+    this.reward,
   });
 
   final String id;
@@ -337,6 +338,7 @@ class CheckIn {
   final DateTime createdAt;
   final double distanceMeters;
   final bool rewardApplied;
+  final CheckInReward? reward;
 }
 
 class CheckInReward {

@@ -701,6 +701,8 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       lng,
       distanceMeters: distance,
       rewardApplied: true,
+      reward,
+      eggProgress,
       createdAt: now,
     });
 

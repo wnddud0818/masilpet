@@ -205,6 +205,7 @@ Map<String, dynamic> _checkInToMap(CheckIn checkIn) {
     'createdAt': checkIn.createdAt.toIso8601String(),
     'distanceMeters': checkIn.distanceMeters,
     'rewardApplied': checkIn.rewardApplied,
+    'reward': checkIn.reward == null ? null : _rewardToMap(checkIn.reward!),
   };
 }
 
@@ -217,6 +218,25 @@ CheckIn _checkInFromMap(Map<String, dynamic> map) {
     createdAt: _dateFromValue(map['createdAt']),
     distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
     rewardApplied: map['rewardApplied'] == true,
+    reward: _rewardFromMap(map['reward']),
+  );
+}
+
+Map<String, dynamic> _rewardToMap(CheckInReward reward) {
+  return {
+    'stats': _statsToMap(reward.stats),
+    'eggProgress': reward.eggProgress,
+  };
+}
+
+CheckInReward? _rewardFromMap(Object? value) {
+  final map = _mapFromValue(value);
+  if (map.isEmpty) {
+    return null;
+  }
+  return CheckInReward(
+    stats: _statsFromMap(_mapOrEmpty(map['stats'])),
+    eggProgress: _intFromValue(map['eggProgress']) ?? 0,
   );
 }
 

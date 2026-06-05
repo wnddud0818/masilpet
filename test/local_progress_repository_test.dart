@@ -121,6 +121,10 @@ void main() {
           createdAt: DateTime(2026, 6, 4, 12),
           distanceMeters: 12,
           rewardApplied: true,
+          reward: const CheckInReward(
+            stats: GrowthStats(exp: 33, mood: 4, knowledge: 5, affinity: 6),
+            eggProgress: 77,
+          ),
         ),
       ],
       currentLocation: busanPoiSeed.first.coordinates,
@@ -139,6 +143,8 @@ void main() {
     expect(restored.pets.single.stage, PetStage.grown);
     expect(restored.eggs.single.progress, 2400);
     expect(restored.checkIns.single.poiId, busanPoiSeed.first.id);
+    expect(restored.checkIns.single.reward?.summaryLabel,
+        'EXP +33 · 기분 +4 · 지식 +5 · 친밀도 +6 · 알 +77');
     expect(restored.locationVerified, isTrue);
     expect(restored.locationVerifiedAt, DateTime(2026, 6, 4, 12));
     expect(restored.lastVisitedCategory, PoiCategory.nature);
@@ -200,6 +206,7 @@ void main() {
     expect(restored.eggs.single.status, EggStatus.incubating);
     expect(restored.checkIns.single.category, PoiCategory.other);
     expect(restored.checkIns.single.distanceMeters, 0);
+    expect(restored.checkIns.single.reward, isNull);
     expect(restored.currentLocation.latitude, 35.1587);
     expect(restored.activePetId, '');
     expect(restored.lastVisitedCategory, isNull);

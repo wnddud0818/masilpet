@@ -897,6 +897,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       createdAt: now,
       distanceMeters: distance,
       rewardApplied: true,
+      reward: CheckInReward(
+        stats: rewardStats,
+        eggProgress: eggProgress,
+      ),
     );
 
     state = state.copyWith(

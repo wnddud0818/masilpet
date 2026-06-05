@@ -239,6 +239,10 @@ void main() {
           createdAt: DateTime.now(),
           distanceMeters: 12,
           rewardApplied: true,
+          reward: const CheckInReward(
+            stats: GrowthStats(exp: 33, mood: 4, knowledge: 5, affinity: 6),
+            eggProgress: 77,
+          ),
         ),
       ],
     );
@@ -272,11 +276,11 @@ void main() {
     expect(find.textContaining('12m · 보상 적용'), findsOneWidget);
     expect(find.textContaining('12m'), findsOneWidget);
     expect(find.textContaining('보상 적용'), findsOneWidget);
-    expect(find.text('EXP +18'), findsOneWidget);
-    expect(find.text('기분 +8'), findsOneWidget);
-    expect(find.text('지식 +4'), findsOneWidget);
-    expect(find.text('친밀도 +12'), findsOneWidget);
-    expect(find.text('알 +680'), findsOneWidget);
+    expect(find.text('EXP +33'), findsOneWidget);
+    expect(find.text('기분 +4'), findsOneWidget);
+    expect(find.text('지식 +5'), findsOneWidget);
+    expect(find.text('친밀도 +6'), findsOneWidget);
+    expect(find.text('알 +77'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

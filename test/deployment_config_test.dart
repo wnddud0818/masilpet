@@ -273,6 +273,8 @@ void main() {
     final stateSource = File('lib/src/state.dart').readAsStringSync();
 
     expect(functionsSource, contains('const eggProgress = eggProgressFor'));
+    expect(functionsSource, contains('rewardApplied: true'));
+    expect(functionsSource, contains('reward,'));
     expect(functionsSource, contains('eggProgress,'));
     expect(functionsSource, contains('updatedPet,'));
     expect(backendSource, contains('final int? eggProgress;'));

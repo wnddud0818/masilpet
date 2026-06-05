@@ -326,7 +326,7 @@ class _VisitJournalTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final title = poi?.title ?? '저장된 방문 장소';
     final reward = checkIn.rewardApplied
-        ? const GrowthEngine().rewardFor(checkIn.category)
+        ? checkIn.reward ?? const GrowthEngine().rewardFor(checkIn.category)
         : null;
     final description = [
       _formatVisitTime(checkIn.createdAt),

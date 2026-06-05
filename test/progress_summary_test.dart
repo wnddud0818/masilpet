@@ -421,6 +421,10 @@ void main() {
     expect(pet.stage, PetStage.grown);
     expect(egg.progress, 1323);
     expect(controller.state.todayCheckInCount, 1);
+    expect(
+      controller.state.todayCheckIns.single.reward?.summaryLabel,
+      'EXP +77 · 기분 +3 · 지식 +4 · 친밀도 +5 · 알 +123',
+    );
     expect(controller.state.statusMessage, contains('EXP +77'));
     expect(controller.state.statusMessage, contains('기분 +3'));
     expect(controller.state.statusMessage, contains('지식 +4'));

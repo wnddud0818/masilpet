@@ -1795,6 +1795,10 @@ void main() {
     final startButton =
         find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
     expect(startButton, findsOneWidget);
+    expect(find.text('오늘 한 바퀴'), findsOneWidget);
+    expect(find.text('최근 15분 위치 확인'), findsOneWidget);
+    expect(find.text('150m 체크인'), findsOneWidget);
+    expect(find.text('하우스와 도감 누적'), findsOneWidget);
     expect(find.text('기기 내 진행 모드'), findsOneWidget);
     expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
     expect(find.byIcon(Icons.storage_outlined), findsOneWidget);
@@ -1828,7 +1832,10 @@ void main() {
     final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
     final startButton =
         find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
+    final journeyTopLeft = tester.getTopLeft(find.text('오늘 한 바퀴'));
     expect(fieldTopLeft.dx, greaterThan(titleTopLeft.dx));
+    expect(journeyTopLeft.dx, greaterThanOrEqualTo(titleTopLeft.dx));
+    expect(journeyTopLeft.dx, lessThan(fieldTopLeft.dx));
     expect((fieldTopLeft.dy - titleTopLeft.dy).abs(), lessThan(80));
     expect(tester.getRect(startButton).width, lessThanOrEqualTo(430));
     expect(tester.takeException(), isNull);

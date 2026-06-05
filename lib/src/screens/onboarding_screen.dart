@@ -106,6 +106,10 @@ class OnboardingScreen extends ConsumerWidget {
                         ? 'Firebase 연결 준비 완료'
                         : state.firebaseStartupIssue.fallbackMessage,
                   );
+                  final journeyPreview = _OnboardingJourneyPreview(
+                    activePetName: state.activePet?.name ?? '마실펫',
+                    petCount: state.templates.length,
+                  );
                   return SingleChildScrollView(
                     child: ConstrainedBox(
                       constraints:
@@ -123,6 +127,7 @@ class OnboardingScreen extends ConsumerWidget {
                               playField: playField,
                               metrics: metrics,
                               featurePoints: featurePoints,
+                              journeyPreview: journeyPreview,
                               connectionStatus: connectionStatus,
                             ),
                           ),
@@ -187,6 +192,7 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
     required this.playField,
     required this.metrics,
     required this.featurePoints,
+    required this.journeyPreview,
     required this.connectionStatus,
   });
 
@@ -196,6 +202,7 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
   final Widget playField;
   final Widget metrics;
   final Widget featurePoints;
+  final Widget journeyPreview;
   final Widget connectionStatus;
 
   @override
@@ -210,6 +217,8 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
           playField,
           const SizedBox(height: 18),
           metrics,
+          const SizedBox(height: 18),
+          journeyPreview,
           const SizedBox(height: 18),
           featurePoints,
           const SizedBox(height: 24),
@@ -235,6 +244,8 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
                   const SizedBox(height: 18),
                   metrics,
                   const SizedBox(height: 24),
+                  journeyPreview,
+                  const SizedBox(height: 24),
                   connectionStatus,
                 ],
               ),
@@ -254,6 +265,141 @@ class _OnboardingAdaptiveLayout extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _OnboardingJourneyPreview extends StatelessWidget {
+  const _OnboardingJourneyPreview({
+    required this.activePetName,
+    required this.petCount,
+  });
+
+  final String activePetName;
+  final int petCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '오늘 한 바퀴',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 10),
+          _JourneyStep(
+            index: 1,
+            icon: Icons.my_location_outlined,
+            title: '최근 15분 위치 확인',
+            body: '검증된 현재 위치로 주변 POI와 체크인 가능 여부를 판단합니다.',
+          ),
+          const SizedBox(height: 10),
+          const _JourneyStep(
+            index: 2,
+            icon: Icons.near_me_outlined,
+            title: '150m 체크인',
+            body: '장소 보상은 EXP, 지식, 친밀도와 알 진행도에 바로 쌓입니다.',
+          ),
+          const SizedBox(height: 10),
+          _JourneyStep(
+            index: 3,
+            icon: Icons.forum_outlined,
+            title: '$activePetName 교감',
+            body: '방문한 장소 카테고리에 맞춘 대화와 돌봄 루틴이 이어집니다.',
+          ),
+          const SizedBox(height: 10),
+          _JourneyStep(
+            index: 4,
+            icon: Icons.verified_outlined,
+            title: '하우스와 도감 누적',
+            body: '$petCount종 수집 목표, 알 부화, 부산 여권 스탬프를 함께 확인합니다.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JourneyStep extends StatelessWidget {
+  const _JourneyStep({
+    required this.index,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final int index;
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(icon, size: 18, color: scheme.primary),
+              Positioned(
+                right: 4,
+                bottom: 3,
+                child: Text(
+                  '$index',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

@@ -549,6 +549,9 @@ void main() {
     expect(releaseEvidenceScript, contains('required for submission evidence'));
     expect(releaseEvidenceScript, contains('build/web/index.html'));
     expect(releaseEvidenceScript, contains('PWA manifest id'));
+    expect(releaseEvidenceScript, contains('PWA screenshots'));
+    expect(releaseEvidenceScript,
+        contains('build/web/screenshots/onboarding-wide.png'));
     expect(releaseEvidenceScript, contains('Security headers'));
     expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
     expect(releaseEvidenceScript,

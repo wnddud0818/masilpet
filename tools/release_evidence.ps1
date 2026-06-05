@@ -163,13 +163,15 @@ $RequiredFiles = @(
   "web/index.html",
   "web/manifest.json",
   "web/privacy.html",
+  "web/screenshots/onboarding-wide.png",
   "build/web/index.html",
   "build/web/flutter_bootstrap.js",
   "build/web/main.dart.js",
   "build/web/manifest.json",
   "build/web/privacy.html",
   "build/web/icons/Icon-192.png",
-  "build/web/icons/Icon-512.png"
+  "build/web/icons/Icon-512.png",
+  "build/web/screenshots/onboarding-wide.png"
 )
 
 foreach ($Path in $RequiredFiles) {
@@ -219,6 +221,9 @@ if (Test-Path -LiteralPath "build/web/manifest.json") {
 
   $ShortcutUrls = @($Manifest.shortcuts | ForEach-Object { [string]$_.url })
   Assert-Condition -Name "PWA shortcuts" -Condition (($ShortcutUrls -contains "/#/home") -and ($ShortcutUrls -contains "/privacy.html")) -PassDetail ($ShortcutUrls -join ", ") -FailDetail "shortcuts must include /#/home and /privacy.html"
+
+  $ScreenshotSources = @($Manifest.screenshots | ForEach-Object { [string]$_.src })
+  Assert-Condition -Name "PWA screenshots" -Condition ($ScreenshotSources -contains "screenshots/onboarding-wide.png") -PassDetail ($ScreenshotSources -join ", ") -FailDetail "manifest screenshots must include onboarding-wide.png"
 
   $IconSources = @($Manifest.icons | ForEach-Object { [string]$_.src })
   Assert-Condition -Name "PWA icons" -Condition (($IconSources -contains "icons/Icon-192.png") -and ($IconSources -contains "icons/Icon-512.png") -and ($IconSources -contains "icons/Icon-maskable-192.png") -and ($IconSources -contains "icons/Icon-maskable-512.png")) -PassDetail ($IconSources -join ", ") -FailDetail "standard and maskable icons are required"

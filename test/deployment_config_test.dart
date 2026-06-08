@@ -755,6 +755,7 @@ void main() {
     expect(readme, contains('web/screenshots/onboarding-wide.png'));
     expect(readme, contains('web/screenshots/onboarding-mobile.png'));
     expect(readme, contains('오늘의 탐험 리포트'));
+    expect(readme, contains('탐험 배지'));
     expect(checklist, contains('SUBMISSION_PACKAGE.md'));
     expect(submission, contains('앱 URL'));
     expect(submission, contains('개인정보 처리방침 URL'));
@@ -766,6 +767,7 @@ void main() {
     expect(submission, contains('기본 위치로 체험'));
     expect(submission, contains('마실펫과 대화하기'));
     expect(submission, contains('오늘의 탐험 리포트'));
+    expect(submission, contains('탐험 배지'));
     expect(submission, contains('요약 복사'));
     expect(submission, contains('제출 전 증빙'));
     expect(submission, contains('tools/local_judging_smoke.ps1'));
@@ -775,6 +777,7 @@ void main() {
     expect(checklist, contains('지금 체크인 가능'));
     expect(checklist, contains('마실펫과 대화하기'));
     expect(checklist, contains('오늘의 탐험 리포트'));
+    expect(checklist, contains('탐험 배지'));
     expect(checklist, contains('요약 복사'));
     expect(submission, contains('운영 전제'));
     expect(submission, contains('앱 버전'));

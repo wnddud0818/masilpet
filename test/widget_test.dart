@@ -390,6 +390,126 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile journey badges guide the next exploration step',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('탐험 배지'), findsOneWidget);
+    expect(find.text('1/5'), findsOneWidget);
+    expect(find.text('동행 시작'), findsOneWidget);
+    expect(find.text('위치 인증'), findsOneWidget);
+
+    final locationAction = find.widgetWithText(OutlinedButton, '위치 확인하러 가기');
+    expect(locationAction, findsOneWidget);
+
+    await tester.ensureVisible(locationAction);
+    await tester.pump();
+    await tester.tap(locationAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile journey badges reflect a completed check-in loop',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        CheckIn(
+          id: 'checkin-badge',
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 10,
+          rewardApplied: true,
+        ),
+      ],
+      locationVerified: true,
+      locationVerifiedAt: now,
+      dialogueCountToday: 1,
+      dialogueDay: now,
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('탐험 배지'), findsOneWidget);
+    expect(find.text('4/5'), findsOneWidget);
+    expect(find.text('첫 발자국'), findsOneWidget);
+    expect(find.text('장소 이야기꾼'), findsOneWidget);
+    expect(find.text('부화 준비'), findsOneWidget);
+    expect(find.text('34%'), findsWidgets);
+
+    final eggAction = find.widgetWithText(OutlinedButton, '하우스에서 알 보기');
+    expect(eggAction, findsOneWidget);
+
+    await tester.ensureVisible(eggAction);
+    await tester.pump();
+    await tester.tap(eggAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 2);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profile readiness separates core loop from online sync',
       (WidgetTester tester) async {
     final now = DateTime.now();
@@ -589,13 +709,10 @@ void main() {
     );
     await tester.pump();
 
-    final readinessTopLeft =
-        tester.getTopLeft(find.byIcon(Icons.rocket_launch_outlined));
-    final locationActionTopLeft =
-        tester.getTopLeft(find.byIcon(Icons.my_location));
-    expect(locationActionTopLeft.dx, greaterThan(readinessTopLeft.dx));
-    expect(
-        (locationActionTopLeft.dy - readinessTopLeft.dy).abs(), lessThan(160));
+    final readinessTopLeft = tester.getTopLeft(find.text('탐험 준비 상태'));
+    final quickActionsTopLeft = tester.getTopLeft(find.text('빠른 작업'));
+    expect(quickActionsTopLeft.dx, greaterThan(readinessTopLeft.dx));
+    expect((quickActionsTopLeft.dy - readinessTopLeft.dy).abs(), lessThan(160));
     expect(tester.takeException(), isNull);
   });
 

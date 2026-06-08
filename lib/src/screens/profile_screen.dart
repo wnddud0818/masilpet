@@ -26,8 +26,8 @@ class ProfileScreen extends ConsumerWidget {
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: _ProfileAdaptiveSliverList(
-            primaryCount: 9,
-            secondaryStartIndex: 10,
+            primaryCount: 11,
+            secondaryStartIndex: 12,
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
@@ -37,6 +37,14 @@ class ProfileScreen extends ConsumerWidget {
                 state: state,
                 onOpenMap: state.isBusy ? null : () => controller.setTab(0),
                 onOpenPet: state.isBusy ? null : () => controller.setTab(1),
+              ),
+              const SizedBox(height: 12),
+              _JourneyBadgeCard(
+                state: state,
+                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
+                onOpenPet: state.isBusy ? null : () => controller.setTab(1),
+                onOpenHouse: state.isBusy ? null : () => controller.setTab(2),
+                onOpenDex: state.isBusy ? null : () => controller.setTab(3),
               ),
               const SizedBox(height: 12),
               Card(
@@ -187,6 +195,360 @@ class ProfileScreen extends ConsumerWidget {
       await controller.resetProgress();
     }
   }
+}
+
+class _JourneyBadgeCard extends StatelessWidget {
+  const _JourneyBadgeCard({
+    required this.state,
+    required this.onOpenMap,
+    required this.onOpenPet,
+    required this.onOpenHouse,
+    required this.onOpenDex,
+  });
+
+  final MasilPetState state;
+  final VoidCallback? onOpenMap;
+  final VoidCallback? onOpenPet;
+  final VoidCallback? onOpenHouse;
+  final VoidCallback? onOpenDex;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final badges = _journeyBadges(
+      state: state,
+      onOpenMap: onOpenMap,
+      onOpenPet: onOpenPet,
+      onOpenHouse: onOpenHouse,
+    );
+    final unlocked = badges.where((badge) => badge.unlocked).length;
+    final nextBadge = _nextLockedJourneyBadge(badges);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.verified_outlined, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '탐험 배지',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text(
+                  '$unlocked/${badges.length}',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _journeyBadgeSummary(state, nextBadge),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth < 560 ? 1 : 2;
+                const spacing = 8.0;
+                final itemWidth =
+                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    for (final badge in badges)
+                      SizedBox(
+                        width: itemWidth,
+                        child: _JourneyBadgeTile(badge: badge),
+                      ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            if (nextBadge == null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed: onOpenDex,
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('전국 도감 보기'),
+                ),
+              )
+            else
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: nextBadge.onAction,
+                  icon: Icon(nextBadge.actionIcon),
+                  label: Text(nextBadge.actionLabel),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _JourneyBadge {
+  const _JourneyBadge({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.progressLabel,
+    required this.progress,
+    required this.unlocked,
+    required this.color,
+    required this.actionIcon,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String progressLabel;
+  final double progress;
+  final bool unlocked;
+  final Color color;
+  final IconData actionIcon;
+  final String actionLabel;
+  final VoidCallback? onAction;
+}
+
+class _JourneyBadgeTile extends StatelessWidget {
+  const _JourneyBadgeTile({required this.badge});
+
+  final _JourneyBadge badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final mutedColor = scheme.onSurfaceVariant;
+    final color = badge.unlocked ? badge.color : mutedColor;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 118),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: badge.unlocked
+            ? badge.color.withValues(alpha: 0.1)
+            : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: badge.unlocked
+              ? badge.color.withValues(alpha: 0.34)
+              : scheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: badge.unlocked ? 0.14 : 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(badge.icon, size: 18, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      badge.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      badge.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                badge.unlocked
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
+                size: 18,
+                color: color,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    minHeight: 7,
+                    value: badge.progress.clamp(0.0, 1.0),
+                    color: badge.color,
+                    backgroundColor: scheme.surface,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                badge.progressLabel,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<_JourneyBadge> _journeyBadges({
+  required MasilPetState state,
+  required VoidCallback? onOpenMap,
+  required VoidCallback? onOpenPet,
+  required VoidCallback? onOpenHouse,
+}) {
+  final dialogueCountToday = _dialogueCountToday(state);
+  final nextEgg = state.nextEgg;
+  final eggProgress = nextEgg?.progressRatio ?? 0;
+  final hasHatchReady = state.hatchableEggCount > 0 || state.pets.length > 1;
+
+  return [
+    _JourneyBadge(
+      icon: Icons.pets_outlined,
+      title: '동행 시작',
+      body: state.pets.isEmpty
+          ? '첫 마실펫을 만나면 탐험 동행이 열립니다.'
+          : '${state.activePet?.name ?? '마실펫'}과 함께 출발했습니다.',
+      progressLabel: state.pets.isEmpty ? '0/1' : '1/1',
+      progress: state.pets.isEmpty ? 0 : 1,
+      unlocked: state.pets.isNotEmpty,
+      color: const Color(0xFF0F766E),
+      actionIcon: Icons.home_outlined,
+      actionLabel: '하우스 보기',
+      onAction: onOpenHouse,
+    ),
+    _JourneyBadge(
+      icon: Icons.my_location,
+      title: '위치 인증',
+      body: state.hasFreshVerifiedLocation
+          ? '체크인 반경 계산이 준비됐습니다.'
+          : '현재 위치나 기본 체험 위치를 확인하세요.',
+      progressLabel: state.hasFreshVerifiedLocation ? '1/1' : '0/1',
+      progress: state.hasFreshVerifiedLocation ? 1 : 0,
+      unlocked: state.hasFreshVerifiedLocation,
+      color: const Color(0xFF2563EB),
+      actionIcon: Icons.map_outlined,
+      actionLabel: '위치 확인하러 가기',
+      onAction: onOpenMap,
+    ),
+    _JourneyBadge(
+      icon: Icons.flag_outlined,
+      title: '첫 발자국',
+      body: state.todayCheckInCount > 0
+          ? '오늘 첫 장소 방문이 기록됐습니다.'
+          : '150m 안의 장소에 체크인하면 열립니다.',
+      progressLabel: '${state.todayCheckInCount.clamp(0, 1)}/1',
+      progress: state.todayCheckInCount > 0 ? 1 : 0,
+      unlocked: state.todayCheckInCount > 0,
+      color: const Color(0xFFB45309),
+      actionIcon: Icons.place_outlined,
+      actionLabel: '지도에서 체크인하기',
+      onAction: onOpenMap,
+    ),
+    _JourneyBadge(
+      icon: Icons.forum_outlined,
+      title: '장소 이야기꾼',
+      body: dialogueCountToday > 0
+          ? '방문한 장소 이야기를 마실펫에게 들려줬습니다.'
+          : '체크인 후 마실펫과 장소 맥락 대화를 나누세요.',
+      progressLabel: '${dialogueCountToday.clamp(0, 1)}/1',
+      progress: dialogueCountToday > 0 ? 1 : 0,
+      unlocked: dialogueCountToday > 0,
+      color: const Color(0xFF7C3AED),
+      actionIcon: Icons.pets_outlined,
+      actionLabel: '마실펫과 대화하기',
+      onAction: onOpenPet,
+    ),
+    _JourneyBadge(
+      icon: Icons.egg_alt_outlined,
+      title: '부화 준비',
+      body: hasHatchReady
+          ? '새 마실펫을 맞이할 준비가 됐습니다.'
+          : nextEgg == null
+              ? '체크인 보상으로 알을 발견해 보세요.'
+              : '${(nextEgg.progressRatio * 100).round()}%까지 부화 진행도가 쌓였습니다.',
+      progressLabel: hasHatchReady
+          ? '완료'
+          : nextEgg == null
+              ? '0%'
+              : '${(nextEgg.progressRatio * 100).round()}%',
+      progress: hasHatchReady ? 1 : eggProgress,
+      unlocked: hasHatchReady,
+      color: const Color(0xFFDB2777),
+      actionIcon: Icons.home_outlined,
+      actionLabel: nextEgg == null ? '지도에서 알 찾기' : '하우스에서 알 보기',
+      onAction: nextEgg == null ? onOpenMap : onOpenHouse,
+    ),
+  ];
+}
+
+_JourneyBadge? _nextLockedJourneyBadge(List<_JourneyBadge> badges) {
+  for (final badge in badges) {
+    if (!badge.unlocked) {
+      return badge;
+    }
+  }
+  return null;
+}
+
+String _journeyBadgeSummary(MasilPetState state, _JourneyBadge? nextBadge) {
+  if (nextBadge == null) {
+    return '오늘 핵심 탐험 배지가 모두 열렸습니다. 도감에서 다음 지역 목표를 이어갈 수 있습니다.';
+  }
+  if (state.todayCheckInCount == 0 && !state.hasFreshVerifiedLocation) {
+    return '짧은 체험 안에서도 위치 확인, 체크인, 교감, 부화 준비까지의 성취가 배지로 쌓입니다.';
+  }
+  return '다음 목표는 ${nextBadge.title}입니다. ${nextBadge.body}';
+}
+
+int _dialogueCountToday(MasilPetState state) {
+  return isSameLocalDay(state.dialogueDay, DateTime.now())
+      ? state.dialogueCountToday
+      : 0;
 }
 
 class _ExpeditionReportCard extends StatelessWidget {
@@ -1324,8 +1686,7 @@ _ReadinessAction? _readinessNextAction(
     );
   }
 
-  final hasTalkedToday = isSameLocalDay(state.dialogueDay, DateTime.now()) &&
-      state.dialogueCountToday > 0;
+  final hasTalkedToday = _dialogueCountToday(state) > 0;
   if (!hasTalkedToday) {
     return _ReadinessAction(
       icon: Icons.forum_outlined,

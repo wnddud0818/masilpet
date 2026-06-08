@@ -231,7 +231,15 @@ await screenshot("local-judging-after-checkin");
 
 await click(90, 108); // pet navigation rail item
 await wait(1600);
-await click(342, 573); // talk action
+await send("Input.dispatchMouseEvent", {
+  type: "mouseWheel",
+  x: 640,
+  y: 690,
+  deltaY: 300,
+  deltaX: 0,
+});
+await wait(600);
+await click(484, 625); // companion dialogue talk action
 await wait(1400);
 await screenshot("local-judging-after-talk");
 

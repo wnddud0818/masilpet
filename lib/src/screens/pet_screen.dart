@@ -9,6 +9,7 @@ import '../widgets/pet_avatar.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/rarity_badge.dart';
 import '../widgets/responsive_sliver_list.dart';
+import '../widgets/reward_chip_row.dart';
 import '../widgets/stat_bar.dart';
 import '../widgets/status_banner.dart';
 
@@ -36,6 +37,7 @@ class PetScreen extends ConsumerWidget {
                 isBusy: state.isBusy,
                 onTalk: controller.talkWithActivePet,
                 onFeed: controller.feedActivePet,
+                onOpenMap: () => controller.setTab(0),
               ),
             ],
           ),
@@ -52,6 +54,7 @@ class _PetCareLayout extends StatelessWidget {
     required this.isBusy,
     required this.onTalk,
     required this.onFeed,
+    required this.onOpenMap,
   });
 
   static const _wideBreakpoint = 840.0;
@@ -61,6 +64,7 @@ class _PetCareLayout extends StatelessWidget {
   final bool isBusy;
   final VoidCallback onTalk;
   final VoidCallback onFeed;
+  final VoidCallback onOpenMap;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +88,16 @@ class _PetCareLayout extends StatelessWidget {
           onTalk: onTalk,
           onFeed: onFeed,
         );
+        final companionCard = pet == null
+            ? null
+            : _CompanionDialogueCard(
+                state: state,
+                pet: pet!,
+                talksLeft: talksLeft,
+                isBusy: isBusy,
+                onTalk: onTalk,
+                onOpenMap: onOpenMap,
+              );
         final details = pet == null
             ? const _NoActivePetCard()
             : _ActivePetPanel(petId: pet!.id);
@@ -96,6 +110,8 @@ class _PetCareLayout extends StatelessWidget {
               const SizedBox(height: 12),
               if (pet != null) ...[
                 _CareReadinessCard(pet: pet!),
+                const SizedBox(height: 12),
+                companionCard!,
                 const SizedBox(height: 12),
                 actions,
                 const SizedBox(height: 12),
@@ -115,6 +131,8 @@ class _PetCareLayout extends StatelessWidget {
                 children: [
                   playField,
                   if (pet != null) ...[
+                    const SizedBox(height: 12),
+                    companionCard!,
                     const SizedBox(height: 12),
                     actions,
                   ],
@@ -176,6 +194,214 @@ class _CareActionRow extends StatelessWidget {
             onPressed: isBusy ? null : onFeed,
             icon: const Icon(Icons.restaurant_outlined),
             label: const Text('먹이주기'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CompanionDialogueCard extends StatelessWidget {
+  const _CompanionDialogueCard({
+    required this.state,
+    required this.pet,
+    required this.talksLeft,
+    required this.isBusy,
+    required this.onTalk,
+    required this.onOpenMap,
+  });
+
+  final MasilPetState state;
+  final Pet pet;
+  final int talksLeft;
+  final bool isBusy;
+  final VoidCallback onTalk;
+  final VoidCallback onOpenMap;
+
+  @override
+  Widget build(BuildContext context) {
+    final template = state.templates.firstWhere(
+      (item) => item.id == pet.templateId,
+      orElse: () => state.templates.first,
+    );
+    final latestCheckIn = _latestCheckInForDialogue(state);
+    final latestPoi = latestCheckIn == null
+        ? null
+        : _poiForDialogueCheckIn(state, latestCheckIn);
+    final memoryCategory = state.lastVisitedCategory ?? latestCheckIn?.category;
+    final line = const StaticDialogueService().lineFor(
+      template: template,
+      lastCategory: memoryCategory,
+    );
+    final reward = latestCheckIn?.rewardApplied == true
+        ? latestCheckIn?.reward ??
+            const GrowthEngine().rewardFor(latestCheckIn!.category)
+        : null;
+    final scheme = Theme.of(context).colorScheme;
+    final canTalk = talksLeft > 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.chat_bubble_outline,
+                    color: scheme.onPrimaryContainer,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '동행 대화',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                _DialogueMemoryBadge(
+                  label: memoryCategory == null
+                      ? '탐험 대기'
+                      : '${memoryCategory.label} 기억',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.76),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '“${line.text}”',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            _DialogueMemoryLine(
+              icon: latestCheckIn == null
+                  ? Icons.explore_outlined
+                  : Icons.place_outlined,
+              text: latestCheckIn == null
+                  ? '첫 체크인을 기록하면 장소 기억에 맞춘 대화가 열립니다.'
+                  : '${latestPoi?.title ?? '저장된 방문 장소'} · ${latestCheckIn.category.label} · ${latestCheckIn.distanceMeters.round()}m',
+            ),
+            const SizedBox(height: 8),
+            _DialogueMemoryLine(
+              icon: Icons.forum_outlined,
+              text: canTalk
+                  ? '오늘 대화 ${5 - talksLeft}/5회 · $talksLeft회 남음'
+                  : '오늘 대화 5/5회 · 새 장소를 다녀오면 내일 다시 이어집니다.',
+            ),
+            if (reward != null) ...[
+              const SizedBox(height: 12),
+              RewardChipRow(
+                reward: reward,
+                spacing: 6,
+                runSpacing: 6,
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: canTalk
+                  ? FilledButton.icon(
+                      onPressed: isBusy ? null : onTalk,
+                      icon: const Icon(Icons.forum_outlined),
+                      label: const Text('마실펫과 대화하기'),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: isBusy ? null : onOpenMap,
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('지도에서 새 이야기 찾기'),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+CheckIn? _latestCheckInForDialogue(MasilPetState state) {
+  final recent = state.recentCheckIns;
+  return recent.isEmpty ? null : recent.first;
+}
+
+Poi? _poiForDialogueCheckIn(MasilPetState state, CheckIn checkIn) {
+  for (final poi in state.pois) {
+    if (poi.id == checkIn.poiId) {
+      return poi;
+    }
+  }
+  return null;
+}
+
+class _DialogueMemoryBadge extends StatelessWidget {
+  const _DialogueMemoryBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.primaryContainer.withValues(alpha: 0.56),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onPrimaryContainer,
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+}
+
+class _DialogueMemoryLine extends StatelessWidget {
+  const _DialogueMemoryLine({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 17, color: scheme.primary),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
           ),
         ),
       ],

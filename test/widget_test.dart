@@ -1833,6 +1833,80 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('pet screen turns recent check-in into companion dialogue',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(1);
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        CheckIn(
+          id: 'checkin-pet-dialogue',
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+          reward: const CheckInReward(
+            stats: GrowthStats(
+              exp: 22,
+              mood: 4,
+              knowledge: 22,
+              affinity: 8,
+            ),
+            eggProgress: 760,
+          ),
+        ),
+      ],
+      lastVisitedCategory: starterPoiSeed.first.category,
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('동행 대화'), findsOneWidget);
+    expect(find.text('역사 기억'), findsOneWidget);
+    expect(find.textContaining('오래된 길에도 바람길'), findsOneWidget);
+    expect(find.textContaining('경복궁 · 역사 · 12m'), findsOneWidget);
+    expect(find.text('EXP +22'), findsOneWidget);
+    expect(find.text('지식 +22'), findsOneWidget);
+    expect(find.text('알 +760'), findsOneWidget);
+
+    final dialogueAction = find.widgetWithText(FilledButton, '마실펫과 대화하기');
+    expect(dialogueAction, findsOneWidget);
+
+    await tester.ensureVisible(dialogueAction);
+    await tester.pump();
+    await tester.tap(dialogueAction);
+    await tester.pump();
+
+    expect(controller.state.dialogueCountToday, 1);
+    expect(controller.state.statusMessage, contains('오래된 길에도 바람길'));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pet stage goal links growth to map exploration',
       (WidgetTester tester) async {
     final controller = MasilPetController(
@@ -1969,6 +2043,10 @@ void main() {
     expect(find.text('0회'), findsOneWidget);
     expect(doneTalkAction, findsOneWidget);
     expect(tester.widget<FilledButton>(doneTalkAction).onPressed, isNull);
+    expect(
+      find.widgetWithText(OutlinedButton, '지도에서 새 이야기 찾기'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

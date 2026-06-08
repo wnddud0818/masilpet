@@ -375,6 +375,20 @@ void main() {
     expect(find.text('1곳'), findsOneWidget);
     expect(find.text('연속 탐험'), findsWidgets);
     expect(find.text('1일'), findsWidgets);
+    expect(find.text('오늘의 성과 카드'), findsOneWidget);
+    expect(find.text('B등급'), findsOneWidget);
+    expect(find.text('57점'), findsOneWidget);
+    expect(find.text('성장 루프'), findsOneWidget);
+    expect(find.text('3/4'), findsOneWidget);
+    expect(find.text('도감 진척'), findsOneWidget);
+    expect(find.text('1/7'), findsWidgets);
+    expect(find.text('다음 액션'), findsOneWidget);
+    expect(find.text('대화 연결'), findsOneWidget);
+    expect(find.text('역사 기억 1회'), findsOneWidget);
+    expect(
+      find.textContaining('경복궁의 역사 기억이 파도나루의 성장'),
+      findsOneWidget,
+    );
     expect(find.text('받은 보상'), findsOneWidget);
     expect(find.text('EXP +22 · 기분 +4 · 지식 +22 · 친밀도 +8 · 알 +760'),
         findsOneWidget);
@@ -382,6 +396,8 @@ void main() {
 
     final petAction = find.widgetWithText(OutlinedButton, '마실펫에게 들려주기');
     expect(petAction, findsOneWidget);
+    final dexAction = find.widgetWithText(OutlinedButton, '도감 목표 보기');
+    expect(dexAction, findsOneWidget);
 
     await tester.ensureVisible(petAction);
     await tester.pump();
@@ -389,6 +405,13 @@ void main() {
     await tester.pump();
 
     expect(controller.state.selectedTab, 1);
+
+    await tester.ensureVisible(dexAction);
+    await tester.pump();
+    await tester.tap(dexAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 3);
     expect(tester.takeException(), isNull);
   });
 

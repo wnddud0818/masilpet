@@ -252,6 +252,10 @@ await click(484, 625); // companion dialogue talk action
 await wait(1400);
 await screenshot("local-judging-after-talk");
 
+await click(90, 240); // profile navigation rail item
+await wait(1600);
+await screenshot("local-judging-after-report");
+
 const result = await send("Runtime.evaluate", {
   expression: `(() => {
     const raw = localStorage.getItem("masilpet.local_progress.v1") ||

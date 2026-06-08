@@ -688,6 +688,12 @@ void main() {
     expect(releaseEvidenceScript, contains('summary_large_image'));
     expect(releaseEvidenceScript, contains('Security headers'));
     expect(releaseEvidenceScript, contains('Immutable static media cache'));
+    expect(releaseEvidenceScript, contains('Functions uuid audit override'));
+    expect(releaseEvidenceScript, contains('Functions moderate npm audit'));
+    expect(
+      releaseEvidenceScript,
+      contains('npm", "--prefix", "functions", "audit"'),
+    );
     expect(releaseEvidenceScript, contains('/screenshots/**'));
     expect(releaseEvidenceScript, contains('/icons/**'));
     expect(releaseEvidenceScript, contains('Check-in reward evidence fields'));
@@ -783,8 +789,10 @@ void main() {
     expect(submission, contains('제출 전 증빙'));
     expect(submission, contains('tools/local_judging_smoke.ps1'));
     expect(submission, contains('local-judging-smoke-result.json'));
+    expect(submission, contains('moderate npm audit'));
     expect(submission, contains('실제 적용된 체크인 보상 상세 표시'));
     expect(checklist, contains('기본 위치로 체험'));
+    expect(checklist, contains('moderate npm audit'));
     expect(checklist, contains('지금 체크인 가능'));
     expect(checklist, contains('추천 코스'));
     expect(checklist, contains('카테고리 필터'));

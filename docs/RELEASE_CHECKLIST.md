@@ -11,6 +11,7 @@ powershell -ExecutionPolicy Bypass -File tools/local_judging_smoke.ps1
 
 Firebase 로그인, Secret, Firebase Web 빌드 설정까지 함께 확인할 때는 `-SkipFirebase`를 제거한다.
 `local_judging_smoke.ps1`는 release web 산출물에서 온보딩, 기본 위치 체험, 첫 체크인, 마실펫 대화까지의 빠른 심사 루프를 실제 Chrome으로 확인한다.
+`release_evidence.ps1`는 Functions moderate npm audit 결과를 증빙 리포트에 남기며, 취약점이 1건 이상이면 실패한다.
 
 ## 2. Firebase 준비
 

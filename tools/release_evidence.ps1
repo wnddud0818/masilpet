@@ -131,6 +131,23 @@ function Get-CommandOutput {
   }
 }
 
+function Invoke-CommandCapture {
+  param([string[]]$Command)
+
+  try {
+    $Output = & $Command[0] @($Command | Select-Object -Skip 1) 2>&1
+    return [PSCustomObject]@{
+      ExitCode = $LASTEXITCODE
+      Output = @($Output)
+    }
+  } catch {
+    return [PSCustomObject]@{
+      ExitCode = 1
+      Output = @($_.Exception.Message)
+    }
+  }
+}
+
 function Get-HeaderValues {
   param(
     [object[]]$Headers,
@@ -158,6 +175,7 @@ $RequiredFiles = @(
   "firestore.rules",
   "firestore.indexes.json",
   "functions/package.json",
+  "functions/package-lock.json",
   "functions/src/index.ts",
   "functions/lib/index.js",
   "web/index.html",
@@ -304,6 +322,35 @@ if (Test-Path -LiteralPath "functions/src/index.ts") {
   Assert-TextContains -Name "Check-in reward evidence fields" -Text $FunctionsSource -Needles @("rewardApplied: true", "reward,", "eggProgress,")
 }
 
+if ((Test-Path -LiteralPath "functions/package.json") -and
+    (Test-Path -LiteralPath "functions/package-lock.json")) {
+  $FunctionsPackage = Get-TextFile "functions/package.json"
+  $FunctionsPackageLock = Get-TextFile "functions/package-lock.json"
+  Assert-TextContains -Name "Functions uuid audit override" -Text $FunctionsPackage -Needles @('"overrides"', '"uuid": "11.1.1"')
+  Assert-TextContains -Name "Functions lockfile patched uuid" -Text $FunctionsPackageLock -Needles @('"node_modules/uuid"', '"version": "11.1.1"')
+
+  $AuditResult = Invoke-CommandCapture @("npm", "--prefix", "functions", "audit", "--audit-level=moderate", "--json")
+  $AuditText = $AuditResult.Output -join "`n"
+  $AuditTotal = $null
+  try {
+    $AuditJson = $AuditText | ConvertFrom-Json
+    $AuditTotal = [int]$AuditJson.metadata.vulnerabilities.total
+  } catch {
+    $AuditTotal = $null
+  }
+
+  if (($AuditResult.ExitCode -eq 0) -and ($AuditTotal -eq 0)) {
+    Add-Check -Name "Functions moderate npm audit" -Status "PASS" -Detail "0 vulnerabilities"
+  } else {
+    $Detail = if ($null -eq $AuditTotal) {
+      "audit failed or output could not be parsed"
+    } else {
+      "$AuditTotal vulnerabilities reported"
+    }
+    Add-Check -Name "Functions moderate npm audit" -Status "FAIL" -Detail $Detail
+  }
+}
+
 if (Test-Path -LiteralPath "functions/lib/index.js") {
   $FunctionsBuild = Get-TextFile "functions/lib/index.js"
   Assert-TextContains -Name "Compiled Functions reward evidence fields" -Text $FunctionsBuild -Needles @("rewardApplied: true", "reward,", "eggProgress,")
@@ -381,6 +428,7 @@ $GitStatusText
 - `tools/release_preflight.ps1` terminal result
 - `tools/local_judging_smoke.ps1` terminal result and `build/verification/local-judging-smoke-result.json`
 - `tools/hosting_smoke.ps1` terminal result
+- Functions moderate npm audit result from this report
 - This evidence report
 - Profile screen screenshot showing app version, build channel, and build time
 - Profile screen screenshot showing recent visit reward breakdown from the stored check-in record

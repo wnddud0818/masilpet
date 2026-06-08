@@ -1338,6 +1338,85 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map markers open a selectable POI check-in panel',
+      (WidgetTester tester) async {
+    const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
+    const selectablePoi = Poi(
+      id: 'map-selectable-poi',
+      tourApiContentId: 'seed-map-selectable-poi',
+      title: '선택 산책지',
+      regionId: 'seoul',
+      category: PoiCategory.nature,
+      coordinates: Coordinates(latitude: 37.0004, longitude: 127.0),
+      shortDescription: '마커 선택 패널을 확인하는 가까운 산책 장소',
+    );
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: const [selectablePoi],
+      currentLocation: currentLocation,
+      locationVerified: true,
+      locationVerifiedAt: DateTime.now(),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('지도 추천'), findsNothing);
+    expect(find.byKey(ValueKey('map-focus-${selectablePoi.id}')), findsNothing);
+    expect(find.text('지금 체크인 가능'), findsWidgets);
+
+    final marker = find.byKey(ValueKey('map-marker-${selectablePoi.id}'));
+    expect(marker, findsOneWidget);
+    final markerWidget = tester.widget<GestureDetector>(marker);
+    expect(markerWidget.onTap, isNotNull);
+
+    markerWidget.onTap!();
+    await tester.pump(const Duration(milliseconds: 180));
+
+    expect(find.text('선택 장소'), findsOneWidget);
+    expect(find.text(selectablePoi.title), findsWidgets);
+    expect(
+      find.widgetWithText(FilledButton, '선택 장소 체크인'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, '선택 장소 체크인'),
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '선택 장소 체크인'));
+    await tester.pump();
+
+    expect(controller.state.todayCheckInCount, 1);
+    expect(
+      controller.state.todayCheckIns.single.poiId,
+      selectablePoi.id,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map screen surfaces the daily check-in limit',
       (WidgetTester tester) async {
     final now = DateTime.now();

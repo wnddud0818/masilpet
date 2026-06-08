@@ -1089,7 +1089,7 @@ bool _hasTalkedToday(MasilPetState state) {
       state.dialogueCountToday > 0;
 }
 
-class _LivePoiMap extends StatelessWidget {
+class _LivePoiMap extends ConsumerStatefulWidget {
   const _LivePoiMap({
     required this.state,
     required this.height,
@@ -1099,12 +1099,32 @@ class _LivePoiMap extends StatelessWidget {
   final double height;
 
   @override
+  ConsumerState<_LivePoiMap> createState() => _LivePoiMapState();
+}
+
+class _LivePoiMapState extends ConsumerState<_LivePoiMap> {
+  String? _selectedPoiId;
+
+  @override
+  void didUpdateWidget(covariant _LivePoiMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final selectedPoiId = _selectedPoiId;
+    if (selectedPoiId != null &&
+        !widget.state.pois.any((poi) => poi.id == selectedPoiId)) {
+      _selectedPoiId = null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final controller = ref.read(masilPetControllerProvider.notifier);
     final currentPoint = LatLng(
       state.currentLocation.latitude,
       state.currentLocation.longitude,
     );
     final legendCategories = _visiblePoiCategories(state.pois);
+    final selectedPoi = _poiById(state.pois, _selectedPoiId);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -1112,7 +1132,7 @@ class _LivePoiMap extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: height,
+            height: widget.height,
             child: Stack(
               children: [
                 FlutterMap(
@@ -1163,6 +1183,12 @@ class _LivePoiMap extends StatelessWidget {
                             child: _PoiMarker(
                               poi: poi,
                               checked: state.hasCheckedInToday(poi),
+                              selected: selectedPoi?.id == poi.id,
+                              onTap: () {
+                                setState(() {
+                                  _selectedPoiId = poi.id;
+                                });
+                              },
                             ),
                           ),
                         Marker(
@@ -1191,8 +1217,229 @@ class _LivePoiMap extends StatelessWidget {
               ],
             ),
           ),
+          if (selectedPoi != null)
+            _MapPoiFocusPanel(
+              key: ValueKey('map-focus-${selectedPoi.id}'),
+              state: state,
+              poi: selectedPoi,
+              onUseDeviceLocation:
+                  state.isBusy ? null : () => controller.useDeviceLocation(),
+              onCheckIn: state.isBusy
+                  ? null
+                  : () => controller.attemptCheckIn(selectedPoi),
+            ),
           _MapLegend(categories: legendCategories),
         ],
+      ),
+    );
+  }
+}
+
+Poi? _poiById(List<Poi> pois, String? id) {
+  if (id == null) {
+    return null;
+  }
+  for (final poi in pois) {
+    if (poi.id == id) {
+      return poi;
+    }
+  }
+  return null;
+}
+
+class _MapPoiFocusPanel extends StatelessWidget {
+  const _MapPoiFocusPanel({
+    super.key,
+    required this.state,
+    required this.poi,
+    required this.onUseDeviceLocation,
+    required this.onCheckIn,
+  });
+
+  final MasilPetState state;
+  final Poi poi;
+  final VoidCallback? onUseDeviceLocation;
+  final VoidCallback? onCheckIn;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final distance = state.currentLocation.distanceTo(poi.coordinates);
+    final checked = state.hasCheckedInToday(poi);
+    final inRange =
+        state.hasFreshVerifiedLocation && distance <= checkInRadiusMeters;
+    final needsLocation = !state.hasFreshVerifiedLocation;
+    final limitReached = state.remainingDailyCheckIns == 0;
+    final canCheckIn = inRange && !checked && !limitReached && !state.isBusy;
+    final canRequestLocation =
+        needsLocation && !checked && !limitReached && !state.isBusy;
+    final canRefreshLocation = !needsLocation &&
+        !inRange &&
+        !checked &&
+        !limitReached &&
+        !state.isBusy;
+    final reward = const GrowthEngine().rewardFor(poi.category);
+    final target = checked
+        ? null
+        : _discoveryTargetForCategory(
+            state,
+            poi.category,
+          );
+    final categoryColor = _categoryColor(poi.category);
+    final actionIcon = checked
+        ? Icons.task_alt
+        : limitReached
+            ? Icons.event_busy_outlined
+            : needsLocation || canRefreshLocation
+                ? Icons.my_location
+                : canCheckIn
+                    ? Icons.check_circle_outline
+                    : Icons.near_me_disabled;
+    final actionLabel = checked
+        ? '오늘 체크인 완료'
+        : limitReached
+            ? '오늘 한도 완료'
+            : needsLocation
+                ? '현재 위치 확인'
+                : canRefreshLocation
+                    ? '현재 위치 다시 확인'
+                    : inRange
+                        ? '선택 장소 체크인'
+                        : '150m 안에서 가능';
+    final action = canCheckIn
+        ? onCheckIn
+        : canRequestLocation || canRefreshLocation
+            ? onUseDeviceLocation
+            : null;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        border: Border(top: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: categoryColor.withValues(alpha: 0.13),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _categoryIcon(poi.category),
+                    color: categoryColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '선택 장소',
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: scheme.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        poi.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _RoutePreviewPill(
+                  icon: state.hasFreshVerifiedLocation
+                      ? Icons.social_distance_outlined
+                      : Icons.location_searching,
+                  label: state.hasFreshVerifiedLocation
+                      ? '${distance.round()}m'
+                      : '거리 확인 전',
+                  color: state.hasFreshVerifiedLocation
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              poi.shortDescription,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+            ),
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _RoutePreviewPill(
+                  icon: _categoryIcon(poi.category),
+                  label: poi.category.label,
+                  color: categoryColor,
+                ),
+                _RoutePreviewPill(
+                  icon: Icons.dataset_linked_outlined,
+                  label: _poiSourceLabel(poi),
+                  color: const Color(0xFFB45309),
+                ),
+                if (checked)
+                  const _RoutePreviewPill(
+                    icon: Icons.task_alt,
+                    label: '오늘 방문 완료',
+                    color: Color(0xFF16A34A),
+                  )
+                else if (state.canCheckInToday(poi))
+                  const _RoutePreviewPill(
+                    icon: Icons.check_circle_outline,
+                    label: '지금 체크인 가능',
+                    color: Color(0xFF16A34A),
+                  ),
+                if (target != null)
+                  _RoutePreviewPill(
+                    icon: Icons.pets_outlined,
+                    label: target.name,
+                    color: Color(target.colorValue),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            RewardChipRow(
+              reward: reward,
+              spacing: 6,
+              runSpacing: 6,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: action,
+                icon: Icon(actionIcon),
+                label: Text(actionLabel),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1292,10 +1539,14 @@ class _PoiMarker extends StatelessWidget {
   const _PoiMarker({
     required this.poi,
     required this.checked,
+    required this.selected,
+    required this.onTap,
   });
 
   final Poi poi;
   final bool checked;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1304,21 +1555,38 @@ class _PoiMarker extends StatelessWidget {
 
     return Semantics(
       container: true,
+      button: true,
+      selected: selected,
+      onTap: onTap,
+      onTapHint: '장소 정보 보기',
       label: 'POI 마커: ${poi.title}, ${poi.category.label}, $statusLabel',
       child: Tooltip(
         message: poi.title,
         excludeFromSemantics: true,
-        child: Icon(
-          checked ? Icons.task_alt : Icons.location_on,
-          color: color,
-          size: checked ? 30 : 36,
-          shadows: const [
-            Shadow(
-              color: Colors.black26,
-              blurRadius: 8,
-              offset: Offset(0, 3),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            key: ValueKey('map-marker-${poi.id}'),
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: AnimatedScale(
+              scale: selected ? 1.16 : 1,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              child: Icon(
+                checked ? Icons.task_alt : Icons.location_on,
+                color: color,
+                size: checked ? 30 : 36,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );

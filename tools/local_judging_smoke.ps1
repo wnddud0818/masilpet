@@ -225,7 +225,7 @@ await send("Input.dispatchMouseEvent", {
   deltaX: 0,
 });
 await wait(800);
-await click(1010, 621); // first POI check-in
+await click(330, 590); // route card recommended check-in
 await wait(1600);
 await screenshot("local-judging-after-checkin");
 

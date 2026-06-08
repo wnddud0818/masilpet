@@ -315,6 +315,58 @@ void main() {
     expect(state.nextRecommendedPoi, isNotNull);
   });
 
+  test('recommended route ranks discovery goals before plain nearby places',
+      () {
+    const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
+    final state = MasilPetState.initial(firebaseReady: false).copyWith(
+      currentLocation: currentLocation,
+      pois: const [
+        Poi(
+          id: 'near-nature',
+          tourApiContentId: 'seed-route-nature',
+          title: '가까운 숲길',
+          regionId: 'seoul',
+          category: PoiCategory.nature,
+          coordinates: currentLocation,
+          shortDescription: '가장 가깝지만 이미 발견한 자연 카테고리',
+        ),
+        Poi(
+          id: 'history-goal',
+          tourApiContentId: 'seed-route-history',
+          title: '도감 역사길',
+          regionId: 'seoul',
+          category: PoiCategory.history,
+          coordinates: Coordinates(latitude: 37.0100, longitude: 127.0),
+          shortDescription: '미발견 역사 마실펫 후보',
+        ),
+        Poi(
+          id: 'food-goal',
+          tourApiContentId: 'seed-route-food',
+          title: '도감 맛길',
+          regionId: 'seoul',
+          category: PoiCategory.food,
+          coordinates: Coordinates(latitude: 37.0150, longitude: 127.0),
+          shortDescription: '미발견 음식 마실펫 후보',
+        ),
+        Poi(
+          id: 'far-culture',
+          tourApiContentId: 'seed-route-culture',
+          title: '멀리 있는 문화당',
+          regionId: 'seoul',
+          category: PoiCategory.culture,
+          coordinates: Coordinates(latitude: 37.0300, longitude: 127.0),
+          shortDescription: '거리가 먼 문화 후보',
+        ),
+      ],
+    );
+
+    expect(
+      state.recommendedRoutePois.map((poi) => poi.id),
+      ['history-goal', 'food-goal', 'near-nature'],
+    );
+    expect(state.nextRecommendedPoi?.id, 'history-goal');
+  });
+
   test('starter pet templates cover every POI category as collection goals',
       () {
     final templateCategories =

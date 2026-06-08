@@ -265,28 +265,28 @@ class MasilPetState {
   }
 
   Poi? get nextRecommendedPoi {
+    final route = recommendedRoutePois;
+    return route.isEmpty ? null : route.first;
+  }
+
+  List<Poi> get recommendedRoutePois {
     final candidates =
         nearbyPois.where((poi) => !hasCheckedInToday(poi)).toList();
     if (candidates.isEmpty) {
-      return nearestPoi;
+      return nearbyPois.take(3).toList(growable: false);
     }
 
     final categoryGoals = undiscoveredCategoryGoals;
     final visitedCategories = todayVisitedCategories;
     candidates.sort(
-      (left, right) => _poiRecommendationScore(
-        left,
+      (left, right) => _comparePoiRecommendations(
+        left: left,
+        right: right,
         categoryGoals: categoryGoals,
         visitedCategories: visitedCategories,
-      ).compareTo(
-        _poiRecommendationScore(
-          right,
-          categoryGoals: categoryGoals,
-          visitedCategories: visitedCategories,
-        ),
       ),
     );
-    return candidates.first;
+    return candidates.take(3).toList(growable: false);
   }
 
   bool get hasFreshVerifiedLocation {
@@ -358,6 +358,37 @@ class MasilPetState {
       score -= 900;
     }
     return score;
+  }
+
+  int _comparePoiRecommendations({
+    required Poi left,
+    required Poi right,
+    required Set<PoiCategory> categoryGoals,
+    required Set<PoiCategory> visitedCategories,
+  }) {
+    final leftScore = _poiRecommendationScore(
+      left,
+      categoryGoals: categoryGoals,
+      visitedCategories: visitedCategories,
+    );
+    final rightScore = _poiRecommendationScore(
+      right,
+      categoryGoals: categoryGoals,
+      visitedCategories: visitedCategories,
+    );
+    final scoreComparison = leftScore.compareTo(rightScore);
+    if (scoreComparison != 0) {
+      return scoreComparison;
+    }
+
+    final distanceComparison = currentLocation
+        .distanceTo(left.coordinates)
+        .compareTo(currentLocation.distanceTo(right.coordinates));
+    if (distanceComparison != 0) {
+      return distanceComparison;
+    }
+
+    return left.title.compareTo(right.title);
   }
 
   MasilPetState copyWith({

@@ -1460,6 +1460,103 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map route guide previews a ranked recommendation course',
+      (WidgetTester tester) async {
+    const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      currentLocation: currentLocation,
+      locationVerified: true,
+      locationVerifiedAt: DateTime.now(),
+      pois: const [
+        Poi(
+          id: 'route-near-nature',
+          tourApiContentId: 'seed-route-near-nature',
+          title: '가까운 숲길',
+          regionId: 'seoul',
+          category: PoiCategory.nature,
+          coordinates: Coordinates(latitude: 37.0036, longitude: 127.0),
+          shortDescription: '가장 가까운 자연 장소',
+        ),
+        Poi(
+          id: 'route-history-goal',
+          tourApiContentId: 'seed-route-history-goal',
+          title: '도감 역사길',
+          regionId: 'seoul',
+          category: PoiCategory.history,
+          coordinates: Coordinates(latitude: 37.0100, longitude: 127.0),
+          shortDescription: '역사 마실펫 후보',
+        ),
+        Poi(
+          id: 'route-food-goal',
+          tourApiContentId: 'seed-route-food-goal',
+          title: '도감 맛길',
+          regionId: 'seoul',
+          category: PoiCategory.food,
+          coordinates: Coordinates(latitude: 37.0150, longitude: 127.0),
+          shortDescription: '음식 마실펫 후보',
+        ),
+        Poi(
+          id: 'route-far-culture',
+          tourApiContentId: 'seed-route-far-culture',
+          title: '멀리 있는 문화당',
+          regionId: 'seoul',
+          category: PoiCategory.culture,
+          coordinates: Coordinates(latitude: 37.0300, longitude: 127.0),
+          shortDescription: '거리가 먼 문화 후보',
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('추천 코스'), findsOneWidget);
+    expect(find.text('3곳'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('recommended-route-route-history-goal')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('recommended-route-route-food-goal')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('recommended-route-route-near-nature')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('recommended-route-route-far-culture')),
+      findsNothing,
+    );
+    expect(find.text('다음'), findsOneWidget);
+    expect(find.text('설화고운'), findsWidgets);
+    expect(find.text('항구마루'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map route guide checks in the in-range recommendation',
       (WidgetTester tester) async {
     final controller = MasilPetController(

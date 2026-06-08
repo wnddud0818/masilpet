@@ -427,6 +427,7 @@ class _DailyRouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recommended = state.nextRecommendedPoi;
+    final routePois = state.recommendedRoutePois;
     final recommendedDistance =
         recommended == null || !state.hasFreshVerifiedLocation
             ? null
@@ -520,6 +521,13 @@ class _DailyRouteCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (state.hasFreshVerifiedLocation && routePois.length > 1) ...[
+              const SizedBox(height: 12),
+              _RecommendedRoutePreview(
+                state: state,
+                pois: routePois,
+              ),
+            ],
             const SizedBox(height: 12),
             _RouteStep(
               complete: state.hasFreshVerifiedLocation,
@@ -593,6 +601,238 @@ class _DailyRouteCard extends StatelessWidget {
       return '${recommended.title}의 ${recommended.category.label} 보상을 먼저 노려보세요.';
     }
     return '${recommended.title}까지 ${recommendedDistance}m · ${recommended.category.label} 보상';
+  }
+}
+
+class _RecommendedRoutePreview extends StatelessWidget {
+  const _RecommendedRoutePreview({
+    required this.state,
+    required this.pois,
+  });
+
+  final MasilPetState state;
+  final List<Poi> pois;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.alt_route_outlined,
+                  size: 18,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '추천 코스',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${pois.length}곳',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (var index = 0; index < pois.length; index++)
+              _RecommendedRoutePoiRow(
+                state: state,
+                poi: pois[index],
+                rank: index + 1,
+                isFirst: index == 0,
+                isLast: index == pois.length - 1,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecommendedRoutePoiRow extends StatelessWidget {
+  const _RecommendedRoutePoiRow({
+    required this.state,
+    required this.poi,
+    required this.rank,
+    required this.isFirst,
+    required this.isLast,
+  });
+
+  final MasilPetState state;
+  final Poi poi;
+  final int rank;
+  final bool isFirst;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final categoryColor = _categoryColor(poi.category);
+    final reward = const GrowthEngine().rewardFor(poi.category);
+    final checked = state.hasCheckedInToday(poi);
+    final target =
+        checked ? null : _discoveryTargetForCategory(state, poi.category);
+    final distance = state.hasFreshVerifiedLocation
+        ? '${state.currentLocation.distanceTo(poi.coordinates).round()}m'
+        : '거리 확인 전';
+
+    return Padding(
+      key: ValueKey('recommended-route-${poi.id}'),
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isFirst
+                  ? scheme.primary.withValues(alpha: 0.14)
+                  : scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isFirst ? scheme.primary : scheme.outlineVariant,
+              ),
+            ),
+            child: Text(
+              '$rank',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: isFirst ? scheme.primary : scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        poi.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    if (isFirst) ...[
+                      const SizedBox(width: 6),
+                      _RoutePreviewPill(
+                        icon: Icons.near_me_outlined,
+                        label: '다음',
+                        color: scheme.primary,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 5,
+                  children: [
+                    _RoutePreviewPill(
+                      icon: _categoryIcon(poi.category),
+                      label: poi.category.label,
+                      color: categoryColor,
+                    ),
+                    _RoutePreviewPill(
+                      icon: Icons.social_distance_outlined,
+                      label: distance,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    if (checked)
+                      const _RoutePreviewPill(
+                        icon: Icons.task_alt,
+                        label: '완료',
+                        color: Color(0xFF16A34A),
+                      )
+                    else if (state.canCheckInToday(poi))
+                      const _RoutePreviewPill(
+                        icon: Icons.check_circle_outline,
+                        label: '체크인 가능',
+                        color: Color(0xFF16A34A),
+                      ),
+                    _RoutePreviewPill(
+                      icon: Icons.egg_alt_outlined,
+                      label: '알 +${reward.eggProgress}',
+                      color: const Color(0xFFB45309),
+                    ),
+                    if (target != null)
+                      _RoutePreviewPill(
+                        icon: Icons.pets_outlined,
+                        label: target.name,
+                        color: Color(target.colorValue),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoutePreviewPill extends StatelessWidget {
+  const _RoutePreviewPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.11),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

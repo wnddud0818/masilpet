@@ -156,7 +156,7 @@ if (-not $SkipBuild) {
   Invoke-Step "Flutter tests" { flutter test }
   Invoke-Step "Functions clean install" { npm --prefix functions ci }
   Invoke-Step "Functions build" { npm --prefix functions run build }
-  Invoke-Step "Functions high audit gate" { npm --prefix functions audit --audit-level=high }
+  Invoke-Step "Functions moderate audit gate" { npm --prefix functions audit --audit-level=moderate }
   Invoke-Step "Flutter release web build" { flutter build web --release --no-wasm-dry-run @AppDartDefineArgs @FirebaseDartDefineArgs }
 }
 

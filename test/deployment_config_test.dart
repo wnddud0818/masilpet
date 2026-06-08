@@ -574,7 +574,10 @@ void main() {
     expect(script, contains('flutter analyze'));
     expect(script, contains('flutter test'));
     expect(script, contains('npm --prefix functions ci'));
-    expect(script, contains('npm --prefix functions audit --audit-level=high'));
+    expect(
+      script,
+      contains('npm --prefix functions audit --audit-level=moderate'),
+    );
     expect(script, contains('flutter build web --release --no-wasm-dry-run'));
     expect(script, contains('firebase projects:list --json'));
     expect(script, contains('functions:secrets:access TOUR_API_KEY'));

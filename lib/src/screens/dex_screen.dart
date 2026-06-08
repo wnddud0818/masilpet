@@ -223,7 +223,10 @@ class _NextDiscoveryCard extends ConsumerWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
-                onPressed: () => controller.setTab(0),
+                onPressed: () => controller.setTab(
+                  0,
+                  mapCategoryFocus: target.primaryCategory,
+                ),
                 icon: const Icon(Icons.map_outlined),
                 label: Text('지도에서 ${target.primaryCategory.label} 장소 찾기'),
               ),
@@ -373,6 +376,7 @@ class _DexPassportCard extends ConsumerWidget {
     final controller = ref.read(masilPetControllerProvider.notifier);
     final discovered = state.discoveredTemplateIds.length;
     final total = state.templates.length;
+    final target = _nextDiscoveryTemplate(state);
 
     return Card(
       child: Padding(
@@ -418,7 +422,10 @@ class _DexPassportCard extends ConsumerWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => controller.setTab(0),
+                  onPressed: () => controller.setTab(
+                    0,
+                    mapCategoryFocus: target?.primaryCategory,
+                  ),
                   icon: const Icon(Icons.map_outlined),
                   label: const Text('다음 스탬프 찾기'),
                 ),
@@ -668,6 +675,7 @@ class _DexProgressCard extends ConsumerWidget {
     final discovered = state.discoveredTemplateIds.length;
     final total = state.templates.length;
     final hasUndiscovered = discovered < total;
+    final target = _nextDiscoveryTemplate(state);
 
     return Card(
       child: Padding(
@@ -717,7 +725,10 @@ class _DexProgressCard extends ConsumerWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: OutlinedButton.icon(
-                  onPressed: () => controller.setTab(0),
+                  onPressed: () => controller.setTab(
+                    0,
+                    mapCategoryFocus: target?.primaryCategory,
+                  ),
                   icon: const Icon(Icons.map_outlined),
                   label: const Text('지도에서 탐험하기'),
                 ),

@@ -2415,6 +2415,7 @@ void main() {
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
+    expect(controller.state.mapCategoryFocus, PoiCategory.food);
     expect(tester.takeException(), isNull);
   });
 
@@ -2670,6 +2671,58 @@ void main() {
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
+    expect(controller.state.mapCategoryFocus, PoiCategory.food);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex discovery action opens the map with a category goal',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(3);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: HomeShell()),
+      ),
+    );
+    await tester.pump();
+
+    final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
+    await tester.ensureVisible(categoryAction);
+    await tester.pump();
+    await tester.tap(categoryAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.mapCategoryFocus, PoiCategory.food);
+
+    await tester.scrollUntilVisible(
+      find.text('지도 목표: 음식 장소'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pump();
+
+    expect(find.text('지도 목표: 음식 장소'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '음식 1'), findsOneWidget);
+    expect(find.text('자갈치시장'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -2764,6 +2817,7 @@ void main() {
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
+    expect(controller.state.mapCategoryFocus, PoiCategory.food);
     expect(tester.takeException(), isNull);
   });
 

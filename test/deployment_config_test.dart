@@ -766,6 +766,7 @@ void main() {
     expect(readme, contains('web/screenshots/onboarding-wide.png'));
     expect(readme, contains('web/screenshots/onboarding-mobile.png'));
     expect(readme, contains('POI 카테고리 필터'));
+    expect(readme, contains('지도 목표 카테고리'));
     expect(readme, contains('추천 코스'));
     expect(readme, contains('방문 인증 완료'));
     expect(readme, contains('오늘의 탐험 리포트'));
@@ -788,6 +789,7 @@ void main() {
     expect(submission, contains('동행 대화'));
     expect(submission, contains('추천 코스'));
     expect(submission, contains('카테고리 필터'));
+    expect(submission, contains('지도 목표 카테고리'));
     expect(submission, contains('방문 인증 완료'));
     expect(submission, contains('리포트 다음 행동'));
     expect(submission, contains('오늘의 탐험 리포트'));
@@ -809,6 +811,7 @@ void main() {
     expect(checklist, contains('지금 체크인 가능'));
     expect(checklist, contains('추천 코스'));
     expect(checklist, contains('카테고리 필터'));
+    expect(checklist, contains('지도 목표'));
     expect(checklist, contains('방문 인증 완료'));
     expect(checklist, contains('리포트 보기'));
     expect(checklist, contains('마실펫과 대화하기'));

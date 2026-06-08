@@ -72,6 +72,7 @@ class MasilPetState {
     required this.locationVerifiedAt,
     required this.activePetId,
     required this.selectedTab,
+    required this.mapCategoryFocus,
     required this.statusMessage,
     required this.fieldActivity,
     required this.fieldActivityNonce,
@@ -125,6 +126,7 @@ class MasilPetState {
       locationVerifiedAt: null,
       activePetId: 'pet-starter-wave-naru',
       selectedTab: 0,
+      mapCategoryFocus: null,
       statusMessage: firebaseReady
           ? 'Firebase 연결 준비 완료'
           : firebaseStartupIssue.fallbackMessage,
@@ -151,6 +153,7 @@ class MasilPetState {
   final DateTime? locationVerifiedAt;
   final String activePetId;
   final int selectedTab;
+  final PoiCategory? mapCategoryFocus;
   final String statusMessage;
   final PetFieldActivity fieldActivity;
   final int fieldActivityNonce;
@@ -456,6 +459,8 @@ class MasilPetState {
     bool clearLocationVerifiedAt = false,
     String? activePetId,
     int? selectedTab,
+    PoiCategory? mapCategoryFocus,
+    bool clearMapCategoryFocus = false,
     String? statusMessage,
     PetFieldActivity? fieldActivity,
     bool bumpFieldActivity = false,
@@ -482,6 +487,9 @@ class MasilPetState {
           : locationVerifiedAt ?? this.locationVerifiedAt,
       activePetId: activePetId ?? this.activePetId,
       selectedTab: selectedTab ?? this.selectedTab,
+      mapCategoryFocus: clearMapCategoryFocus
+          ? null
+          : mapCategoryFocus ?? this.mapCategoryFocus,
       statusMessage: statusMessage ?? this.statusMessage,
       fieldActivity: fieldActivity ?? this.fieldActivity,
       fieldActivityNonce:
@@ -659,8 +667,18 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
   }
 
-  void setTab(int tab) {
-    state = state.copyWith(selectedTab: tab);
+  void setTab(int tab, {PoiCategory? mapCategoryFocus}) {
+    state = state.copyWith(
+      selectedTab: tab,
+      mapCategoryFocus: mapCategoryFocus,
+    );
+  }
+
+  void setMapCategoryFocus(PoiCategory? category) {
+    state = state.copyWith(
+      mapCategoryFocus: category,
+      clearMapCategoryFocus: category == null,
+    );
   }
 
   void selectPet(String petId) {

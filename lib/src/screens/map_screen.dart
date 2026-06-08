@@ -81,6 +81,8 @@ class MapScreen extends ConsumerWidget {
                 nearby: nearby,
                 onUseDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
+                selectedCategory: state.mapCategoryFocus,
+                onCategorySelected: controller.setMapCategoryFocus,
               ),
               const SizedBox(height: 16),
               PetPlayField(
@@ -298,6 +300,8 @@ class _MapExplorationLayout extends StatelessWidget {
     required this.state,
     required this.nearby,
     required this.onUseDeviceLocation,
+    required this.selectedCategory,
+    required this.onCategorySelected,
   });
 
   static const _wideBreakpoint = 840.0;
@@ -305,6 +309,8 @@ class _MapExplorationLayout extends StatelessWidget {
   final MasilPetState state;
   final List<Poi> nearby;
   final VoidCallback? onUseDeviceLocation;
+  final PoiCategory? selectedCategory;
+  final ValueChanged<PoiCategory?> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
@@ -318,6 +324,8 @@ class _MapExplorationLayout extends StatelessWidget {
         final poiList = _NearbyPoiList(
           nearby: nearby,
           onUseDeviceLocation: onUseDeviceLocation,
+          selectedCategory: selectedCategory,
+          onCategorySelected: onCategorySelected,
         );
 
         if (!useTwoColumns) {
@@ -344,35 +352,31 @@ class _MapExplorationLayout extends StatelessWidget {
   }
 }
 
-class _NearbyPoiList extends StatefulWidget {
+class _NearbyPoiList extends StatelessWidget {
   const _NearbyPoiList({
     required this.nearby,
     required this.onUseDeviceLocation,
+    required this.selectedCategory,
+    required this.onCategorySelected,
   });
 
   final List<Poi> nearby;
   final VoidCallback? onUseDeviceLocation;
-
-  @override
-  State<_NearbyPoiList> createState() => _NearbyPoiListState();
-}
-
-class _NearbyPoiListState extends State<_NearbyPoiList> {
-  PoiCategory? _selectedCategory;
+  final PoiCategory? selectedCategory;
+  final ValueChanged<PoiCategory?> onCategorySelected;
 
   @override
   Widget build(BuildContext context) {
-    final categories = _visiblePoiCategories(widget.nearby);
-    final selectedCategory =
-        categories.contains(_selectedCategory) ? _selectedCategory : null;
-    final filtered = selectedCategory == null
-        ? widget.nearby
-        : widget.nearby
-            .where((poi) => poi.category == selectedCategory)
-            .toList(growable: false);
-    final detail = selectedCategory == null
-        ? '${widget.nearby.length}곳'
-        : '${filtered.length}/${widget.nearby.length}곳';
+    final categories = _visiblePoiCategories(nearby);
+    final focusCategory = selectedCategory;
+    final filtered = focusCategory == null
+        ? nearby
+        : nearby.where((poi) => poi.category == focusCategory).toList(
+              growable: false,
+            );
+    final detail = focusCategory == null
+        ? '${nearby.length}곳'
+        : '${filtered.length}/${nearby.length}곳';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -382,29 +386,36 @@ class _NearbyPoiListState extends State<_NearbyPoiList> {
           detail: detail,
           icon: Icons.near_me_outlined,
         ),
-        if (widget.nearby.isEmpty)
+        if (nearby.isEmpty)
           EmptyStateCard(
             icon: Icons.location_off_outlined,
             title: '근처 POI가 없습니다',
             body: '현재 위치를 다시 확인하면 가까운 여행지가 표시됩니다.',
             actionIcon: Icons.my_location,
             actionLabel: '현재 위치 다시 확인',
-            onAction: widget.onUseDeviceLocation,
+            onAction: onUseDeviceLocation,
           )
         else ...[
           _PoiCategoryFilterBar(
             categories: categories,
-            selectedCategory: selectedCategory,
-            totalCount: widget.nearby.length,
-            categoryCounts: _categoryCounts(widget.nearby),
-            onSelected: (category) {
-              setState(() {
-                _selectedCategory = category;
-              });
-            },
+            selectedCategory: focusCategory,
+            totalCount: nearby.length,
+            categoryCounts: _categoryCounts(nearby),
+            onSelected: onCategorySelected,
           ),
           const SizedBox(height: 8),
-          for (final poi in filtered) _PoiTile(poi: poi),
+          if (filtered.isEmpty)
+            EmptyStateCard(
+              icon: Icons.filter_alt_off_outlined,
+              title: '${focusCategory!.label} POI가 없습니다',
+              body:
+                  '현재 위치의 주변 장소에 목표 카테고리가 없습니다. 전체 목록으로 돌아가거나 위치를 다시 확인해 보세요.',
+              actionIcon: Icons.clear,
+              actionLabel: '필터 해제',
+              onAction: () => onCategorySelected(null),
+            )
+          else
+            for (final poi in filtered) _PoiTile(poi: poi),
         ],
       ],
     );
@@ -454,6 +465,13 @@ class _PoiCategoryFilterBar extends StatelessWidget {
                 ),
               ],
             ),
+            if (selectedCategory != null) ...[
+              const SizedBox(height: 8),
+              _MapCategoryFocusBanner(
+                category: selectedCategory!,
+                onClear: () => onSelected(null),
+              ),
+            ],
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -487,6 +505,53 @@ class _PoiCategoryFilterBar extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _MapCategoryFocusBanner extends StatelessWidget {
+  const _MapCategoryFocusBanner({
+    required this.category,
+    required this.onClear,
+  });
+
+  final PoiCategory category;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = _categoryColor(category);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          Icon(_categoryIcon(category), size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '지도 목표: ${category.label} 장소',
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ),
+          IconButton(
+            tooltip: '지도 목표 해제',
+            visualDensity: VisualDensity.compact,
+            onPressed: onClear,
+            icon: const Icon(Icons.close),
+          ),
+        ],
       ),
     );
   }

@@ -284,6 +284,11 @@ class _HouseCarePlanCard extends ConsumerWidget {
     final recommended = state.nextRecommendedPoi;
     final recommendedDistance = _recommendedDistance(state, recommended);
     final talksLeft = _houseTalksLeftToday(state);
+    final mapFocusCategory =
+        eggTemplate?.primaryCategory ?? recommended?.category;
+    final openFocusedMap = mapFocusCategory == null
+        ? onOpenMap
+        : () => controller.setTab(0, mapCategoryFocus: mapFocusCategory);
 
     return Card(
       child: Padding(
@@ -362,7 +367,7 @@ class _HouseCarePlanCard extends ConsumerWidget {
               isBusy: state.isBusy,
               hasActivePet: activePet != null,
               talksLeft: talksLeft,
-              onOpenMap: onOpenMap,
+              onOpenMap: openFocusedMap,
               onOpenPet: onOpenPet,
               onHatch: nextEgg == null
                   ? null
@@ -781,7 +786,12 @@ class _EggTile extends ConsumerWidget {
                 category: template.primaryCategory,
                 reward: routeReward,
                 poi: routePoi,
-                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
+                onOpenMap: state.isBusy
+                    ? null
+                    : () => controller.setTab(
+                          0,
+                          mapCategoryFocus: template.primaryCategory,
+                        ),
               ),
             ],
           ],

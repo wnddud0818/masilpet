@@ -475,6 +475,20 @@ void main() {
     expect(controller.state.statusMessage, contains('현재 위치'));
   });
 
+  test('map category focus follows cross-screen discovery goals', () {
+    final controller = _controller();
+    controller.setTab(3);
+
+    controller.setTab(0, mapCategoryFocus: PoiCategory.food);
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.mapCategoryFocus, PoiCategory.food);
+
+    controller.setMapCategoryFocus(null);
+
+    expect(controller.state.mapCategoryFocus, isNull);
+  });
+
   test('daily check-in limit blocks additional local rewards', () async {
     final now = DateTime.now();
     final controller = _controller();

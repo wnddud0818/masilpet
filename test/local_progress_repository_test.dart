@@ -27,6 +27,38 @@ class MemoryLocalProgressRepository implements LocalProgressRepository {
   }
 }
 
+class ThrowingLocalProgressRepository implements LocalProgressRepository {
+  const ThrowingLocalProgressRepository();
+
+  @override
+  Future<LocalProgressSnapshot?> loadProgress() async {
+    throw StateError('stored progress is unavailable');
+  }
+
+  @override
+  Future<void> saveProgress(LocalProgressSnapshot snapshot) async {}
+
+  @override
+  Future<void> clearProgress() async {}
+}
+
+class ThrowingSaveLocalProgressRepository implements LocalProgressRepository {
+  const ThrowingSaveLocalProgressRepository();
+
+  @override
+  Future<LocalProgressSnapshot?> loadProgress() async {
+    return null;
+  }
+
+  @override
+  Future<void> saveProgress(LocalProgressSnapshot snapshot) async {
+    throw StateError('stored progress cannot be saved');
+  }
+
+  @override
+  Future<void> clearProgress() async {}
+}
+
 MasilPetController _controller({
   LocalProgressRepository? localProgressRepository,
   MasilPetBackend? backend,
@@ -258,6 +290,34 @@ void main() {
 
     expect(repository.snapshot?.checkIns.length, 1);
     expect(repository.snapshot?.onboardingComplete, isTrue);
+  });
+
+  test('controller keeps running when local progress cannot be loaded',
+      () async {
+    final controller = _controller(
+      localProgressRepository: const ThrowingLocalProgressRepository(),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.activePet?.name, '파도나루');
+    expect(controller.state.statusMessage, contains('불러오지 못했습니다'));
+
+    await controller.talkWithActivePet();
+
+    expect(controller.state.dialogueCountToday, 1);
+    expect(controller.state.statusMessage, isNot(contains('불러오지 못했습니다')));
+  });
+
+  test('controller explains when local progress cannot be saved', () async {
+    final controller = _controller(
+      localProgressRepository: const ThrowingSaveLocalProgressRepository(),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    await controller.completeOnboarding();
+
+    expect(controller.state.onboardingComplete, isTrue);
+    expect(controller.state.statusMessage, contains('저장하지 못했습니다'));
   });
 
   test('controller does not reuse stale verified location from storage',

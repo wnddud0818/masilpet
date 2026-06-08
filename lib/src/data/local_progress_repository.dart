@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models.dart';
+import 'local_progress_storage.dart' as fallback_storage;
 
 abstract class LocalProgressRepository {
   Future<LocalProgressSnapshot?> loadProgress();
@@ -20,8 +21,21 @@ class SharedPreferencesLocalProgressRepository
 
   @override
   Future<LocalProgressSnapshot?> loadProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_storageKey);
+    String? raw;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      raw = prefs.getString(_storageKey);
+    } on Object {
+      raw = _fallbackRawProgress();
+      if (raw == null || raw.isEmpty) {
+        rethrow;
+      }
+    }
+
+    if (raw == null || raw.isEmpty) {
+      raw = _fallbackRawProgress();
+    }
+
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -39,14 +53,75 @@ class SharedPreferencesLocalProgressRepository
 
   @override
   Future<void> saveProgress(LocalProgressSnapshot snapshot) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_storageKey, jsonEncode(snapshot.toMap()));
+    final raw = jsonEncode(snapshot.toMap());
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, raw);
+      _saveFallbackRawProgress(raw);
+    } on Object {
+      if (_saveFallbackRawProgress(raw)) {
+        return;
+      }
+      rethrow;
+    }
   }
 
   @override
   Future<void> clearProgress() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey);
+      _clearFallbackRawProgress();
+    } on Object {
+      if (_clearFallbackRawProgress()) {
+        return;
+      }
+      rethrow;
+    }
+  }
+
+  static const _legacyWebStorageKey = 'flutter.$_storageKey';
+
+  static String? _fallbackRawProgress() {
+    if (!fallback_storage.isAvailable) {
+      return null;
+    }
+
+    try {
+      return fallback_storage.getString(_legacyWebStorageKey) ??
+          fallback_storage.getString(_storageKey);
+    } on Object {
+      return null;
+    }
+  }
+
+  static bool _saveFallbackRawProgress(String raw) {
+    if (!fallback_storage.isAvailable) {
+      return false;
+    }
+
+    try {
+      fallback_storage.setString(_legacyWebStorageKey, raw);
+      fallback_storage.setString(_storageKey, raw);
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
+  static bool _clearFallbackRawProgress() {
+    if (!fallback_storage.isAvailable) {
+      return false;
+    }
+
+    try {
+      fallback_storage.remove(_legacyWebStorageKey);
+      fallback_storage.remove(_storageKey);
+      return true;
+    } on Object {
+      return false;
+    }
   }
 }
 

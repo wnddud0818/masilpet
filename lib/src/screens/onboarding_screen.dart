@@ -23,6 +23,12 @@ class OnboardingScreen extends ConsumerWidget {
                 builder: (context, constraints) {
                   final isWide =
                       constraints.maxWidth >= _onboardingWideBreakpoint;
+                  final contentWidth = constraints.maxWidth > 1040
+                      ? 1040.0
+                      : constraints.maxWidth;
+                  final tagline = isWide
+                      ? '대한민국을 걸으며 만나는 나만의 마실펫'
+                      : '대한민국을 걸으며 만나는\n나만의 마실펫';
                   final intro = Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -36,7 +42,7 @@ class OnboardingScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '대한민국을 걸으며 만나는 나만의 마실펫',
+                        tagline,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
@@ -116,8 +122,8 @@ class OnboardingScreen extends ConsumerWidget {
                           BoxConstraints(minHeight: constraints.maxHeight),
                       child: Align(
                         alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1040),
+                        child: SizedBox(
+                          width: contentWidth,
                           child: Padding(
                             padding: const EdgeInsets.all(20),
                             child: _OnboardingAdaptiveLayout(

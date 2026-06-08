@@ -80,6 +80,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               _ProfileActionsCard(
+                firebaseReady: state.firebaseReady,
                 useDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
                 useStarterLocation:
@@ -458,12 +459,14 @@ String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
 class _ProfileActionsCard extends StatelessWidget {
   const _ProfileActionsCard({
+    required this.firebaseReady,
     required this.useDeviceLocation,
     required this.useStarterLocation,
     required this.ensureRemoteUserBootstrap,
     required this.refreshRemoteProgress,
   });
 
+  final bool firebaseReady;
   final VoidCallback? useDeviceLocation;
   final VoidCallback? useStarterLocation;
   final VoidCallback? ensureRemoteUserBootstrap;
@@ -499,7 +502,9 @@ class _ProfileActionsCard extends StatelessWidget {
                 final starterButton = OutlinedButton.icon(
                   onPressed: useStarterLocation,
                   icon: const Icon(Icons.location_city_outlined),
-                  label: const Text('전국 기본 지도 보기'),
+                  label: Text(
+                    firebaseReady ? '전국 기본 지도 보기' : '기본 위치로 체험',
+                  ),
                 );
                 final refreshButton = OutlinedButton.icon(
                   onPressed: refreshRemoteProgress,
@@ -837,7 +842,7 @@ class _LaunchReadinessCard extends ConsumerWidget {
             const SizedBox(height: 12),
             _ReadinessSummaryLine(
               icon: Icons.route_outlined,
-              label: '심사 플레이 루프',
+              label: '오늘의 탐험 루프',
               value: '$coreLoopCount/3단계',
               passed: coreLoopCount == 3,
             ),
@@ -980,13 +985,13 @@ int _readinessCoreLoopCount(MasilPetState state) {
 
 String _readinessSummaryText(MasilPetState state, int coreLoopCount) {
   if (state.firebaseReady && coreLoopCount == 3) {
-    return '온라인 저장까지 연결되어 실제 제출 리허설 기준을 모두 통과했습니다.';
+    return '온라인 저장까지 연결되어 오늘의 탐험 기록이 안정적으로 이어집니다.';
   }
   if (!state.firebaseReady && coreLoopCount == 3) {
-    return '체크인·펫 보유·부화 루프는 기기 내 진행으로 검증 가능합니다. 배포 직전 Firebase 설정만 연결하면 됩니다.';
+    return '체크인·펫 보유·부화 루프가 기기 내 진행으로 이어지고 있습니다.';
   }
   if (coreLoopCount >= 2) {
-    return '심사자는 남은 체크포인트를 따라가며 오늘의 탐험 루프를 완성할 수 있습니다.';
+    return '남은 체크포인트를 따라가면 오늘의 탐험 루프를 완성할 수 있습니다.';
   }
   return '지도 체크인부터 시작하면 핵심 탐험 루프가 순서대로 열립니다.';
 }

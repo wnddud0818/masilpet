@@ -122,8 +122,56 @@ void main() {
 
     expect(find.text('빠른 작업'), findsOneWidget);
     expect(find.text('현재 위치 사용'), findsOneWidget);
-    expect(find.text('전국 기본 지도 보기'), findsOneWidget);
+    expect(find.text('기본 위치로 체험'), findsOneWidget);
     expect(find.text('새로고침'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile quick fallback opens the map loop',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final fallbackAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
+    expect(fallbackAction, findsOneWidget);
+
+    await tester.ensureVisible(fallbackAction);
+    await tester.pump();
+    await tester.tap(fallbackAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.hasFreshVerifiedLocation, isTrue);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
+    expect(controller.state.statusMessage, contains('체험 위치'));
     expect(tester.takeException(), isNull);
   });
 
@@ -265,13 +313,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('심사 플레이 루프'), findsOneWidget);
+    expect(find.text('오늘의 탐험 루프'), findsOneWidget);
     expect(find.text('3/3단계'), findsOneWidget);
     expect(find.text('배포 동기화'), findsOneWidget);
     expect(find.text('기기 내 진행 (설정 필요)'), findsWidgets);
     expect(
       find.text(
-        '체크인·펫 보유·부화 루프는 기기 내 진행으로 검증 가능합니다. 배포 직전 Firebase 설정만 연결하면 됩니다.',
+        '체크인·펫 보유·부화 루프가 기기 내 진행으로 이어지고 있습니다.',
       ),
       findsOneWidget,
     );
@@ -906,9 +954,55 @@ void main() {
     await tester.pump();
 
     final briefingAction = find.widgetWithText(OutlinedButton, '현재 위치 확인');
+    final fallbackMapAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
     expect(briefingAction, findsOneWidget);
     expect(tester.widget<OutlinedButton>(briefingAction).onPressed, isNotNull);
+    expect(fallbackMapAction, findsOneWidget);
+    expect(
+      tester.widget<OutlinedButton>(fallbackMapAction).onPressed,
+      isNotNull,
+    );
     expect(find.widgetWithText(FilledButton, '현재 위치 확인'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map fallback opens the local check-in route',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final fallbackMapAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
+    await tester.tap(fallbackMapAction);
+    await tester.pump();
+
+    expect(controller.state.hasFreshVerifiedLocation, isTrue);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
+    expect(find.text('지금 체크인 가능'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '추천 장소 체크인하기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1032,6 +1126,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('오늘 새 카테고리'), findsOneWidget);
+    expect(find.text('도감 후보'), findsOneWidget);
+    expect(find.text('설화고운'), findsOneWidget);
     expect(find.text('알 +680'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -1992,7 +2088,13 @@ void main() {
     expect(find.text('기기 내 진행 모드'), findsOneWidget);
     expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
     expect(find.byIcon(Icons.storage_outlined), findsOneWidget);
+    expect(tester.getRect(find.byType(PetPlayField)).right,
+        lessThanOrEqualTo(390));
+    expect(tester.getRect(find.text('150m')).right, lessThanOrEqualTo(390));
+    expect(
+        tester.getRect(find.text('하우스와 도감 누적')).right, lessThanOrEqualTo(390));
     expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
+    expect(tester.getRect(startButton).right, lessThanOrEqualTo(390));
     expect(tester.takeException(), isNull);
   });
 
@@ -2040,7 +2142,8 @@ void main() {
       backend: null,
       userRepository: null,
       localProgressRepository: null,
-    )..completeOnboarding();
+    );
+    await controller.completeOnboarding();
     tester.view.physicalSize = const Size(1180, 820);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {

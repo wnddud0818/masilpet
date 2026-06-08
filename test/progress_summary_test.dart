@@ -315,8 +315,60 @@ void main() {
     expect(state.nextRecommendedPoi, isNotNull);
   });
 
+  test('starter pet templates cover every POI category as collection goals',
+      () {
+    final templateCategories =
+        starterPetTemplates.map((template) => template.primaryCategory).toSet();
+
+    expect(templateCategories, containsAll(PoiCategory.values));
+    expect(
+      starterPetTemplates.map((template) => template.id),
+      containsAll(['spark-yuri', 'alley-raon']),
+    );
+  });
+
   test('check-in requires verified current location', () async {
     final controller = _controller();
+
+    await controller.attemptCheckIn(starterPoiSeed.first);
+
+    expect(controller.state.todayCheckInCount, 0);
+    expect(controller.state.statusMessage, contains('현재 위치'));
+  });
+
+  test('starter location opens the local judging check-in loop', () async {
+    final controller = _controller();
+    controller.setTab(4);
+
+    controller.useStarterKoreaLocation();
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.hasFreshVerifiedLocation, isTrue);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
+    expect(controller.state.statusMessage, contains('체험 위치'));
+
+    await controller.attemptCheckIn(starterPoiSeed.first);
+
+    expect(controller.state.todayCheckInCount, 1);
+    expect(
+      controller.state.todayCheckIns.single.poiId,
+      starterPoiSeed.first.id,
+    );
+    expect(controller.state.statusMessage, contains('체크인 완료'));
+  });
+
+  test('starter location does not bypass remote location verification',
+      () async {
+    final controller = _controller(
+      backend: const FakeStepBackend(appliedStepDelta: 0),
+    );
+    controller.setTab(4);
+
+    controller.useStarterKoreaLocation();
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.hasFreshVerifiedLocation, isFalse);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isFalse);
 
     await controller.attemptCheckIn(starterPoiSeed.first);
 

@@ -51,6 +51,8 @@ class MapScreen extends ConsumerWidget {
                 state: state,
                 onUseDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
+                onUseStarterLocation:
+                    state.isBusy ? null : controller.useStarterKoreaLocation,
               ),
               const SizedBox(height: 12),
               _DailyRouteCard(
@@ -176,10 +178,12 @@ class _ExplorationBriefing extends StatelessWidget {
   const _ExplorationBriefing({
     required this.state,
     required this.onUseDeviceLocation,
+    required this.onUseStarterLocation,
   });
 
   final MasilPetState state;
   final VoidCallback? onUseDeviceLocation;
+  final VoidCallback? onUseStarterLocation;
 
   @override
   Widget build(BuildContext context) {
@@ -247,13 +251,23 @@ class _ExplorationBriefing extends StatelessWidget {
               if (!state.hasFreshVerifiedLocation &&
                   state.remainingDailyCheckIns > 0) ...[
                 const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: onUseDeviceLocation,
-                    icon: const Icon(Icons.my_location),
-                    label: const Text('현재 위치 확인'),
-                  ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: onUseDeviceLocation,
+                      icon: const Icon(Icons.my_location),
+                      label: const Text('현재 위치 확인'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onUseStarterLocation,
+                      icon: const Icon(Icons.map_outlined),
+                      label: Text(
+                        state.firebaseReady ? '전국 기본 지도 보기' : '기본 위치로 체험',
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -531,6 +545,10 @@ List<_RecommendationReason> _recommendationReasons({
 
   final reward = const GrowthEngine().rewardFor(recommended.category);
   final checked = state.hasCheckedInToday(recommended);
+  final discoveryTarget = _discoveryTargetForCategory(
+    state,
+    recommended.category,
+  );
   return [
     if (checked)
       const _RecommendationReason(
@@ -558,6 +576,12 @@ List<_RecommendationReason> _recommendationReasons({
         label: '도감 후보',
         color: Color(0xFF7C3AED),
       ),
+    if (!checked && discoveryTarget != null)
+      _RecommendationReason(
+        icon: Icons.pets_outlined,
+        label: discoveryTarget.name,
+        color: Color(discoveryTarget.colorValue),
+      ),
     if (!checked)
       _RecommendationReason(
         icon: Icons.egg_alt_outlined,
@@ -565,6 +589,19 @@ List<_RecommendationReason> _recommendationReasons({
         color: const Color(0xFFB45309),
       ),
   ];
+}
+
+PetTemplate? _discoveryTargetForCategory(
+  MasilPetState state,
+  PoiCategory category,
+) {
+  for (final template in state.templates) {
+    if (template.primaryCategory == category &&
+        !state.discoveredTemplateIds.contains(template.id)) {
+      return template;
+    }
+  }
+  return null;
 }
 
 class _RouteStep extends StatelessWidget {

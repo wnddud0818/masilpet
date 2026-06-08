@@ -38,6 +38,7 @@ void main() {
     for (final file in userFacingFiles) {
       final source = file.readAsStringSync();
       expect(source, isNot(contains('출품')));
+      expect(source, isNot(contains('심사')));
       expect(source, isNot(contains('서버 시드')));
       expect(source, isNot(contains('해운대 기준 위치로 이동')));
       expect(source, isNot(contains('demo')));
@@ -46,6 +47,17 @@ void main() {
       expect(source, isNot(contains('placeholder')));
       expect(source, isNot(contains('You can customize')));
     }
+  });
+
+  test('README describes the current nationwide collection scope', () {
+    final readme = File('README.md').readAsStringSync();
+
+    expect(readme, contains('대한민국 전역'));
+    expect(readme, contains('전국 POI'));
+    expect(readme, contains('7종 수집'));
+    expect(readme, isNot(contains('첫 출품 지역은 부산')));
+    expect(readme, isNot(contains('부산 POI 지도')));
+    expect(readme, isNot(contains('부산 탐험 여권')));
   });
 
   test('Firebase Hosting serves the Flutter web app safely', () {
@@ -257,6 +269,7 @@ void main() {
     expect(houseSource, isNot(contains('500걸음 반영')));
     expect(profileSource, isNot(contains('해운대 기준 위치로 이동')));
     expect(profileSource, contains('전국 기본 지도 보기'));
+    expect(profileSource, contains('기본 위치로 체험'));
     expect(profileSource, contains('final onlineActionEnabled'));
     expect(profileSource, contains('state.firebaseReady && !state.isBusy'));
     expect(
@@ -270,7 +283,9 @@ void main() {
     expect(profileSource,
         contains('state.isBusy ? null : controller.useStarterKoreaLocation'));
     expect(mapSource, contains('현재 위치 확인'));
+    expect(mapSource, contains('전국 기본 지도 보기'));
     expect(mapSource, contains('controller.useDeviceLocation'));
+    expect(mapSource, contains('controller.useStarterKoreaLocation'));
     expect(mapSource, contains('미확인'));
     expect(mapSource, contains('key: ValueKey'));
     expect(
@@ -336,6 +351,8 @@ void main() {
       'wave-naru',
       'harbor-maru',
       'film-bori',
+      'spark-yuri',
+      'alley-raon',
       'spring-dami',
       'story-goun',
     ];
@@ -545,6 +562,8 @@ void main() {
     final script = File('tools/release_preflight.ps1').readAsStringSync();
     final hostingSmokeScript =
         File('tools/hosting_smoke.ps1').readAsStringSync();
+    final localJudgingSmokeScript =
+        File('tools/local_judging_smoke.ps1').readAsStringSync();
     final releaseEvidenceScript =
         File('tools/release_evidence.ps1').readAsStringSync();
     final readme = File('README.md').readAsStringSync();
@@ -582,6 +601,7 @@ void main() {
     expect(checklist, contains('빌드 채널'));
     expect(checklist, contains('빌드 시각'));
     expect(checklist, contains('tools/release_preflight.ps1'));
+    expect(checklist, contains('tools/local_judging_smoke.ps1'));
     expect(checklist, contains('tools/hosting_smoke.ps1'));
     expect(checklist, contains('tools/release_evidence.ps1'));
     expect(checklist, contains('-AllowDraftEvidence'));
@@ -589,7 +609,9 @@ void main() {
         readme,
         contains(
             'tools/release_evidence.ps1 -AllowDirtyWorktree -AllowDraftEvidence'));
+    expect(readme, contains('tools/local_judging_smoke.ps1'));
     expect(runbook, contains('tools/release_preflight.ps1'));
+    expect(runbook, contains('tools/local_judging_smoke.ps1'));
     expect(runbook, contains('tools/hosting_smoke.ps1'));
     expect(runbook, contains('tools/release_evidence.ps1'));
     expect(runbook, contains('MASILPET_BUILD_CHANNEL'));
@@ -627,6 +649,20 @@ void main() {
     expect(hostingSmokeScript, contains('Permissions-Policy'));
     expect(hostingSmokeScript, contains('geolocation=(self)'));
 
+    expect(localJudgingSmokeScript, contains('build/web/index.html'));
+    expect(localJudgingSmokeScript, contains('--headless=new'));
+    expect(localJudgingSmokeScript, contains('remote-debugging-port'));
+    expect(localJudgingSmokeScript, contains('local-judging-after-fallback'));
+    expect(localJudgingSmokeScript, contains('local-judging-after-checkin'));
+    expect(localJudgingSmokeScript, contains('local-judging-after-talk'));
+    expect(
+        localJudgingSmokeScript, contains('local-judging-smoke-result.json'));
+    expect(localJudgingSmokeScript, contains('checkIns'));
+    expect(localJudgingSmokeScript, contains('dialogueCountToday'));
+    expect(localJudgingSmokeScript, contains('lastVisitedCategory'));
+    expect(
+        localJudgingSmokeScript, contains('Local judging smoke check passed'));
+
     expect(releaseEvidenceScript, contains('Release evidence written'));
     expect(releaseEvidenceScript, contains('build/release-evidence.md'));
     expect(releaseEvidenceScript, contains('Overall status: \$OverallStatus'));
@@ -662,6 +698,11 @@ void main() {
         releaseEvidenceScript,
         contains(
             'recent visit reward breakdown from the stored check-in record'));
+    expect(releaseEvidenceScript, contains('tools/local_judging_smoke.ps1'));
+    expect(
+      releaseEvidenceScript,
+      contains('build/verification/local-judging-smoke-result.json'),
+    );
   });
 
   test('CI runs the same release preflight gate as local release checks', () {
@@ -720,8 +761,16 @@ void main() {
     expect(submission, contains('개인정보 처리 요약'));
     expect(submission, contains('사용 기술'));
     expect(submission, contains('시연 흐름'));
+    expect(submission, contains('빠른 심사 체험 경로'));
+    expect(submission, contains('기본 위치로 체험'));
+    expect(submission, contains('마실펫과 대화하기'));
     expect(submission, contains('제출 전 증빙'));
+    expect(submission, contains('tools/local_judging_smoke.ps1'));
+    expect(submission, contains('local-judging-smoke-result.json'));
     expect(submission, contains('실제 적용된 체크인 보상 상세 표시'));
+    expect(checklist, contains('기본 위치로 체험'));
+    expect(checklist, contains('지금 체크인 가능'));
+    expect(checklist, contains('마실펫과 대화하기'));
     expect(submission, contains('운영 전제'));
     expect(submission, contains('앱 버전'));
     expect(submission, contains('빌드 채널'));

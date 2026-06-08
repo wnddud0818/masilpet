@@ -433,7 +433,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           firebaseStartupIssue: firebaseStartupIssue,
         )) {
     Future.microtask(() async {
-      await _bootstrapLocalSession();
+      await _safeBootstrapLocalSession();
       if (firebaseReady) {
         await _bootstrapOnlineSession();
       }
@@ -446,6 +446,18 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   final LocalProgressRepository? _localProgressRepository;
   final GrowthEngine _growthEngine = const GrowthEngine();
   final StaticDialogueService _dialogueService = const StaticDialogueService();
+
+  Future<void> _safeBootstrapLocalSession() async {
+    try {
+      await _bootstrapLocalSession();
+    } on Object {
+      state = state.copyWith(
+        statusMessage: state.firebaseReady
+            ? '저장된 진행도를 불러오지 못했습니다. 온라인 동기화를 준비합니다.'
+            : '저장된 진행도를 불러오지 못했습니다. 새 진행으로 시작합니다.',
+      );
+    }
+  }
 
   Future<void> _bootstrapLocalSession() async {
     final repository = _localProgressRepository;
@@ -489,16 +501,18 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     unawaited(_saveLocalProgress());
   }
 
-  Future<void> _saveLocalProgress() async {
+  Future<bool> _saveLocalProgress() async {
     final repository = _localProgressRepository;
     if (repository == null) {
-      return;
+      return true;
     }
 
     try {
       await repository.saveProgress(_snapshotFromState());
+      return true;
     } on Object {
       // Local persistence must not interrupt play.
+      return false;
     }
   }
 
@@ -546,14 +560,19 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
   }
 
-  void completeOnboarding() {
+  Future<void> completeOnboarding() async {
     state = state.copyWith(
       onboardingComplete: true,
       statusMessage: '마실펫 탐험을 시작합니다.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
-    _persistLocalProgress();
+    final saved = await _saveLocalProgress();
+    if (!saved) {
+      state = state.copyWith(
+        statusMessage: '기기 내 진행을 저장하지 못했습니다. 현재 세션에서는 계속 이용할 수 있습니다.',
+      );
+    }
   }
 
   void setTab(int tab) {
@@ -569,12 +588,19 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   }
 
   void useStarterKoreaLocation() {
+    final enablesLocalCheckIn = _backend == null;
+    final now = DateTime.now();
+
     state = state.copyWith(
+      selectedTab: 0,
       currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: false,
-      clearLocationVerifiedAt: true,
+      locationVerified: enablesLocalCheckIn,
+      locationVerifiedAt: enablesLocalCheckIn ? now : null,
+      clearLocationVerifiedAt: !enablesLocalCheckIn,
       pois: starterPoiSeed,
-      statusMessage: '전국 기본 장소 지도로 이동했습니다. 체크인은 현재 위치 확인 후 가능합니다.',
+      statusMessage: enablesLocalCheckIn
+          ? '전국 기본 체험 위치로 이동했습니다. 추천 장소 체크인을 바로 진행할 수 있습니다.'
+          : '전국 기본 장소 지도로 이동했습니다. 체크인은 현재 위치 확인 후 가능합니다.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
@@ -583,6 +609,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
   Future<void> useDeviceLocation() async {
     state = state.copyWith(
+      selectedTab: 0,
       isBusy: true,
       statusMessage: '현재 위치를 확인하는 중입니다.',
       fieldActivity: PetFieldActivity.walking,

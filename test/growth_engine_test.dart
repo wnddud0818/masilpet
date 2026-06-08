@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masilpet/src/models.dart';
 import 'package:masilpet/src/seed_data.dart';
@@ -68,6 +70,64 @@ void main() {
         expect(line.templateId, template.id);
         expect(line.trigger, category.name);
         expect(line.text, isNotEmpty);
+      }
+    }
+  });
+
+  test('pet templates reference complete display asset sets', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    const requiredGrowth = ['baby', 'grown', 'evolved'];
+    const requiredActions = ['idle'];
+    const requiredEmotions = ['happy'];
+    const animatedPrefixes = ['walk', 'eat', 'greet', 'sleep', 'idle'];
+
+    for (final template in starterPetTemplates) {
+      final root = 'assets/pets/${template.assetKey}';
+      expect(Directory(root).existsSync(), isTrue, reason: template.id);
+      expect(pubspec, contains('- $root/actions/'), reason: template.id);
+      expect(pubspec, contains('- $root/emotions/'), reason: template.id);
+      expect(pubspec, contains('- $root/growth/'), reason: template.id);
+
+      for (final stage in requiredGrowth) {
+        expect(
+          File('$root/growth/$stage.png').existsSync(),
+          isTrue,
+          reason: '${template.id} missing growth/$stage.png',
+        );
+      }
+
+      for (final action in requiredActions) {
+        expect(
+          File('$root/actions/$action.png').existsSync(),
+          isTrue,
+          reason: '${template.id} missing actions/$action.png',
+        );
+      }
+
+      for (final emotion in requiredEmotions) {
+        expect(
+          File('$root/emotions/$emotion.png').existsSync(),
+          isTrue,
+          reason: '${template.id} missing emotions/$emotion.png',
+        );
+      }
+
+      final animations = Directory('$root/animations');
+      if (!animations.existsSync()) {
+        continue;
+      }
+
+      expect(pubspec, contains('- $root/animations/'), reason: template.id);
+      for (final prefix in animatedPrefixes) {
+        for (var frame = 1; frame <= 4; frame += 1) {
+          final frameName = frame.toString().padLeft(2, '0');
+          expect(
+            File('$root/animations/${prefix}_$frameName.png').existsSync(),
+            isTrue,
+            reason:
+                '${template.id} missing animations/${prefix}_$frameName.png',
+          );
+        }
       }
     }
   });

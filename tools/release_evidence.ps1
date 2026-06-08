@@ -379,6 +379,7 @@ $GitStatusText
 - Firebase Hosting URL
 - Privacy URL: `$HostingUrlText/privacy.html`
 - `tools/release_preflight.ps1` terminal result
+- `tools/local_judging_smoke.ps1` terminal result and `build/verification/local-judging-smoke-result.json`
 - `tools/hosting_smoke.ps1` terminal result
 - This evidence report
 - Profile screen screenshot showing app version, build channel, and build time

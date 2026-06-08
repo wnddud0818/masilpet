@@ -68,3 +68,11 @@ flutter:
     - assets/pets/flower_mint_buddy/emotions/
     - assets/pets/flower_mint_buddy/growth/
     - assets/pets/flower_mint_buddy/animations/
+    - assets/pets/roof_mascot_pipeline_256/actions/
+    - assets/pets/roof_mascot_pipeline_256/emotions/
+    - assets/pets/roof_mascot_pipeline_256/growth/
+    - assets/pets/roof_mascot_pipeline_256/animations/
+    - assets/pets/roof_mascot_pipeline_128/actions/
+    - assets/pets/roof_mascot_pipeline_128/emotions/
+    - assets/pets/roof_mascot_pipeline_128/growth/
+    - assets/pets/roof_mascot_pipeline_128/animations/

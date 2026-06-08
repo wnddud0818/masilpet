@@ -1690,6 +1690,89 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map visit receipt turns a check-in into follow-up actions',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: [starterPoiSeed.first],
+      currentLocation: starterPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: now,
+      checkIns: [
+        CheckIn(
+          id: 'checkin-map-receipt',
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 12,
+          rewardApplied: true,
+          reward: const CheckInReward(
+            stats: GrowthStats(
+              exp: 22,
+              mood: 4,
+              knowledge: 22,
+              affinity: 8,
+            ),
+            eggProgress: 760,
+          ),
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('방문 인증 완료'), findsOneWidget);
+    expect(find.textContaining('경복궁 · 역사 · 12m'), findsOneWidget);
+    expect(find.text('오늘 1회'), findsOneWidget);
+    expect(find.text('19회 남음'), findsOneWidget);
+    expect(find.text('1일 연속'), findsOneWidget);
+    expect(find.text('EXP +22'), findsWidgets);
+    expect(find.text('지식 +22'), findsWidgets);
+    expect(find.text('알 +760'), findsWidgets);
+
+    final petAction = find.widgetWithText(FilledButton, '마실펫에게 들려주기');
+    expect(petAction, findsOneWidget);
+
+    await tester.tap(petAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 1);
+
+    final reportAction = find.widgetWithText(OutlinedButton, '리포트 보기');
+    expect(reportAction, findsOneWidget);
+
+    await tester.tap(reportAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 4);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map route guide marks completed recommendations as visited',
       (WidgetTester tester) async {
     final now = DateTime.now();

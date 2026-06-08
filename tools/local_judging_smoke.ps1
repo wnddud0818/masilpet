@@ -228,6 +228,15 @@ await wait(800);
 await click(330, 590); // route card recommended check-in
 await wait(1600);
 await screenshot("local-judging-after-checkin");
+await send("Input.dispatchMouseEvent", {
+  type: "mouseWheel",
+  x: 640,
+  y: 220,
+  deltaY: -900,
+  deltaX: 0,
+});
+await wait(800);
+await screenshot("local-judging-after-receipt");
 
 await click(90, 108); // pet navigation rail item
 await wait(1600);

@@ -657,6 +657,7 @@ void main() {
     expect(localJudgingSmokeScript, contains('remote-debugging-port'));
     expect(localJudgingSmokeScript, contains('local-judging-after-fallback'));
     expect(localJudgingSmokeScript, contains('local-judging-after-checkin'));
+    expect(localJudgingSmokeScript, contains('local-judging-after-receipt'));
     expect(localJudgingSmokeScript, contains('local-judging-after-talk'));
     expect(
         localJudgingSmokeScript, contains('local-judging-smoke-result.json'));
@@ -765,6 +766,7 @@ void main() {
     expect(readme, contains('web/screenshots/onboarding-mobile.png'));
     expect(readme, contains('POI 카테고리 필터'));
     expect(readme, contains('추천 코스'));
+    expect(readme, contains('방문 인증 완료'));
     expect(readme, contains('오늘의 탐험 리포트'));
     expect(readme, contains('연속 탐험'));
     expect(readme, contains('탐험 배지'));
@@ -782,6 +784,8 @@ void main() {
     expect(submission, contains('동행 대화'));
     expect(submission, contains('추천 코스'));
     expect(submission, contains('카테고리 필터'));
+    expect(submission, contains('방문 인증 완료'));
+    expect(submission, contains('리포트 다음 행동'));
     expect(submission, contains('오늘의 탐험 리포트'));
     expect(submission, contains('연속 탐험'));
     expect(submission, contains('탐험 배지'));
@@ -796,6 +800,8 @@ void main() {
     expect(checklist, contains('지금 체크인 가능'));
     expect(checklist, contains('추천 코스'));
     expect(checklist, contains('카테고리 필터'));
+    expect(checklist, contains('방문 인증 완료'));
+    expect(checklist, contains('리포트 보기'));
     expect(checklist, contains('마실펫과 대화하기'));
     expect(checklist, contains('동행 대화'));
     expect(checklist, contains('오늘의 탐험 리포트'));

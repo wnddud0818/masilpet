@@ -27,6 +27,7 @@ class MapScreen extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
     final controller = ref.read(masilPetControllerProvider.notifier);
     final nearby = state.nearbyPois;
+    final latestCheckIn = _latestMapTodayCheckIn(state);
 
     return CustomScrollView(
       slivers: [
@@ -46,6 +47,17 @@ class MapScreen extends ConsumerWidget {
           sliver: ResponsiveSliverList(
             children: [
               const StatusBanner(),
+              if (latestCheckIn != null) ...[
+                const SizedBox(height: 12),
+                _VisitReceiptCard(
+                  state: state,
+                  checkIn: latestCheckIn,
+                  poi: _mapPoiForCheckIn(state, latestCheckIn),
+                  onOpenPet: state.isBusy ? null : () => controller.setTab(1),
+                  onOpenProfile:
+                      state.isBusy ? null : () => controller.setTab(4),
+                ),
+              ],
               const SizedBox(height: 12),
               _ExplorationBriefing(
                 state: state,
@@ -86,6 +98,199 @@ class MapScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _VisitReceiptCard extends StatelessWidget {
+  const _VisitReceiptCard({
+    required this.state,
+    required this.checkIn,
+    required this.poi,
+    required this.onOpenPet,
+    required this.onOpenProfile,
+  });
+
+  final MasilPetState state;
+  final CheckIn checkIn;
+  final Poi? poi;
+  final VoidCallback? onOpenPet;
+  final VoidCallback? onOpenProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final reward = checkIn.rewardApplied
+        ? checkIn.reward ?? const GrowthEngine().rewardFor(checkIn.category)
+        : null;
+    final categoryColor = _categoryColor(checkIn.category);
+    final poiTitle = poi?.title ?? '저장된 방문 장소';
+    final petName = state.activePet?.name ?? '마실펫';
+
+    return Card(
+      color: scheme.primaryContainer.withValues(alpha: 0.18),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.verified_outlined,
+                    color: Color(0xFF16A34A),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '방문 인증 완료',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$poiTitle · ${checkIn.category.label} · ${checkIn.distanceMeters.round()}m',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _RoutePreviewPill(
+                  icon: Icons.flag_outlined,
+                  label: '오늘 ${state.todayCheckInCount}회',
+                  color: scheme.primary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '$poiTitle 방문이 $petName의 성장 기억으로 저장됐습니다. 받은 보상을 확인하고 바로 대화로 이어가세요.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _RoutePreviewPill(
+                  icon: _categoryIcon(checkIn.category),
+                  label: checkIn.category.label,
+                  color: categoryColor,
+                ),
+                _RoutePreviewPill(
+                  icon: Icons.event_available_outlined,
+                  label: state.remainingDailyCheckIns == 0
+                      ? '오늘 한도 완료'
+                      : '${state.remainingDailyCheckIns}회 남음',
+                  color: const Color(0xFF0F766E),
+                ),
+                _RoutePreviewPill(
+                  icon: Icons.local_fire_department_outlined,
+                  label: '${state.currentVisitStreakDays}일 연속',
+                  color: const Color(0xFFEA580C),
+                ),
+              ],
+            ),
+            if (reward != null) ...[
+              const SizedBox(height: 10),
+              RewardChipRow(
+                reward: reward,
+                spacing: 6,
+                runSpacing: 6,
+              ),
+            ],
+            const SizedBox(height: 12),
+            _VisitReceiptActions(
+              onOpenPet: onOpenPet,
+              onOpenProfile: onOpenProfile,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VisitReceiptActions extends StatelessWidget {
+  const _VisitReceiptActions({
+    required this.onOpenPet,
+    required this.onOpenProfile,
+  });
+
+  final VoidCallback? onOpenPet;
+  final VoidCallback? onOpenProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final petAction = FilledButton.icon(
+      onPressed: onOpenPet,
+      icon: const Icon(Icons.forum_outlined),
+      label: const Text('마실펫에게 들려주기'),
+    );
+    final reportAction = OutlinedButton.icon(
+      onPressed: onOpenProfile,
+      icon: const Icon(Icons.assignment_outlined),
+      label: const Text('리포트 보기'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 390) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              petAction,
+              const SizedBox(height: 8),
+              reportAction,
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: petAction),
+            const SizedBox(width: 8),
+            Expanded(child: reportAction),
+          ],
+        );
+      },
+    );
+  }
+}
+
+CheckIn? _latestMapTodayCheckIn(MasilPetState state) {
+  final today = [...state.todayCheckIns];
+  if (today.isEmpty) {
+    return null;
+  }
+  today.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+  return today.first;
+}
+
+Poi? _mapPoiForCheckIn(MasilPetState state, CheckIn checkIn) {
+  for (final poi in state.pois) {
+    if (poi.id == checkIn.poiId) {
+      return poi;
+    }
+  }
+  return null;
 }
 
 class _MapExplorationLayout extends StatelessWidget {

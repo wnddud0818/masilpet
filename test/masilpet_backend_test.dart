@@ -16,6 +16,7 @@ void main() {
 
     expect(poi, isNotNull);
     expect(poi!.regionId, 'korea');
+    expect(poi.tourApiContentId, '1');
     expect(poi.category, PoiCategory.other);
     expect(poi.distanceMeters, 0);
   });

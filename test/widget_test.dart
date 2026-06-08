@@ -697,7 +697,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('경복궁'), findsOneWidget);
-    expect(find.text('대한민국 · 전국 기본 장소'), findsOneWidget);
+    expect(find.text('서울특별시 · 전국 기본 장소'), findsOneWidget);
     expect(find.textContaining('seed-kr-001'), findsNothing);
     expect(find.text('EXP +22'), findsOneWidget);
     expect(find.text('기분 +4'), findsOneWidget);
@@ -750,7 +750,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('테스트 여행지'), findsOneWidget);
-    expect(find.text('대한민국 · TourAPI ID 2785118'), findsOneWidget);
+    expect(find.text('부산광역시 · TourAPI ID 2785118'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

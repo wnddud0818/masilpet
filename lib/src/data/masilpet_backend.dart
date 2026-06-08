@@ -139,6 +139,7 @@ class MasilPetBackendException implements Exception {
 class RemotePoi {
   const RemotePoi({
     required this.id,
+    required this.tourApiContentId,
     required this.title,
     required this.regionId,
     required this.category,
@@ -165,6 +166,7 @@ class RemotePoi {
 
     return RemotePoi(
       id: id,
+      tourApiContentId: _tourApiContentIdFromMap(map, id),
       title: title,
       regionId: _stringFromValue(map['regionId'], fallback: 'korea'),
       category: _categoryFromName(_stringFromValue(map['category'])),
@@ -177,11 +179,21 @@ class RemotePoi {
   }
 
   final String id;
+  final String tourApiContentId;
   final String title;
   final String regionId;
   final PoiCategory category;
   final Coordinates coordinates;
   final double distanceMeters;
+}
+
+String _tourApiContentIdFromMap(Map<String, dynamic> map, String id) {
+  final contentId = _stringFromValue(map['tourApiContentId']);
+  if (contentId.isNotEmpty) {
+    return contentId;
+  }
+  const prefix = 'tourapi-';
+  return id.startsWith(prefix) ? id.substring(prefix.length) : id;
 }
 
 class RemoteCheckInResult {

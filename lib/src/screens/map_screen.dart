@@ -6,6 +6,7 @@ import 'package:url_launcher/link.dart';
 
 import '../app_build_info.dart';
 import '../models.dart';
+import '../seed_data.dart';
 import '../services.dart';
 import '../state.dart';
 import '../widgets/metric_grid.dart';
@@ -1089,7 +1090,8 @@ class _PoiTile extends ConsumerWidget {
             Text(poi.shortDescription),
             const SizedBox(height: 8),
             _PoiSourceLine(
-              label: '${state.region.name} · ${_poiSourceLabel(poi)}',
+              label:
+                  '${regionNameForId(poi.regionId)} · ${_poiSourceLabel(poi)}',
             ),
             const SizedBox(height: 10),
             RewardChipRow(reward: reward),

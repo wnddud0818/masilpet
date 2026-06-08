@@ -628,7 +628,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   Poi _poiFromRemote(RemotePoi remote) {
     return Poi(
       id: remote.id,
-      tourApiContentId: remote.id,
+      tourApiContentId: remote.tourApiContentId,
       title: remote.title,
       regionId: remote.regionId,
       category: remote.category,

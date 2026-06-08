@@ -130,6 +130,20 @@ const supportedKoreaRegions = <Region>[
   ),
 ];
 
+String regionNameForId(String regionId) {
+  if (regionId == koreaRegion.id) {
+    return koreaRegion.name;
+  }
+
+  for (final region in supportedKoreaRegions) {
+    if (region.id == regionId) {
+      return region.name;
+    }
+  }
+
+  return koreaRegion.name;
+}
+
 const starterPoiSeed = <Poi>[
   Poi(
     id: 'seoul-gyeongbokgung',

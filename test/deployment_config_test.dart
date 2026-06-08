@@ -754,6 +754,7 @@ void main() {
     expect(readme, contains('docs/SUBMISSION_PACKAGE.md'));
     expect(readme, contains('web/screenshots/onboarding-wide.png'));
     expect(readme, contains('web/screenshots/onboarding-mobile.png'));
+    expect(readme, contains('POI 카테고리 필터'));
     expect(readme, contains('오늘의 탐험 리포트'));
     expect(readme, contains('탐험 배지'));
     expect(checklist, contains('SUBMISSION_PACKAGE.md'));
@@ -766,6 +767,7 @@ void main() {
     expect(submission, contains('빠른 심사 체험 경로'));
     expect(submission, contains('기본 위치로 체험'));
     expect(submission, contains('마실펫과 대화하기'));
+    expect(submission, contains('카테고리 필터'));
     expect(submission, contains('오늘의 탐험 리포트'));
     expect(submission, contains('탐험 배지'));
     expect(submission, contains('요약 복사'));
@@ -775,6 +777,7 @@ void main() {
     expect(submission, contains('실제 적용된 체크인 보상 상세 표시'));
     expect(checklist, contains('기본 위치로 체험'));
     expect(checklist, contains('지금 체크인 가능'));
+    expect(checklist, contains('카테고리 필터'));
     expect(checklist, contains('마실펫과 대화하기'));
     expect(checklist, contains('오늘의 탐험 리포트'));
     expect(checklist, contains('탐험 배지'));

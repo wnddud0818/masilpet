@@ -139,7 +139,7 @@ class _MapExplorationLayout extends StatelessWidget {
   }
 }
 
-class _NearbyPoiList extends StatelessWidget {
+class _NearbyPoiList extends StatefulWidget {
   const _NearbyPoiList({
     required this.nearby,
     required this.onUseDeviceLocation,
@@ -149,29 +149,150 @@ class _NearbyPoiList extends StatelessWidget {
   final VoidCallback? onUseDeviceLocation;
 
   @override
+  State<_NearbyPoiList> createState() => _NearbyPoiListState();
+}
+
+class _NearbyPoiListState extends State<_NearbyPoiList> {
+  PoiCategory? _selectedCategory;
+
+  @override
   Widget build(BuildContext context) {
+    final categories = _visiblePoiCategories(widget.nearby);
+    final selectedCategory =
+        categories.contains(_selectedCategory) ? _selectedCategory : null;
+    final filtered = selectedCategory == null
+        ? widget.nearby
+        : widget.nearby
+            .where((poi) => poi.category == selectedCategory)
+            .toList(growable: false);
+    final detail = selectedCategory == null
+        ? '${widget.nearby.length}곳'
+        : '${filtered.length}/${widget.nearby.length}곳';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SectionHeader(
           title: '가까운 POI',
-          detail: '${nearby.length}곳',
+          detail: detail,
           icon: Icons.near_me_outlined,
         ),
-        if (nearby.isEmpty)
+        if (widget.nearby.isEmpty)
           EmptyStateCard(
             icon: Icons.location_off_outlined,
             title: '근처 POI가 없습니다',
             body: '현재 위치를 다시 확인하면 가까운 여행지가 표시됩니다.',
             actionIcon: Icons.my_location,
             actionLabel: '현재 위치 다시 확인',
-            onAction: onUseDeviceLocation,
+            onAction: widget.onUseDeviceLocation,
           )
-        else
-          for (final poi in nearby) _PoiTile(poi: poi),
+        else ...[
+          _PoiCategoryFilterBar(
+            categories: categories,
+            selectedCategory: selectedCategory,
+            totalCount: widget.nearby.length,
+            categoryCounts: _categoryCounts(widget.nearby),
+            onSelected: (category) {
+              setState(() {
+                _selectedCategory = category;
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          for (final poi in filtered) _PoiTile(poi: poi),
+        ],
       ],
     );
   }
+}
+
+class _PoiCategoryFilterBar extends StatelessWidget {
+  const _PoiCategoryFilterBar({
+    required this.categories,
+    required this.selectedCategory,
+    required this.totalCount,
+    required this.categoryCounts,
+    required this.onSelected,
+  });
+
+  final List<PoiCategory> categories;
+  final PoiCategory? selectedCategory;
+  final int totalCount;
+  final Map<PoiCategory, int> categoryCounts;
+  final ValueChanged<PoiCategory?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 2),
+      color: scheme.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.filter_alt_outlined,
+                  size: 18,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '카테고리 필터',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                FilterChip(
+                  selected: selectedCategory == null,
+                  showCheckmark: true,
+                  label: Text('전체 $totalCount'),
+                  onSelected: (_) => onSelected(null),
+                ),
+                for (final category in categories)
+                  FilterChip(
+                    selected: selectedCategory == category,
+                    showCheckmark: true,
+                    avatar: Icon(
+                      _categoryIcon(category),
+                      size: 16,
+                      color: selectedCategory == category
+                          ? scheme.onSecondaryContainer
+                          : _categoryColor(category),
+                    ),
+                    label: Text(
+                      '${category.label} ${categoryCounts[category] ?? 0}',
+                    ),
+                    onSelected: (selected) {
+                      onSelected(selected ? category : null);
+                    },
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+Map<PoiCategory, int> _categoryCounts(List<Poi> pois) {
+  final counts = <PoiCategory, int>{};
+  for (final poi in pois) {
+    counts.update(poi.category, (value) => value + 1, ifAbsent: () => 1);
+  }
+  return counts;
 }
 
 class _ExplorationBriefing extends StatelessWidget {
@@ -1207,6 +1328,18 @@ String _poiSourceLabel(Poi poi) {
     return '전국 기본 장소';
   }
   return 'TourAPI ID $contentId';
+}
+
+IconData _categoryIcon(PoiCategory category) {
+  return switch (category) {
+    PoiCategory.nature => Icons.park_outlined,
+    PoiCategory.food => Icons.restaurant_outlined,
+    PoiCategory.festival => Icons.celebration_outlined,
+    PoiCategory.culture => Icons.theater_comedy_outlined,
+    PoiCategory.history => Icons.account_balance_outlined,
+    PoiCategory.shopping => Icons.storefront_outlined,
+    PoiCategory.other => Icons.place_outlined,
+  };
 }
 
 class _CategoryChip extends StatelessWidget {

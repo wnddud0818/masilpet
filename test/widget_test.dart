@@ -1043,6 +1043,93 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map poi list filters nearby places by category',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      pois: const [
+        Poi(
+          id: 'filter-history',
+          tourApiContentId: 'seed-filter-history',
+          title: '성곽 산책지',
+          regionId: 'seoul',
+          category: PoiCategory.history,
+          coordinates: Coordinates(latitude: 37.5796, longitude: 126.977),
+          shortDescription: '역사 카테고리 필터 후보',
+        ),
+        Poi(
+          id: 'filter-food',
+          tourApiContentId: 'seed-filter-food',
+          title: '시장 분식 골목',
+          regionId: 'seoul',
+          category: PoiCategory.food,
+          coordinates: Coordinates(latitude: 37.5797, longitude: 126.9771),
+          shortDescription: '음식 카테고리 필터 후보',
+        ),
+        Poi(
+          id: 'filter-nature',
+          tourApiContentId: 'seed-filter-nature',
+          title: '도심 숲길',
+          regionId: 'seoul',
+          category: PoiCategory.nature,
+          coordinates: Coordinates(latitude: 37.5798, longitude: 126.9772),
+          shortDescription: '자연 카테고리 필터 후보',
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('카테고리 필터'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '전체 3'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, '음식 1'), findsOneWidget);
+    expect(find.text('성곽 산책지'), findsOneWidget);
+    expect(find.text('시장 분식 골목'), findsOneWidget);
+    expect(find.text('도심 숲길'), findsOneWidget);
+
+    final foodFilter = find.widgetWithText(FilterChip, '음식 1');
+    await tester.ensureVisible(foodFilter);
+    await tester.pump();
+    await tester.tap(foodFilter);
+    await tester.pump();
+
+    expect(find.text('1/3곳'), findsOneWidget);
+    expect(find.text('성곽 산책지'), findsNothing);
+    expect(find.text('시장 분식 골목'), findsOneWidget);
+    expect(find.text('도심 숲길'), findsNothing);
+
+    await tester.tap(find.widgetWithText(FilterChip, '전체 3'));
+    await tester.pump();
+
+    expect(find.text('성곽 산책지'), findsOneWidget);
+    expect(find.text('시장 분식 골목'), findsOneWidget);
+    expect(find.text('도심 숲길'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map markers expose accessible semantics',
       (WidgetTester tester) async {
     final semantics = tester.ensureSemantics();

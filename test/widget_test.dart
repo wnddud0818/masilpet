@@ -920,6 +920,64 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('home shell surfaces progress badges on phone navigation',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
+    controller.state = controller.state.copyWith(
+      currentLocation: starterPoiSeed.first.coordinates,
+      locationVerified: true,
+      locationVerifiedAt: now,
+      dialogueCountToday: 1,
+      dialogueDay: now,
+      checkIns: [
+        CheckIn(
+          id: 'checkin-nav-badge',
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 8,
+          rewardApplied: true,
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: HomeShell()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byTooltip('지도 탭: 오늘 체크인 1회'), findsWidgets);
+    expect(find.byTooltip('마실펫 탭: 대화 4회 가능'), findsWidgets);
+    expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
+    expect(find.byTooltip('도감 탭: 미발견 6종'), findsWidgets);
+    expect(find.byTooltip('내 정보 탭: 탐험 준비 75%'), findsWidgets);
+    expect(find.byType(Badge), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('home shell uses navigation rail on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -947,6 +1005,11 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
     expect(rail.extended, isTrue);
     expect(rail.destinations, hasLength(5));
+    expect(find.byTooltip('지도 탭: 위치 확인 필요'), findsWidgets);
+    expect(find.byTooltip('마실펫 탭: 대화 5회 가능'), findsWidgets);
+    expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
+    expect(find.byTooltip('도감 탭: 미발견 6종'), findsWidgets);
+    expect(find.byTooltip('내 정보 탭: 탐험 준비 50%'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 

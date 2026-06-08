@@ -771,6 +771,7 @@ void main() {
     expect(readme, contains('오늘의 탐험 리포트'));
     expect(readme, contains('오늘의 성과 카드'));
     expect(readme, contains('성장 루프'));
+    expect(readme, contains('네비게이션 배지'));
     expect(readme, contains('연속 탐험'));
     expect(readme, contains('탐험 배지'));
     expect(readme, contains('동행 대화'));
@@ -793,6 +794,8 @@ void main() {
     expect(submission, contains('오늘의 성과 카드'));
     expect(submission, contains('성과 등급'));
     expect(submission, contains('도감 목표 다음 행동'));
+    expect(submission, contains('네비게이션 배지'));
+    expect(submission, contains('탐험 준비 진행 배지'));
     expect(submission, contains('연속 탐험'));
     expect(submission, contains('탐험 배지'));
     expect(submission, contains('요약 복사'));
@@ -814,6 +817,8 @@ void main() {
     expect(checklist, contains('오늘의 성과 카드'));
     expect(checklist, contains('성장 루프'));
     expect(checklist, contains('카테고리 기억'));
+    expect(checklist, contains('네비게이션 배지'));
+    expect(checklist, contains('미발견 도감'));
     expect(checklist, contains('연속 탐험'));
     expect(checklist, contains('탐험 배지'));
     expect(checklist, contains('요약 복사'));

@@ -1,6 +1,6 @@
 import {initializeApp} from 'firebase-admin/app';
 import {FieldValue, Timestamp, getFirestore} from 'firebase-admin/firestore';
-import type {DocumentReference, Transaction} from 'firebase-admin/firestore';
+import type {DocumentReference, Transaction, WriteBatch} from 'firebase-admin/firestore';
 import {HttpsError, onCall} from 'firebase-functions/v2/https';
 import {logger} from 'firebase-functions';
 import {defineSecret} from 'firebase-functions/params';
@@ -61,14 +61,306 @@ type EggDoc = {
   status: 'incubating' | 'hatchable' | 'hatched';
 };
 
-const busanRegionSeed = {
-  name: '부산광역시',
-  areaCode: '6',
-  center: {lat: 35.1796, lng: 129.0756},
+type RegionDoc = {
+  name: string;
+  areaCode: string;
+  center: {lat: number; lng: number};
+  pilotEnabled: boolean;
+};
+
+type RegionSeed = RegionDoc & {id: string};
+
+const koreaRegionSeed: RegionSeed = {
+  id: 'korea',
+  name: '대한민국',
+  areaCode: '',
+  center: {lat: 36.5, lng: 127.8},
   pilotEnabled: true,
 };
 
-const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
+const tourAreaRegions: RegionSeed[] = [
+  {
+    id: 'seoul',
+    name: '서울특별시',
+    areaCode: '1',
+    center: {lat: 37.5665, lng: 126.9780},
+    pilotEnabled: true,
+  },
+  {
+    id: 'incheon',
+    name: '인천광역시',
+    areaCode: '2',
+    center: {lat: 37.4563, lng: 126.7052},
+    pilotEnabled: true,
+  },
+  {
+    id: 'busan',
+    name: '부산광역시',
+    areaCode: '6',
+    center: {lat: 35.1796, lng: 129.0756},
+    pilotEnabled: true,
+  },
+  {
+    id: 'daegu',
+    name: '대구광역시',
+    areaCode: '7',
+    center: {lat: 35.8714, lng: 128.6014},
+    pilotEnabled: true,
+  },
+  {
+    id: 'gwangju',
+    name: '광주광역시',
+    areaCode: '8',
+    center: {lat: 35.1595, lng: 126.8526},
+    pilotEnabled: true,
+  },
+  {
+    id: 'daejeon',
+    name: '대전광역시',
+    areaCode: '9',
+    center: {lat: 36.3504, lng: 127.3845},
+    pilotEnabled: true,
+  },
+  {
+    id: 'ulsan',
+    name: '울산광역시',
+    areaCode: '10',
+    center: {lat: 35.5384, lng: 129.3114},
+    pilotEnabled: true,
+  },
+  {
+    id: 'sejong',
+    name: '세종특별자치시',
+    areaCode: '11',
+    center: {lat: 36.4800, lng: 127.2890},
+    pilotEnabled: true,
+  },
+  {
+    id: 'gyeonggi',
+    name: '경기도',
+    areaCode: '31',
+    center: {lat: 37.2751, lng: 127.0095},
+    pilotEnabled: true,
+  },
+  {
+    id: 'gangwon',
+    name: '강원특별자치도',
+    areaCode: '32',
+    center: {lat: 37.8854, lng: 127.7298},
+    pilotEnabled: true,
+  },
+  {
+    id: 'chungbuk',
+    name: '충청북도',
+    areaCode: '33',
+    center: {lat: 36.6357, lng: 127.4914},
+    pilotEnabled: true,
+  },
+  {
+    id: 'chungnam',
+    name: '충청남도',
+    areaCode: '34',
+    center: {lat: 36.6588, lng: 126.6728},
+    pilotEnabled: true,
+  },
+  {
+    id: 'gyeongbuk',
+    name: '경상북도',
+    areaCode: '35',
+    center: {lat: 36.5760, lng: 128.5056},
+    pilotEnabled: true,
+  },
+  {
+    id: 'gyeongnam',
+    name: '경상남도',
+    areaCode: '36',
+    center: {lat: 35.2383, lng: 128.6924},
+    pilotEnabled: true,
+  },
+  {
+    id: 'jeonbuk',
+    name: '전북특별자치도',
+    areaCode: '37',
+    center: {lat: 35.8203, lng: 127.1088},
+    pilotEnabled: true,
+  },
+  {
+    id: 'jeonnam',
+    name: '전라남도',
+    areaCode: '38',
+    center: {lat: 34.8161, lng: 126.4630},
+    pilotEnabled: true,
+  },
+  {
+    id: 'jeju',
+    name: '제주특별자치도',
+    areaCode: '39',
+    center: {lat: 33.4996, lng: 126.5312},
+    pilotEnabled: true,
+  },
+];
+
+const starterPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
+  {
+    id: 'seoul-gyeongbokgung',
+    tourApiContentId: 'seed-kr-001',
+    title: '경복궁',
+    regionId: 'seoul',
+    category: 'history',
+    lat: 37.5796,
+    lng: 126.9770,
+    shortDescription: '서울의 궁궐 산책과 역사 탐험을 대표하는 POI',
+  },
+  {
+    id: 'incheon-chinatown',
+    tourApiContentId: 'seed-kr-002',
+    title: '인천 차이나타운',
+    regionId: 'incheon',
+    category: 'culture',
+    lat: 37.4765,
+    lng: 126.6189,
+    shortDescription: '항구 도시의 골목과 식문화를 함께 만나는 문화 POI',
+  },
+  {
+    id: 'daegu-seomun-market',
+    tourApiContentId: 'seed-kr-003',
+    title: '서문시장',
+    regionId: 'daegu',
+    category: 'shopping',
+    lat: 35.8692,
+    lng: 128.5817,
+    shortDescription: '대구의 오래된 상권과 먹거리를 잇는 시장 POI',
+  },
+  {
+    id: 'gwangju-acc',
+    tourApiContentId: 'seed-kr-004',
+    title: '국립아시아문화전당',
+    regionId: 'gwangju',
+    category: 'culture',
+    lat: 35.1469,
+    lng: 126.9197,
+    shortDescription: '전시와 공연 흐름을 담은 광주 문화 POI',
+  },
+  {
+    id: 'daejeon-expo-park',
+    tourApiContentId: 'seed-kr-005',
+    title: '엑스포과학공원',
+    regionId: 'daejeon',
+    category: 'culture',
+    lat: 36.3742,
+    lng: 127.3826,
+    shortDescription: '과학 도시의 전시와 산책을 연결하는 문화 POI',
+  },
+  {
+    id: 'ulsan-taehwagang-garden',
+    tourApiContentId: 'seed-kr-006',
+    title: '태화강 국가정원',
+    regionId: 'ulsan',
+    category: 'nature',
+    lat: 35.5486,
+    lng: 129.3019,
+    shortDescription: '강변 정원 산책과 자연 보상을 연결하는 POI',
+  },
+  {
+    id: 'sejong-lake-park',
+    tourApiContentId: 'seed-kr-007',
+    title: '세종호수공원',
+    regionId: 'sejong',
+    category: 'nature',
+    lat: 36.4980,
+    lng: 127.2747,
+    shortDescription: '도심 호수와 산책 루틴을 담은 자연 POI',
+  },
+  {
+    id: 'gyeonggi-suwon-hwaseong',
+    tourApiContentId: 'seed-kr-008',
+    title: '수원화성',
+    regionId: 'gyeonggi',
+    category: 'history',
+    lat: 37.2879,
+    lng: 127.0165,
+    shortDescription: '성곽길과 역사 미션을 연결하는 경기 POI',
+  },
+  {
+    id: 'gangwon-seoraksan',
+    tourApiContentId: 'seed-kr-009',
+    title: '설악산국립공원',
+    regionId: 'gangwon',
+    category: 'nature',
+    lat: 38.1195,
+    lng: 128.4656,
+    shortDescription: '강원 산악 경관과 자연 친밀도에 맞춘 POI',
+  },
+  {
+    id: 'chungbuk-cheongnamdae',
+    tourApiContentId: 'seed-kr-010',
+    title: '청남대',
+    regionId: 'chungbuk',
+    category: 'history',
+    lat: 36.4623,
+    lng: 127.4905,
+    shortDescription: '호반 산책과 근현대 이야기를 담은 충북 POI',
+  },
+  {
+    id: 'chungnam-gongsanseong',
+    tourApiContentId: 'seed-kr-011',
+    title: '공주 공산성',
+    regionId: 'chungnam',
+    category: 'history',
+    lat: 36.4622,
+    lng: 127.1245,
+    shortDescription: '백제 역사와 성곽 탐험을 잇는 충남 POI',
+  },
+  {
+    id: 'gyeongbuk-bulguksa',
+    tourApiContentId: 'seed-kr-012',
+    title: '불국사',
+    regionId: 'gyeongbuk',
+    category: 'history',
+    lat: 35.7900,
+    lng: 129.3321,
+    shortDescription: '경주의 역사 상징을 담은 경북 POI',
+  },
+  {
+    id: 'gyeongnam-haeinsa',
+    tourApiContentId: 'seed-kr-013',
+    title: '해인사',
+    regionId: 'gyeongnam',
+    category: 'history',
+    lat: 35.8014,
+    lng: 128.0980,
+    shortDescription: '산사와 기록문화가 만나는 경남 역사 POI',
+  },
+  {
+    id: 'jeonbuk-hanok-village',
+    tourApiContentId: 'seed-kr-014',
+    title: '전주 한옥마을',
+    regionId: 'jeonbuk',
+    category: 'culture',
+    lat: 35.8144,
+    lng: 127.1536,
+    shortDescription: '한옥 골목과 음식 문화를 잇는 전북 POI',
+  },
+  {
+    id: 'jeonnam-suncheon-bay',
+    tourApiContentId: 'seed-kr-015',
+    title: '순천만습지',
+    regionId: 'jeonnam',
+    category: 'nature',
+    lat: 34.8850,
+    lng: 127.5090,
+    shortDescription: '갈대밭과 생태 산책을 담은 전남 자연 POI',
+  },
+  {
+    id: 'jeju-seongsan-ilchulbong',
+    tourApiContentId: 'seed-kr-016',
+    title: '성산일출봉',
+    regionId: 'jeju',
+    category: 'nature',
+    lat: 33.4580,
+    lng: 126.9425,
+    shortDescription: '제주 오름 경관과 자연 보상을 연결하는 POI',
+  },
   {
     id: 'busan-haeundae-beach',
     tourApiContentId: 'seed-001',
@@ -191,11 +483,11 @@ const busanPoiSeed: Array<PoiDoc & {id: string; shortDescription: string}> = [
   },
 ];
 
-const busanPetTemplateSeed = [
+const starterPetTemplateSeed = [
   {
     id: 'wave-naru',
     name: '파도나루',
-    regionId: 'busan',
+    regionId: 'korea',
     rarity: 'common',
     primaryCategory: 'nature',
     basePersonality: '바다 산책을 좋아하고 새로운 길을 먼저 살핀다.',
@@ -206,7 +498,7 @@ const busanPetTemplateSeed = [
   {
     id: 'harbor-maru',
     name: '항구마루',
-    regionId: 'busan',
+    regionId: 'korea',
     rarity: 'common',
     primaryCategory: 'food',
     basePersonality: '시장과 골목의 소리에 민감하고 먹거리 이야기에 밝다.',
@@ -217,7 +509,7 @@ const busanPetTemplateSeed = [
   {
     id: 'film-bori',
     name: '필름보리',
-    regionId: 'busan',
+    regionId: 'korea',
     rarity: 'rare',
     primaryCategory: 'culture',
     basePersonality: '장면과 대사를 기억하며 문화 공간에서 활발해진다.',
@@ -228,7 +520,7 @@ const busanPetTemplateSeed = [
   {
     id: 'spring-dami',
     name: '온천다미',
-    regionId: 'busan',
+    regionId: 'korea',
     rarity: 'rare',
     primaryCategory: 'other',
     basePersonality: '차분하고 회복을 좋아하며 긴 산책 뒤에 힘을 낸다.',
@@ -239,7 +531,7 @@ const busanPetTemplateSeed = [
   {
     id: 'story-goun',
     name: '설화고운',
-    regionId: 'busan',
+    regionId: 'korea',
     rarity: 'epic',
     primaryCategory: 'history',
     basePersonality: '오래된 장소의 이름과 이야기를 차근차근 알려준다.',
@@ -254,13 +546,13 @@ const dialogueSeed = [
     id: 'wave-naru-default',
     templateId: 'wave-naru',
     trigger: 'default',
-    text: '오늘 바람은 해운대 쪽에서 불어와. 가까운 산책길부터 살펴보자.',
+    text: '오늘 바람은 새로운 지역에서 불어와. 가까운 산책길부터 살펴보자.',
   },
   {
     id: 'wave-naru-nature',
     templateId: 'wave-naru',
     trigger: 'nature',
-    text: '바다 근처를 걸으니 몸이 가벼워졌어. 다음엔 동백섬 길도 좋겠다.',
+    text: '자연 가까이를 걸으니 몸이 가벼워졌어. 다음 산책길도 찾아보자.',
   },
   {
     id: 'wave-naru-food',
@@ -272,7 +564,7 @@ const dialogueSeed = [
     id: 'wave-naru-festival',
     templateId: 'wave-naru',
     trigger: 'festival',
-    text: '축제 불빛이 물결처럼 번졌어. 부산의 밤길은 걸을수록 반짝인다.',
+    text: '축제 불빛이 물결처럼 번졌어. 지역의 밤길은 걸을수록 반짝인다.',
   },
   {
     id: 'wave-naru-culture',
@@ -284,7 +576,7 @@ const dialogueSeed = [
     id: 'wave-naru-history',
     templateId: 'wave-naru',
     trigger: 'history',
-    text: '오래된 길에도 바람길이 있구나. 조용히 걸으니 부산의 시간이 들려.',
+    text: '오래된 길에도 바람길이 있구나. 조용히 걸으니 지역의 시간이 들려.',
   },
   {
     id: 'wave-naru-shopping',
@@ -314,7 +606,7 @@ const dialogueSeed = [
     id: 'harbor-maru-food',
     templateId: 'harbor-maru',
     trigger: 'food',
-    text: '자갈치 쪽은 늘 활기가 있어. 기분이 확 올라간다.',
+    text: '시장 쪽은 늘 활기가 있어. 기분이 확 올라간다.',
   },
   {
     id: 'harbor-maru-festival',
@@ -338,7 +630,7 @@ const dialogueSeed = [
     id: 'harbor-maru-shopping',
     templateId: 'harbor-maru',
     trigger: 'shopping',
-    text: '국제시장 같은 골목은 발걸음마다 이야기가 달라져. 잘 따라와.',
+    text: '오래된 상권의 골목은 발걸음마다 이야기가 달라져. 잘 따라와.',
   },
   {
     id: 'harbor-maru-other',
@@ -350,7 +642,7 @@ const dialogueSeed = [
     id: 'film-bori-default',
     templateId: 'film-bori',
     trigger: 'default',
-    text: '부산의 길은 장면처럼 이어져. 오늘은 어떤 장소를 기록할까?',
+    text: '지역의 길은 장면처럼 이어져. 오늘은 어떤 장소를 기록할까?',
   },
   {
     id: 'film-bori-nature',
@@ -398,7 +690,7 @@ const dialogueSeed = [
     id: 'spring-dami-default',
     templateId: 'spring-dami',
     trigger: 'default',
-    text: '천천히 걸어도 괜찮아. 오래 머무는 만큼 부산과 가까워질 수 있어.',
+    text: '천천히 걸어도 괜찮아. 오래 머무는 만큼 이 지역과 가까워질 수 있어.',
   },
   {
     id: 'spring-dami-nature',
@@ -470,7 +762,7 @@ const dialogueSeed = [
     id: 'story-goun-culture',
     templateId: 'story-goun',
     trigger: 'culture',
-    text: '문화 공간에는 지금의 부산이 남기는 문장이 있어. 지식이 또 깊어졌어.',
+    text: '문화 공간에는 지금의 지역이 남기는 문장이 있어. 지식이 또 깊어졌어.',
   },
   {
     id: 'story-goun-history',
@@ -496,14 +788,20 @@ export const seedStarterRegionData = onCall({region: functionRegion}, async (req
   requireOperator(request.auth?.uid, request.auth?.token);
 
   const batch = db.batch();
-  batch.set(db.collection('regions').doc('busan'), busanRegionSeed, {merge: true});
+  const {id: koreaRegionId, ...koreaRegionData} = koreaRegionSeed;
+  batch.set(db.collection('regions').doc(koreaRegionId), koreaRegionData, {merge: true});
 
-  for (const poi of busanPoiSeed) {
+  for (const region of tourAreaRegions) {
+    const {id, ...data} = region;
+    batch.set(db.collection('regions').doc(id), data, {merge: true});
+  }
+
+  for (const poi of starterPoiSeed) {
     const {id, ...data} = poi;
     batch.set(db.collection('pois').doc(id), data, {merge: true});
   }
 
-  for (const template of busanPetTemplateSeed) {
+  for (const template of starterPetTemplateSeed) {
     const {id, ...data} = template;
     batch.set(db.collection('petTemplates').doc(id), data, {merge: true});
   }
@@ -515,9 +813,9 @@ export const seedStarterRegionData = onCall({region: functionRegion}, async (req
 
   await batch.commit();
   return {
-    regionCount: 1,
-    poiCount: busanPoiSeed.length,
-    petTemplateCount: busanPetTemplateSeed.length,
+    regionCount: 1 + tourAreaRegions.length,
+    poiCount: starterPoiSeed.length,
+    petTemplateCount: starterPetTemplateSeed.length,
     dialogueCount: dialogueSeed.length,
   };
 });
@@ -549,7 +847,7 @@ export const deleteUserProgress = onCall({region: functionRegion}, async (reques
   return {success: true};
 });
 
-export const syncBusanPois = onCall({region: functionRegion, secrets: [tourApiKey]}, async (request) => {
+export const syncKoreaPois = onCall({region: functionRegion, secrets: [tourApiKey]}, async (request) => {
   requireOperator(request.auth?.uid, request.auth?.token);
 
   const serviceKey = tourApiKey.value();
@@ -557,50 +855,56 @@ export const syncBusanPois = onCall({region: functionRegion, secrets: [tourApiKe
     throw new HttpsError('failed-precondition', 'TOUR_API_KEY is not configured.');
   }
 
-  const url = new URL('https://apis.data.go.kr/B551011/KorService2/areaBasedList2');
-  url.searchParams.set('serviceKey', serviceKey);
-  url.searchParams.set('MobileOS', 'ETC');
-  url.searchParams.set('MobileApp', 'MasilPet');
-  url.searchParams.set('_type', 'json');
-  url.searchParams.set('areaCode', '6');
-  url.searchParams.set('numOfRows', '100');
-  url.searchParams.set('pageNo', '1');
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new HttpsError('unavailable', `TourAPI request failed: ${response.status}`);
+  const requestedArea = String(request.data?.areaCode ?? request.data?.regionId ?? '').trim();
+  const targetRegions = requestedArea
+    ? tourAreaRegions.filter((region) => region.areaCode === requestedArea || region.id === requestedArea)
+    : tourAreaRegions;
+  if (targetRegions.length === 0) {
+    throw new HttpsError('invalid-argument', 'Unknown TourAPI areaCode or regionId.');
   }
 
-  const payload = (await response.json()) as TourApiResponse;
-  const items = normalizeTourApiItems(payload);
-  const batch = db.batch();
+  const rowsPerArea = rowsPerAreaFromValue(request.data?.numOfRows);
+  const pending: PendingBatch = {batch: db.batch(), writeCount: 0};
+  const syncedByRegion: Record<string, number> = {};
   let count = 0;
 
-  for (const item of items) {
-    if (!item.contentid || !item.title || !item.mapx || !item.mapy) {
-      continue;
+  for (const region of targetRegions) {
+    const items = await fetchTourAreaItems(serviceKey, region.areaCode, rowsPerArea);
+    let regionCount = 0;
+
+    for (const item of items) {
+      if (!item.contentid || !item.title || !item.mapx || !item.mapy) {
+        continue;
+      }
+      const poiRef = db.collection('pois').doc(`tourapi-${item.contentid}`);
+      pending.batch.set(
+        poiRef,
+        {
+          tourApiContentId: item.contentid,
+          title: item.title,
+          regionId: region.id,
+          category: mapTourCategory(item.cat1, item.contenttypeid),
+          lat: Number(item.mapy),
+          lng: Number(item.mapx),
+          sourceUpdatedAt: FieldValue.serverTimestamp(),
+        },
+        {merge: true},
+      );
+      pending.writeCount += 1;
+      await commitBatchIfFull(pending);
+      count += 1;
+      regionCount += 1;
     }
-    const poiRef = db.collection('pois').doc(`tourapi-${item.contentid}`);
-    batch.set(
-      poiRef,
-      {
-        tourApiContentId: item.contentid,
-        title: item.title,
-        regionId: 'busan',
-        category: mapTourCategory(item.cat1, item.contenttypeid),
-        lat: Number(item.mapy),
-        lng: Number(item.mapx),
-        sourceUpdatedAt: FieldValue.serverTimestamp(),
-      },
-      {merge: true},
-    );
-    count += 1;
+
+    syncedByRegion[region.id] = regionCount;
   }
 
-  await batch.commit();
-  logger.info('Synced Busan POIs', {count});
-  return {count};
+  await commitRemainingBatch(pending);
+  logger.info('Synced Korea POIs', {count, regions: targetRegions.length});
+  return {count, regionCount: targetRegions.length, rowsPerArea, syncedByRegion};
 });
+
+export const syncBusanPois = syncKoreaPois;
 
 export const getNearbyPois = onCall({region: functionRegion}, async (request) => {
   requireAuth(request.auth?.uid);
@@ -610,11 +914,15 @@ export const getNearbyPois = onCall({region: functionRegion}, async (request) =>
     throw new HttpsError('invalid-argument', 'lat and lng are required.');
   }
 
-  const snapshot = await db
+  const nearestRegion = nearestTourAreaRegion(lat, lng);
+  let snapshot = await db
     .collection('pois')
-    .where('regionId', '==', 'busan')
-    .limit(250)
+    .where('regionId', '==', nearestRegion.id)
+    .limit(500)
     .get();
+  if (snapshot.empty) {
+    snapshot = await db.collection('pois').limit(1000).get();
+  }
 
   const pois = snapshot.docs
     .map((doc) => ({id: doc.id, ...(doc.data() as PoiDoc)}))
@@ -811,7 +1119,7 @@ export const hatchEgg = onCall({region: functionRegion}, async (request) => {
       throw new HttpsError('failed-precondition', 'Egg is not hatchable yet.');
     }
 
-    const template = busanPetTemplateSeed.find((item) => item.id === egg.templateId);
+    const template = starterPetTemplateSeed.find((item) => item.id === egg.templateId);
     if (!template) {
       throw new HttpsError('failed-precondition', 'Pet template not found.');
     }
@@ -979,8 +1287,8 @@ function setStarterUser(
   transaction.set(userRef, {
     activePetId: starterPetId,
     createdAt: now,
-    displayName: '부산 여행자',
-    homeTheme: 'busan-basic',
+    displayName: '대한민국 여행자',
+    homeTheme: 'korea-basic',
     lastLoginAt: now,
   }, {merge: true});
   transaction.set(userRef.collection('pets').doc(starterPetId), starterPetData(now), {merge: true});
@@ -1009,14 +1317,14 @@ function starterPetRuntimeDoc(): PetDoc {
     stage: 'baby',
     level: 1,
     stats: {exp: 20, mood: 20, knowledge: 5, affinity: 8},
-    originRegionId: 'busan',
+    originRegionId: 'korea',
   };
 }
 
 function starterEggRuntimeDoc(): EggDoc {
   return {
     templateId: 'harbor-maru',
-    originRegionId: 'busan',
+    originRegionId: 'korea',
     progress: 1200,
     requiredSteps: 3500,
     status: 'incubating',
@@ -1078,7 +1386,7 @@ function eggProgressFor(category: PoiCategory): number {
 }
 
 function templateForCategory(category: PoiCategory): string {
-  const matched = busanPetTemplateSeed.find((template) => template.primaryCategory === category);
+  const matched = starterPetTemplateSeed.find((template) => template.primaryCategory === category);
   return matched?.id ?? 'wave-naru';
 }
 
@@ -1140,6 +1448,75 @@ function koreanDayKey(date: Date): string {
 
 function checkInDocumentId(poiId: string, dayKey: string): string {
   return `${poiId}_${dayKey}`;
+}
+
+type PendingBatch = {
+  batch: WriteBatch;
+  writeCount: number;
+};
+
+async function commitBatchIfFull(pending: PendingBatch): Promise<void> {
+  if (pending.writeCount < 450) {
+    return;
+  }
+  await pending.batch.commit();
+  pending.batch = db.batch();
+  pending.writeCount = 0;
+}
+
+async function commitRemainingBatch(pending: PendingBatch): Promise<void> {
+  if (pending.writeCount === 0) {
+    return;
+  }
+  await pending.batch.commit();
+  pending.batch = db.batch();
+  pending.writeCount = 0;
+}
+
+function rowsPerAreaFromValue(value: unknown): number {
+  const parsed = Number(value ?? 100);
+  if (!Number.isFinite(parsed)) {
+    return 100;
+  }
+  return Math.min(100, Math.max(1, Math.trunc(parsed)));
+}
+
+async function fetchTourAreaItems(
+  serviceKey: string,
+  areaCode: string,
+  rowsPerArea: number,
+): Promise<TourApiItem[]> {
+  const url = new URL('https://apis.data.go.kr/B551011/KorService2/areaBasedList2');
+  url.searchParams.set('serviceKey', serviceKey);
+  url.searchParams.set('MobileOS', 'ETC');
+  url.searchParams.set('MobileApp', 'MasilPet');
+  url.searchParams.set('_type', 'json');
+  url.searchParams.set('areaCode', areaCode);
+  url.searchParams.set('numOfRows', String(rowsPerArea));
+  url.searchParams.set('pageNo', '1');
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new HttpsError('unavailable', `TourAPI request failed: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as TourApiResponse;
+  return normalizeTourApiItems(payload);
+}
+
+function nearestTourAreaRegion(lat: number, lng: number): RegionSeed {
+  let nearest = tourAreaRegions[0];
+  let nearestDistance = distanceMeters(lat, lng, nearest.center.lat, nearest.center.lng);
+
+  for (const region of tourAreaRegions.slice(1)) {
+    const distance = distanceMeters(lat, lng, region.center.lat, region.center.lng);
+    if (distance < nearestDistance) {
+      nearest = region;
+      nearestDistance = distance;
+    }
+  }
+
+  return nearest;
 }
 
 function mapTourCategory(cat1?: string, contentTypeId?: string): PoiCategory {

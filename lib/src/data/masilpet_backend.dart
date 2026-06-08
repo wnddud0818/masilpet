@@ -166,7 +166,7 @@ class RemotePoi {
     return RemotePoi(
       id: id,
       title: title,
-      regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+      regionId: _stringFromValue(map['regionId'], fallback: 'korea'),
       category: _categoryFromName(_stringFromValue(map['category'])),
       coordinates: Coordinates(
         latitude: latitude,

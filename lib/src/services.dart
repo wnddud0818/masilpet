@@ -98,9 +98,9 @@ class StaticDialogueService {
     required PoiCategory? lastCategory,
   }) {
     final trigger = lastCategory?.name ?? 'default';
-    return busanDialogueSeed.firstWhere(
+    return starterDialogueSeed.firstWhere(
       (line) => line.templateId == template.id && line.trigger == trigger,
-      orElse: () => busanDialogueSeed.firstWhere(
+      orElse: () => starterDialogueSeed.firstWhere(
         (line) => line.templateId == template.id && line.trigger == 'default',
       ),
     );

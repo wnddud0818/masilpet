@@ -122,7 +122,7 @@ void main() {
 
     expect(find.text('빠른 작업'), findsOneWidget);
     expect(find.text('현재 위치 사용'), findsOneWidget);
-    expect(find.text('해운대 지도 보기'), findsOneWidget);
+    expect(find.text('전국 기본 지도 보기'), findsOneWidget);
     expect(find.text('새로고침'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -233,9 +233,9 @@ void main() {
       checkIns: [
         CheckIn(
           id: 'checkin-readiness-core',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: now,
           distanceMeters: 18,
           rewardApplied: true,
@@ -339,9 +339,9 @@ void main() {
       checkIns: [
         CheckIn(
           id: 'checkin-visit-journal',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: DateTime.now(),
           distanceMeters: 12,
           rewardApplied: true,
@@ -377,8 +377,8 @@ void main() {
 
     expect(find.text('방문 기록'), findsOneWidget);
     expect(find.text('1회'), findsWidgets);
-    expect(find.text(busanPoiSeed.first.title), findsOneWidget);
-    expect(find.text(busanPoiSeed.first.category.label), findsOneWidget);
+    expect(find.text(starterPoiSeed.first.title), findsOneWidget);
+    expect(find.text(starterPoiSeed.first.category.label), findsOneWidget);
     expect(find.textContaining('12m · 보상 적용'), findsOneWidget);
     expect(find.textContaining('12m'), findsOneWidget);
     expect(find.textContaining('보상 적용'), findsOneWidget);
@@ -675,7 +675,7 @@ void main() {
       localProgressRepository: null,
     );
     controller.state = controller.state.copyWith(
-      pois: [busanPoiSeed.first],
+      pois: [starterPoiSeed.first],
     );
     tester.view.physicalSize = const Size(1180, 820);
     tester.view.devicePixelRatio = 1;
@@ -696,14 +696,14 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('해운대 해수욕장'), findsOneWidget);
-    expect(find.text('부산광역시 · 부산 기본 장소'), findsOneWidget);
-    expect(find.textContaining('seed-001'), findsNothing);
-    expect(find.text('EXP +18'), findsOneWidget);
-    expect(find.text('기분 +8'), findsOneWidget);
-    expect(find.text('지식 +4'), findsOneWidget);
-    expect(find.text('친밀도 +12'), findsOneWidget);
-    expect(find.text('알 +680'), findsWidgets);
+    expect(find.text('경복궁'), findsOneWidget);
+    expect(find.text('대한민국 · 전국 기본 장소'), findsOneWidget);
+    expect(find.textContaining('seed-kr-001'), findsNothing);
+    expect(find.text('EXP +22'), findsOneWidget);
+    expect(find.text('기분 +4'), findsOneWidget);
+    expect(find.text('지식 +22'), findsOneWidget);
+    expect(find.text('친밀도 +8'), findsOneWidget);
+    expect(find.text('알 +760'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -750,7 +750,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('테스트 여행지'), findsOneWidget);
-    expect(find.text('부산광역시 · TourAPI ID 2785118'), findsOneWidget);
+    expect(find.text('대한민국 · TourAPI ID 2785118'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -759,6 +759,16 @@ void main() {
     final semantics = tester.ensureSemantics();
     try {
       final now = DateTime.now();
+      final completedPoi = starterPoiSeed.first;
+      const candidatePoi = Poi(
+        id: 'seoul-marker-candidate',
+        tourApiContentId: 'seed-test-marker',
+        title: '광화문 산책로',
+        regionId: 'seoul',
+        category: PoiCategory.culture,
+        coordinates: Coordinates(latitude: 37.5801, longitude: 126.9784),
+        shortDescription: '지도 마커 접근성 테스트 후보 장소',
+      );
       final controller = MasilPetController(
         firebaseReady: false,
         firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
@@ -768,16 +778,16 @@ void main() {
         localProgressRepository: null,
       );
       controller.state = controller.state.copyWith(
-        pois: [busanPoiSeed.first, busanPoiSeed[11]],
-        currentLocation: busanPoiSeed.first.coordinates,
+        pois: [completedPoi, candidatePoi],
+        currentLocation: completedPoi.coordinates,
         locationVerified: true,
         locationVerifiedAt: now,
         checkIns: [
           CheckIn(
             id: 'checkin-map-semantics',
-            poiId: busanPoiSeed.first.id,
-            regionId: busanPoiSeed.first.regionId,
-            category: busanPoiSeed.first.category,
+            poiId: completedPoi.id,
+            regionId: completedPoi.regionId,
+            category: completedPoi.category,
             createdAt: now,
             distanceMeters: 0,
             rewardApplied: true,
@@ -804,11 +814,15 @@ void main() {
       await tester.pump();
 
       expect(
-        find.bySemanticsLabel('POI 마커: 해운대 해수욕장, 자연, 오늘 체크인 완료'),
+        find.bySemanticsLabel(
+          'POI 마커: ${completedPoi.title}, ${completedPoi.category.label}, 오늘 체크인 완료',
+        ),
         findsOneWidget,
       );
       expect(
-        find.bySemanticsLabel('POI 마커: 동백섬, 자연, 체크인 후보'),
+        find.bySemanticsLabel(
+          'POI 마커: ${candidatePoi.title}, ${candidatePoi.category.label}, 체크인 후보',
+        ),
         findsOneWidget,
       );
       expect(
@@ -830,8 +844,13 @@ void main() {
       userRepository: null,
       localProgressRepository: null,
     );
+    final legendPois = [
+      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.nature),
+      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.culture),
+      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.food),
+    ];
     controller.state = controller.state.copyWith(
-      pois: [busanPoiSeed.first, busanPoiSeed[2], busanPoiSeed[4]],
+      pois: legendPois,
     );
     tester.view.physicalSize = const Size(1180, 820);
     tester.view.devicePixelRatio = 1;
@@ -905,8 +924,8 @@ void main() {
       localProgressRepository: null,
     );
     controller.state = controller.state.copyWith(
-      pois: [busanPoiSeed.first],
-      currentLocation: busanPoiSeed.first.coordinates,
+      pois: [starterPoiSeed.first],
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: now,
       checkIns: List.generate(
@@ -914,7 +933,7 @@ void main() {
         (index) => CheckIn(
           id: 'daily-limit-map-$index',
           poiId: 'poi-$index',
-          regionId: busanRegion.id,
+          regionId: koreaRegion.id,
           category: PoiCategory.nature,
           createdAt: now,
           distanceMeters: 12,
@@ -1028,8 +1047,8 @@ void main() {
       localProgressRepository: null,
     );
     controller.state = controller.state.copyWith(
-      pois: [busanPoiSeed.first],
-      currentLocation: busanPoiSeed.first.coordinates,
+      pois: [starterPoiSeed.first],
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: DateTime.now(),
     );
@@ -1062,7 +1081,8 @@ void main() {
     await tester.pump();
 
     expect(controller.state.todayCheckInCount, 1);
-    expect(controller.state.todayCheckIns.single.poiId, busanPoiSeed.first.id);
+    expect(
+        controller.state.todayCheckIns.single.poiId, starterPoiSeed.first.id);
     expect(tester.takeException(), isNull);
   });
 
@@ -1078,16 +1098,16 @@ void main() {
       localProgressRepository: null,
     );
     controller.state = controller.state.copyWith(
-      pois: [busanPoiSeed.first],
-      currentLocation: busanPoiSeed.first.coordinates,
+      pois: [starterPoiSeed.first],
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: now,
       checkIns: [
         CheckIn(
           id: 'checkin-complete',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: now,
           distanceMeters: 12,
           rewardApplied: true,
@@ -1129,15 +1149,15 @@ void main() {
       localProgressRepository: null,
     );
     controller.state = controller.state.copyWith(
-      currentLocation: busanPoiSeed.first.coordinates,
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: DateTime.now(),
       checkIns: [
         CheckIn(
           id: 'checkin-test',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: DateTime.now(),
           distanceMeters: 10,
           rewardApplied: true,
@@ -1787,7 +1807,7 @@ void main() {
     expect(find.text('친밀도 +5'), findsOneWidget);
     expect(find.text('알 +620'), findsOneWidget);
     expect(find.textContaining('음식점 매핑'), findsOneWidget);
-    expect(find.text('부산 기본 장소'), findsWidgets);
+    expect(find.text('전국 기본 장소'), findsWidgets);
     expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
 
     final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
@@ -1880,7 +1900,7 @@ void main() {
     await tester.pump();
 
     final nextStampAction = find.widgetWithText(TextButton, '다음 스탬프 찾기');
-    expect(find.text('부산 탐험 여권'), findsOneWidget);
+    expect(find.text('전국 탐험 여권'), findsOneWidget);
     expect(find.text('파도나루'), findsWidgets);
     expect(find.text('일반'), findsWidgets);
     expect(find.textContaining('common'), findsNothing);

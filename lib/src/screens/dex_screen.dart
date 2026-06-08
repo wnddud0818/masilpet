@@ -19,7 +19,7 @@ class DexScreen extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
-        const SliverAppBar(title: Text('부산 도감')),
+        const SliverAppBar(title: Text('전국 도감')),
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: ResponsiveSliverList(
@@ -68,7 +68,7 @@ class _NextDiscoveryCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '부산 도감 완성',
+                      '전국 도감 완성',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
@@ -310,7 +310,7 @@ String _discoveryDistanceLabel(MasilPetState state, Poi? poi) {
 String _poiSourceLabel(Poi poi) {
   if (poi.tourApiContentId.isEmpty ||
       poi.tourApiContentId.startsWith('seed-')) {
-    return '부산 기본 장소';
+    return '전국 기본 장소';
   }
   return 'TourAPI ID ${poi.tourApiContentId}';
 }
@@ -389,7 +389,7 @@ class _DexPassportCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '부산 탐험 여권',
+                    '전국 탐험 여권',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
@@ -405,7 +405,7 @@ class _DexPassportCard extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '장소 카테고리마다 연결된 마실펫을 발견해 부산 여권을 채웁니다.',
+              '장소 카테고리마다 연결된 마실펫을 발견해 전국 여권을 채웁니다.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),
@@ -709,7 +709,7 @@ class _DexProgressCard extends ConsumerWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              '지역별 체크인과 부화를 통해 부산 마실펫을 수집합니다.',
+              '지역별 체크인과 부화를 통해 전국 마실펫을 수집합니다.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             if (hasUndiscovered) ...[

@@ -231,7 +231,7 @@ void main() {
       functionsSource,
       contains('export const seedStarterRegionData = onCall'),
     );
-    expect(functionsSource, contains('export const syncBusanPois = onCall'));
+    expect(functionsSource, contains('export const syncKoreaPois = onCall'));
     expect(
       functionsSource,
       contains('requireOperator(request.auth?.uid, request.auth?.token);'),
@@ -256,7 +256,7 @@ void main() {
     expect(profileSource, isNot(contains('1000걸음 반영')));
     expect(houseSource, isNot(contains('500걸음 반영')));
     expect(profileSource, isNot(contains('해운대 기준 위치로 이동')));
-    expect(profileSource, contains('해운대 지도 보기'));
+    expect(profileSource, contains('전국 기본 지도 보기'));
     expect(profileSource, contains('final onlineActionEnabled'));
     expect(profileSource, contains('state.firebaseReady && !state.isBusy'));
     expect(
@@ -268,7 +268,7 @@ void main() {
       contains('? () => controller.refreshRemoteProgress()'),
     );
     expect(profileSource,
-        contains('state.isBusy ? null : controller.useStarterBusanLocation'));
+        contains('state.isBusy ? null : controller.useStarterKoreaLocation'));
     expect(mapSource, contains('현재 위치 확인'));
     expect(mapSource, contains('controller.useDeviceLocation'));
     expect(mapSource, contains('미확인'));
@@ -370,7 +370,7 @@ void main() {
     expect(manifest['scope'], '/');
     expect(manifest['display'], 'standalone');
     expect(manifest['orientation'], 'any');
-    expect(manifest['description'], contains('부산'));
+    expect(manifest['description'], contains('대한민국'));
     expect(manifest['description'], isNot(contains('demo')));
 
     final screenshots =
@@ -448,7 +448,7 @@ void main() {
     expect(mapSource, contains('© OpenStreetMap contributors'));
     expect(mapSource, contains('https://www.openstreetmap.org/copyright'));
     expect(mapSource, contains('LinkTarget.blank'));
-    expect(mapSource, contains('부산 기본 장소'));
+    expect(mapSource, contains('전국 기본 장소'));
     expect(mapSource, contains('TourAPI ID'));
     expect(profileSource, contains('개인정보 처리방침: /privacy.html'));
     expect(profileSource, contains('개인정보 처리방침 열기'));
@@ -695,7 +695,7 @@ void main() {
     expect(callOperatorScript, contains('createCustomToken'));
     expect(callOperatorScript, contains('signInWithCustomToken'));
     expect(callOperatorScript, contains('seedStarterRegionData'));
-    expect(callOperatorScript, contains('syncBusanPois'));
+    expect(callOperatorScript, contains('syncKoreaPois'));
     expect(callOperatorScript, contains('FIREBASE_WEB_API_KEY'));
     expect(gitignore, contains('*-firebase-adminsdk-*.json'));
     expect(gitignore, contains('service-account*.json'));

@@ -54,7 +54,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: PetPlayField(
-          templates: busanPetTemplates,
+          templates: starterPetTemplates,
           pets: state.pets,
           eggs: state.eggs,
           activePetId: state.activePetId,
@@ -84,7 +84,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: PetPlayField(
-          templates: busanPetTemplates,
+          templates: starterPetTemplates,
           pets: state.pets,
           eggs: state.eggs,
           activePetId: state.activePetId,

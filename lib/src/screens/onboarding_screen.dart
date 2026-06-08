@@ -36,7 +36,7 @@ class OnboardingScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '부산을 걸으며 만나는 나만의 마실펫',
+                        '대한민국을 걸으며 만나는 나만의 마실펫',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       const SizedBox(height: 8),
@@ -60,7 +60,7 @@ class OnboardingScreen extends ConsumerWidget {
                       Expanded(
                         child: _IntroMetric(
                           value: '${state.pois.length}',
-                          label: '부산 POI',
+                          label: '전국 POI',
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -84,7 +84,7 @@ class OnboardingScreen extends ConsumerWidget {
                       _OnboardingPoint(
                         icon: Icons.map_outlined,
                         title: 'TourAPI 기반 지역 탐험',
-                        body: '현재 위치 확인 후 부산 POI를 카테고리별로 방문하고 체크인합니다.',
+                        body: '현재 위치 확인 후 전국 POI를 카테고리별로 방문하고 체크인합니다.',
                       ),
                       SizedBox(height: 12),
                       _OnboardingPoint(
@@ -325,7 +325,7 @@ class _OnboardingJourneyPreview extends StatelessWidget {
             index: 4,
             icon: Icons.verified_outlined,
             title: '하우스와 도감 누적',
-            body: '$petCount종 수집 목표, 알 부화, 부산 여권 스탬프를 함께 확인합니다.',
+            body: '$petCount종 수집 목표, 알 부화, 전국 여권 스탬프를 함께 확인합니다.',
           ),
         ],
       ),

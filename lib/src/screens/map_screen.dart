@@ -30,7 +30,7 @@ class MapScreen extends ConsumerWidget {
     return CustomScrollView(
       slivers: [
         SliverAppBar(
-          title: const Text('부산 탐험'),
+          title: const Text('전국 탐험'),
           floating: true,
           actions: [
             IconButton(
@@ -1165,7 +1165,7 @@ class _PoiSourceLine extends StatelessWidget {
 String _poiSourceLabel(Poi poi) {
   final contentId = poi.tourApiContentId.trim();
   if (contentId.isEmpty || contentId.startsWith('seed-')) {
-    return '부산 기본 장소';
+    return '전국 기본 장소';
   }
   return 'TourAPI ID $contentId';
 }

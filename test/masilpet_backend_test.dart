@@ -15,7 +15,7 @@ void main() {
     });
 
     expect(poi, isNotNull);
-    expect(poi!.regionId, 'busan');
+    expect(poi!.regionId, 'korea');
     expect(poi.category, PoiCategory.other);
     expect(poi.distanceMeters, 0);
   });

@@ -70,7 +70,7 @@ Pet _petFromDoc(String id, Map<String, dynamic> data) {
     stage: _petStageFromName(_stringFromValue(data['stage'])),
     level: _intFromValue(data['level']) ?? 1,
     stats: _statsFromMap(_mapFromValue(data['stats'])),
-    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'busan'),
+    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'korea'),
     hatchedAt: _dateFromValue(data['hatchedAt']),
     lastInteractedAt: _nullableDateFromValue(data['lastInteractedAt']),
   );
@@ -80,7 +80,7 @@ Egg _eggFromDoc(String id, Map<String, dynamic> data) {
   return Egg(
     id: id,
     templateId: _stringFromValue(data['templateId'], fallback: 'wave-naru'),
-    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'busan'),
+    originRegionId: _stringFromValue(data['originRegionId'], fallback: 'korea'),
     progress: _intFromValue(data['progress']) ?? 0,
     requiredSteps: _intFromValue(data['requiredSteps']) ?? 3500,
     status: _eggStatusFromName(_stringFromValue(data['status'])),
@@ -92,7 +92,7 @@ CheckIn _checkInFromDoc(String id, Map<String, dynamic> data) {
   return CheckIn(
     id: id,
     poiId: _stringFromValue(data['poiId']),
-    regionId: _stringFromValue(data['regionId'], fallback: 'busan'),
+    regionId: _stringFromValue(data['regionId'], fallback: 'korea'),
     category: _categoryFromName(_stringFromValue(data['category'])),
     createdAt: _dateFromValue(data['createdAt']),
     distanceMeters: _doubleFromValue(data['distanceMeters']) ?? 0,

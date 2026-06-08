@@ -50,9 +50,9 @@ void main() {
   test('dialogue seed covers every pet and visit category', () {
     const dialogue = StaticDialogueService();
 
-    for (final template in busanPetTemplates) {
+    for (final template in starterPetTemplates) {
       expect(
-        busanDialogueSeed,
+        starterDialogueSeed,
         contains(
           isA<DialogueLine>()
               .having((line) => line.templateId, 'templateId', template.id)

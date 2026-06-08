@@ -86,7 +86,7 @@ void main() {
   test('local progress snapshot round-trips gameplay data', () {
     final snapshot = LocalProgressSnapshot(
       onboardingComplete: true,
-      pois: busanPoiSeed,
+      pois: starterPoiSeed,
       pets: [
         Pet(
           id: 'pet-local',
@@ -115,7 +115,7 @@ void main() {
       checkIns: [
         CheckIn(
           id: 'checkin-local',
-          poiId: busanPoiSeed.first.id,
+          poiId: starterPoiSeed.first.id,
           regionId: 'busan',
           category: PoiCategory.nature,
           createdAt: DateTime(2026, 6, 4, 12),
@@ -127,7 +127,7 @@ void main() {
           ),
         ),
       ],
-      currentLocation: busanPoiSeed.first.coordinates,
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: DateTime(2026, 6, 4, 12),
       activePetId: 'pet-local',
@@ -142,7 +142,7 @@ void main() {
     expect(restored.pets.single.id, 'pet-local');
     expect(restored.pets.single.stage, PetStage.grown);
     expect(restored.eggs.single.progress, 2400);
-    expect(restored.checkIns.single.poiId, busanPoiSeed.first.id);
+    expect(restored.checkIns.single.poiId, starterPoiSeed.first.id);
     expect(restored.checkIns.single.reward?.summaryLabel,
         'EXP +33 · 기분 +4 · 지식 +5 · 친밀도 +6 · 알 +77');
     expect(restored.locationVerified, isTrue);
@@ -217,7 +217,7 @@ void main() {
     final repository = MemoryLocalProgressRepository(
       LocalProgressSnapshot(
         onboardingComplete: true,
-        pois: busanPoiSeed,
+        pois: starterPoiSeed,
         pets: [
           Pet(
             id: 'pet-restored',
@@ -238,7 +238,7 @@ void main() {
         ],
         eggs: const [],
         checkIns: const [],
-        currentLocation: busanPoiSeed.first.coordinates,
+        currentLocation: starterPoiSeed.first.coordinates,
         locationVerified: true,
         locationVerifiedAt: DateTime.now(),
         activePetId: 'pet-restored',
@@ -253,7 +253,7 @@ void main() {
     expect(controller.state.onboardingComplete, isTrue);
     expect(controller.state.activePetId, 'pet-restored');
 
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
     await Future<void>.delayed(Duration.zero);
 
     expect(repository.snapshot?.checkIns.length, 1);
@@ -265,11 +265,11 @@ void main() {
     final repository = MemoryLocalProgressRepository(
       LocalProgressSnapshot(
         onboardingComplete: true,
-        pois: busanPoiSeed,
+        pois: starterPoiSeed,
         pets: const [],
         eggs: const [],
         checkIns: const [],
-        currentLocation: busanPoiSeed.first.coordinates,
+        currentLocation: starterPoiSeed.first.coordinates,
         locationVerified: true,
         locationVerifiedAt: DateTime.now()
             .subtract(locationVerificationTtl + const Duration(minutes: 1)),
@@ -285,7 +285,7 @@ void main() {
     expect(controller.state.locationVerified, isTrue);
     expect(controller.state.hasFreshVerifiedLocation, isFalse);
 
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('다시 확인'));
@@ -295,7 +295,7 @@ void main() {
     final repository = MemoryLocalProgressRepository(
       LocalProgressSnapshot(
         onboardingComplete: true,
-        pois: busanPoiSeed,
+        pois: starterPoiSeed,
         pets: [
           Pet(
             id: 'pet-reset',
@@ -318,7 +318,7 @@ void main() {
         checkIns: [
           CheckIn(
             id: 'checkin-reset',
-            poiId: busanPoiSeed.first.id,
+            poiId: starterPoiSeed.first.id,
             regionId: 'busan',
             category: PoiCategory.nature,
             createdAt: DateTime.now(),
@@ -326,7 +326,7 @@ void main() {
             rewardApplied: true,
           ),
         ],
-        currentLocation: busanPoiSeed.first.coordinates,
+        currentLocation: starterPoiSeed.first.coordinates,
         locationVerified: true,
         locationVerifiedAt: DateTime.now(),
         activePetId: 'pet-reset',

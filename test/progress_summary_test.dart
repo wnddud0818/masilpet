@@ -10,7 +10,7 @@ class FakeLocationService extends DeviceLocationService {
 
   @override
   Future<Coordinates> readCurrentLocation() async {
-    return busanPoiSeed.first.coordinates;
+    return starterPoiSeed.first.coordinates;
   }
 }
 
@@ -302,15 +302,15 @@ void main() {
 
     expect(state.discoveredTemplateIds, contains('wave-naru'));
     expect(state.dexCompletionRatio, greaterThan(0));
-    expect(state.nearestPoi, busanPoiSeed.first);
+    expect(state.nearestPoi, starterPoiSeed.first);
     expect(state.locationVerified, isFalse);
     expect(state.hasFreshVerifiedLocation, isFalse);
-    expect(state.canCheckInToday(busanPoiSeed.first), isFalse);
+    expect(state.canCheckInToday(starterPoiSeed.first), isFalse);
     expect(state.todayAvailableCheckInCount, 0);
     expect(state.todayCheckIns, isEmpty);
     expect(state.remainingDailyCheckIns, dailyCheckInLimit);
     expect(state.todayVisitedCategoryCount, 0);
-    expect(state.unvisitedPoiCountToday, busanPoiSeed.length);
+    expect(state.unvisitedPoiCountToday, starterPoiSeed.length);
     expect(state.nextEgg?.id, 'egg-harbor-maru');
     expect(state.nextRecommendedPoi, isNotNull);
   });
@@ -318,7 +318,7 @@ void main() {
   test('check-in requires verified current location', () async {
     final controller = _controller();
 
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('현재 위치'));
@@ -328,7 +328,7 @@ void main() {
     final now = DateTime.now();
     final controller = _controller();
     controller.state = controller.state.copyWith(
-      currentLocation: busanPoiSeed.first.coordinates,
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: true,
       locationVerifiedAt: now,
       checkIns: List.generate(
@@ -336,7 +336,7 @@ void main() {
         (index) => CheckIn(
           id: 'daily-limit-$index',
           poiId: 'poi-$index',
-          regionId: busanRegion.id,
+          regionId: koreaRegion.id,
           category: PoiCategory.nature,
           createdAt: now,
           distanceMeters: 12,
@@ -347,9 +347,9 @@ void main() {
 
     expect(controller.state.remainingDailyCheckIns, 0);
     expect(controller.state.todayAvailableCheckInCount, 0);
-    expect(controller.state.canCheckInToday(busanPoiSeed.first), isFalse);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isFalse);
 
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, dailyCheckInLimit);
     expect(controller.state.statusMessage, contains('$dailyCheckInLimit회'));
@@ -364,7 +364,7 @@ void main() {
     );
 
     expect(expired.hasFreshVerifiedLocation, isFalse);
-    expect(expired.canCheckInToday(busanPoiSeed.first), isFalse);
+    expect(expired.canCheckInToday(starterPoiSeed.first), isFalse);
   });
 
   test('successful check-in updates daily summary and readiness', () async {
@@ -374,33 +374,34 @@ void main() {
 
     await controller.useDeviceLocation();
     expect(controller.state.hasFreshVerifiedLocation, isTrue);
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 1);
-    expect(controller.state.todayCheckIns.single.poiId, busanPoiSeed.first.id);
+    expect(
+        controller.state.todayCheckIns.single.poiId, starterPoiSeed.first.id);
     expect(
       controller.state.todayVisitedCategories,
-      contains(PoiCategory.nature),
+      contains(starterPoiSeed.first.category),
     );
-    expect(controller.state.unvisitedPoiCountToday, busanPoiSeed.length - 1);
-    expect(
-        controller.state.nextRecommendedPoi?.id, isNot(busanPoiSeed.first.id));
-    expect(controller.state.hasCheckedInToday(busanPoiSeed.first), isTrue);
+    expect(controller.state.unvisitedPoiCountToday, starterPoiSeed.length - 1);
+    expect(controller.state.nextRecommendedPoi?.id,
+        isNot(starterPoiSeed.first.id));
+    expect(controller.state.hasCheckedInToday(starterPoiSeed.first), isTrue);
     expect(controller.state.launchReadinessScore, greaterThanOrEqualTo(60));
   });
 
   test('readiness score reserves completion for online sync', () {
     final now = DateTime.now();
     final state = MasilPetState.initial(firebaseReady: false);
-    final secondTemplate = busanPetTemplates[1];
+    final secondTemplate = starterPetTemplates[1];
     final locallyReady = state.copyWith(
       onboardingComplete: true,
       checkIns: [
         CheckIn(
           id: 'checkin-readiness',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: now,
           distanceMeters: 12,
           rewardApplied: true,
@@ -445,18 +446,18 @@ void main() {
       checkIns: [
         CheckIn(
           id: 'older-checkin',
-          poiId: busanPoiSeed.first.id,
-          regionId: busanPoiSeed.first.regionId,
-          category: busanPoiSeed.first.category,
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
           createdAt: older,
           distanceMeters: 24,
           rewardApplied: true,
         ),
         CheckIn(
           id: 'newer-checkin',
-          poiId: busanPoiSeed[1].id,
-          regionId: busanPoiSeed[1].regionId,
-          category: busanPoiSeed[1].category,
+          poiId: starterPoiSeed[1].id,
+          regionId: starterPoiSeed[1].regionId,
+          category: starterPoiSeed[1].category,
           createdAt: newer,
           distanceMeters: 18,
           rewardApplied: true,
@@ -489,7 +490,7 @@ void main() {
     );
 
     await controller.useDeviceLocation();
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     final pet = controller.state.activePet!;
     final egg = controller.state.eggs.singleWhere(
@@ -526,11 +527,12 @@ void main() {
     );
 
     await controller.useDeviceLocation();
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('이미'));
-    expect(controller.state.statusMessage, contains(busanPoiSeed.first.title));
+    expect(
+        controller.state.statusMessage, contains(starterPoiSeed.first.title));
   });
 
   test('remote out-of-range check-in shows the server distance', () async {
@@ -546,7 +548,7 @@ void main() {
     );
 
     await controller.useDeviceLocation();
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('321m'));
@@ -565,7 +567,7 @@ void main() {
     );
 
     await controller.useDeviceLocation();
-    await controller.attemptCheckIn(busanPoiSeed.first);
+    await controller.attemptCheckIn(starterPoiSeed.first);
 
     expect(controller.state.todayCheckInCount, 0);
     expect(controller.state.statusMessage, contains('오늘 가능한 서버 체크인 횟수'));

@@ -86,14 +86,14 @@ class MasilPetState {
     FirebaseStartupIssue firebaseStartupIssue = FirebaseStartupIssue.none,
   }) {
     final now = DateTime.now();
-    final starterTemplate = busanPetTemplates.first;
+    final starterTemplate = starterPetTemplates.first;
     return MasilPetState(
       firebaseReady: firebaseReady,
       firebaseStartupIssue: firebaseStartupIssue,
       onboardingComplete: false,
-      region: busanRegion,
-      pois: busanPoiSeed,
-      templates: busanPetTemplates,
+      region: koreaRegion,
+      pois: starterPoiSeed,
+      templates: starterPetTemplates,
       pets: [
         Pet(
           id: 'pet-starter-wave-naru',
@@ -112,7 +112,7 @@ class MasilPetState {
         Egg(
           id: 'egg-harbor-maru',
           templateId: 'harbor-maru',
-          originRegionId: 'busan',
+          originRegionId: starterTemplate.regionId,
           progress: 1200,
           requiredSteps: 3500,
           status: EggStatus.incubating,
@@ -120,7 +120,7 @@ class MasilPetState {
         ),
       ],
       checkIns: const [],
-      currentLocation: busanPoiSeed.first.coordinates,
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: false,
       locationVerifiedAt: null,
       activePetId: 'pet-starter-wave-naru',
@@ -568,13 +568,13 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _persistLocalProgress();
   }
 
-  void useStarterBusanLocation() {
+  void useStarterKoreaLocation() {
     state = state.copyWith(
-      currentLocation: busanPoiSeed.first.coordinates,
+      currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: false,
       clearLocationVerifiedAt: true,
-      pois: busanPoiSeed,
-      statusMessage: '해운대 기준 지도로 이동했습니다. 체크인은 현재 위치 확인 후 가능합니다.',
+      pois: starterPoiSeed,
+      statusMessage: '전국 기본 장소 지도로 이동했습니다. 체크인은 현재 위치 확인 후 가능합니다.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );

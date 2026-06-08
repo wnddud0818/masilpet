@@ -137,7 +137,7 @@ Poi _poiFromMap(Map<String, dynamic> map) {
     id: _stringFromValue(map['id']),
     tourApiContentId: _stringFromValue(map['tourApiContentId']),
     title: _stringFromValue(map['title'], fallback: '장소'),
-    regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+    regionId: _stringFromValue(map['regionId'], fallback: 'korea'),
     category: _categoryFromName(_stringFromValue(map['category'])),
     coordinates: _coordinatesFromMap(_mapOrEmpty(map['coordinates'])),
     shortDescription: _stringFromValue(map['shortDescription']),
@@ -166,7 +166,7 @@ Pet _petFromMap(Map<String, dynamic> map) {
     stage: _petStageFromName(_stringFromValue(map['stage'])),
     level: _intFromValue(map['level']) ?? 1,
     stats: _statsFromMap(_mapOrEmpty(map['stats'])),
-    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'busan'),
+    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'korea'),
     hatchedAt: _dateFromValue(map['hatchedAt']),
     lastInteractedAt: _nullableDateFromValue(map['lastInteractedAt']),
   );
@@ -188,7 +188,7 @@ Egg _eggFromMap(Map<String, dynamic> map) {
   return Egg(
     id: _stringFromValue(map['id']),
     templateId: _stringFromValue(map['templateId'], fallback: 'wave-naru'),
-    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'busan'),
+    originRegionId: _stringFromValue(map['originRegionId'], fallback: 'korea'),
     progress: _intFromValue(map['progress']) ?? 0,
     requiredSteps: _intFromValue(map['requiredSteps']) ?? 3500,
     status: _eggStatusFromName(_stringFromValue(map['status'])),
@@ -213,7 +213,7 @@ CheckIn _checkInFromMap(Map<String, dynamic> map) {
   return CheckIn(
     id: _stringFromValue(map['id']),
     poiId: _stringFromValue(map['poiId']),
-    regionId: _stringFromValue(map['regionId'], fallback: 'busan'),
+    regionId: _stringFromValue(map['regionId'], fallback: 'korea'),
     category: _categoryFromName(_stringFromValue(map['category'])),
     createdAt: _dateFromValue(map['createdAt']),
     distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,

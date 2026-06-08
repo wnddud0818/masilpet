@@ -41,7 +41,7 @@ $env:GOOGLE_APPLICATION_CREDENTIALS="C:\secure\masilpet-service-account.json"
 powershell -ExecutionPolicy Bypass -File tools/set_operator_claim.ps1 -Uid "OPERATOR_UID"
 ```
 
-배포 후 운영자 권한으로 `seedStarterRegionData`를 호출해 부산 지역, POI, 펫 템플릿, 대사 시드를 Firestore에 병합한다.
+배포 후 운영자 권한으로 `seedStarterRegionData`를 호출해 전국 지역, POI, 펫 템플릿, 대사 시드를 Firestore에 병합한다.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
@@ -49,12 +49,12 @@ powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
   -FunctionName seedStarterRegionData
 ```
 
-TourAPI 최신 장소를 반영해야 할 때는 같은 방식으로 `syncBusanPois`를 호출한다.
+TourAPI 최신 장소를 반영해야 할 때는 같은 방식으로 `syncKoreaPois`를 호출한다.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
   -Uid "OPERATOR_UID" `
-  -FunctionName syncBusanPois
+  -FunctionName syncKoreaPois
 ```
 
 ## 장애 대응
@@ -72,9 +72,9 @@ powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
 ### 주변 장소가 갱신되지 않을 때
 
 1. `TOUR_API_KEY` Secret이 설정되어 있는지 확인한다.
-2. `syncBusanPois` 호출 로그와 운영자 custom claim 상태를 확인한다.
+2. `syncKoreaPois` 호출 로그와 운영자 custom claim 상태를 확인한다.
 3. TourAPI 응답 제한, 서비스 키 권한, 공공데이터포털 상태를 확인한다.
-4. 실패 시 앱은 번들된 부산 seed POI로 계속 동작해야 한다.
+4. 실패 시 앱은 번들된 전국 seed POI로 계속 동작해야 한다.
 
 ### 체크인이 실패할 때
 

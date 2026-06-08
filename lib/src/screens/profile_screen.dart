@@ -83,7 +83,7 @@ class ProfileScreen extends ConsumerWidget {
                 useDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
                 useStarterLocation:
-                    state.isBusy ? null : controller.useStarterBusanLocation,
+                    state.isBusy ? null : controller.useStarterKoreaLocation,
                 ensureRemoteUserBootstrap: onlineActionEnabled
                     ? controller.ensureRemoteUserBootstrap
                     : null,
@@ -499,7 +499,7 @@ class _ProfileActionsCard extends StatelessWidget {
                 final starterButton = OutlinedButton.icon(
                   onPressed: useStarterLocation,
                   icon: const Icon(Icons.location_city_outlined),
-                  label: const Text('해운대 지도 보기'),
+                  label: const Text('전국 기본 지도 보기'),
                 );
                 final refreshButton = OutlinedButton.icon(
                   onPressed: refreshRemoteProgress,
@@ -640,7 +640,7 @@ class _DataSourceCard extends StatelessWidget {
             const _SourceRow(
               icon: Icons.travel_explore_outlined,
               title: 'TourAPI 지역 장소',
-              detail: '부산 POI와 카테고리를 운영자 동기화로 반영합니다.',
+              detail: '전국 POI와 카테고리를 운영자 동기화로 반영합니다.',
             ),
             const SizedBox(height: 8),
             const _SourceRow(

@@ -408,7 +408,7 @@ class _StageGoal extends ConsumerWidget {
       PetStage.baby =>
         'Lv.${GrowthEngine.grownLevelRequirement}까지 탐험 보상을 모으면 성장 단계가 열립니다.',
       PetStage.grown => '진화에는 레벨, 지식, 지역 친밀도가 모두 필요합니다.',
-      PetStage.evolved => '부산 탐험의 깊은 기억을 모두 간직한 상태입니다.',
+      PetStage.evolved => '전국 탐험의 깊은 기억을 모두 간직한 상태입니다.',
     };
     final requirements = _growthRequirementsFor(pet);
     final requirementTitle = switch (pet.stage) {

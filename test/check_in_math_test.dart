@@ -10,7 +10,7 @@ void main() {
     expect(haeundae.distanceTo(haeundae), lessThan(checkInRadiusMeters));
   });
 
-  test('different Busan landmarks are outside check-in radius', () {
+  test('different starter landmarks are outside check-in radius', () {
     const haeundae = Coordinates(latitude: 35.1587, longitude: 129.1604);
     const jagalchi = Coordinates(latitude: 35.0969, longitude: 129.0305);
 

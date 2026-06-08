@@ -373,6 +373,8 @@ void main() {
     expect(find.text('오늘의 탐험 리포트'), findsOneWidget);
     expect(find.text('오늘 방문'), findsOneWidget);
     expect(find.text('1곳'), findsOneWidget);
+    expect(find.text('연속 탐험'), findsWidgets);
+    expect(find.text('1일'), findsWidgets);
     expect(find.text('받은 보상'), findsOneWidget);
     expect(find.text('EXP +22 · 기분 +4 · 지식 +22 · 친밀도 +8 · 알 +760'),
         findsOneWidget);
@@ -424,7 +426,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('탐험 배지'), findsOneWidget);
-    expect(find.text('1/5'), findsOneWidget);
+    expect(find.text('1/6'), findsOneWidget);
     expect(find.text('동행 시작'), findsOneWidget);
     expect(find.text('위치 인증'), findsOneWidget);
 
@@ -440,7 +442,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile journey badges reflect a completed check-in loop',
+  testWidgets('profile journey badges reflect a check-in loop and streak goal',
       (WidgetTester tester) async {
     final now = DateTime.now();
     final controller = MasilPetController(
@@ -492,21 +494,23 @@ void main() {
     await tester.pump();
 
     expect(find.text('탐험 배지'), findsOneWidget);
-    expect(find.text('4/5'), findsOneWidget);
+    expect(find.text('4/6'), findsOneWidget);
     expect(find.text('첫 발자국'), findsOneWidget);
     expect(find.text('장소 이야기꾼'), findsOneWidget);
+    expect(find.text('연속 탐험'), findsWidgets);
+    expect(find.text('1/3일'), findsOneWidget);
     expect(find.text('부화 준비'), findsOneWidget);
     expect(find.text('34%'), findsWidgets);
 
-    final eggAction = find.widgetWithText(OutlinedButton, '하우스에서 알 보기');
-    expect(eggAction, findsOneWidget);
+    final streakAction = find.widgetWithText(OutlinedButton, '지도에서 이어가기');
+    expect(streakAction, findsOneWidget);
 
-    await tester.ensureVisible(eggAction);
+    await tester.ensureVisible(streakAction);
     await tester.pump();
-    await tester.tap(eggAction);
+    await tester.tap(streakAction);
     await tester.pump();
 
-    expect(controller.state.selectedTab, 2);
+    expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
   });
 

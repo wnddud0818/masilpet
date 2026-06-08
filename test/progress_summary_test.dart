@@ -310,9 +310,56 @@ void main() {
     expect(state.todayCheckIns, isEmpty);
     expect(state.remainingDailyCheckIns, dailyCheckInLimit);
     expect(state.todayVisitedCategoryCount, 0);
+    expect(state.currentVisitStreakDays, 0);
+    expect(state.longestVisitStreakDays, 0);
     expect(state.unvisitedPoiCountToday, starterPoiSeed.length);
     expect(state.nextEgg?.id, 'egg-harbor-maru');
     expect(state.nextRecommendedPoi, isNotNull);
+  });
+
+  test('visit streaks are derived from local check-in days', () {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day, 12);
+    CheckIn visit(String id, DateTime createdAt) {
+      return CheckIn(
+        id: id,
+        poiId: starterPoiSeed.first.id,
+        regionId: starterPoiSeed.first.regionId,
+        category: starterPoiSeed.first.category,
+        createdAt: createdAt,
+        distanceMeters: 12,
+        rewardApplied: true,
+      );
+    }
+
+    final activeStreak = MasilPetState.initial(firebaseReady: false).copyWith(
+      checkIns: [
+        visit('today', today),
+        visit('yesterday', today.subtract(const Duration(days: 1))),
+        visit('two-days', today.subtract(const Duration(days: 2))),
+        visit('old-1', today.subtract(const Duration(days: 5))),
+        visit('old-2', today.subtract(const Duration(days: 6))),
+      ],
+    );
+    final pendingToday = MasilPetState.initial(firebaseReady: false).copyWith(
+      checkIns: [
+        visit('yesterday', today.subtract(const Duration(days: 1))),
+        visit('two-days', today.subtract(const Duration(days: 2))),
+        visit('three-days', today.subtract(const Duration(days: 3))),
+      ],
+    );
+    final expired = MasilPetState.initial(firebaseReady: false).copyWith(
+      checkIns: [
+        visit('expired', today.subtract(const Duration(days: 3))),
+      ],
+    );
+
+    expect(activeStreak.currentVisitStreakDays, 3);
+    expect(activeStreak.longestVisitStreakDays, 3);
+    expect(pendingToday.currentVisitStreakDays, 3);
+    expect(pendingToday.longestVisitStreakDays, 3);
+    expect(expired.currentVisitStreakDays, 0);
+    expect(expired.longestVisitStreakDays, 1);
   });
 
   test('recommended route ranks discovery goals before plain nearby places',

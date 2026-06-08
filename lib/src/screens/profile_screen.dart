@@ -78,6 +78,10 @@ class ProfileScreen extends ConsumerWidget {
                       _InfoRow(
                           label: '오늘 체크인',
                           value: '${state.todayCheckInCount}회'),
+                      _InfoRow(
+                        label: '연속 탐험',
+                        value: '${state.currentVisitStreakDays}일',
+                      ),
                       _InfoRow(label: '보유 마실펫', value: '${state.pets.length}종'),
                       _InfoRow(label: '보유 알', value: '${state.eggs.length}개'),
                       _InfoRow(
@@ -445,6 +449,10 @@ List<_JourneyBadge> _journeyBadges({
   final nextEgg = state.nextEgg;
   final eggProgress = nextEgg?.progressRatio ?? 0;
   final hasHatchReady = state.hatchableEggCount > 0 || state.pets.length > 1;
+  const streakGoalDays = 3;
+  final streakDays = state.currentVisitStreakDays;
+  final streakProgress =
+      (streakDays / streakGoalDays).clamp(0.0, 1.0).toDouble();
 
   return [
     _JourneyBadge(
@@ -502,6 +510,24 @@ List<_JourneyBadge> _journeyBadges({
       actionIcon: Icons.pets_outlined,
       actionLabel: '마실펫과 대화하기',
       onAction: onOpenPet,
+    ),
+    _JourneyBadge(
+      icon: Icons.local_fire_department_outlined,
+      title: '연속 탐험',
+      body: streakDays >= streakGoalDays
+          ? '$streakDays일째 탐험 리듬을 이어가고 있습니다.'
+          : streakDays == 0
+              ? '오늘 첫 체크인을 기록하면 연속 탐험이 시작됩니다.'
+              : '$streakDays일째입니다. ${streakGoalDays - streakDays}일 더 이어가면 3일 배지가 열립니다.',
+      progressLabel: streakDays >= streakGoalDays
+          ? '$streakDays일'
+          : '${streakDays.clamp(0, streakGoalDays)}/$streakGoalDays일',
+      progress: streakProgress,
+      unlocked: streakDays >= streakGoalDays,
+      color: const Color(0xFFEA580C),
+      actionIcon: Icons.map_outlined,
+      actionLabel: '지도에서 이어가기',
+      onAction: onOpenMap,
     ),
     _JourneyBadge(
       icon: Icons.egg_alt_outlined,
@@ -635,6 +661,11 @@ class _ExpeditionReportCard extends StatelessWidget {
                     icon: Icons.pets_outlined,
                     label: '함께한 펫',
                     value: activePet?.name ?? '준비 중',
+                  ),
+                  _ReportStatPill(
+                    icon: Icons.local_fire_department_outlined,
+                    label: '연속 탐험',
+                    value: '${state.currentVisitStreakDays}일',
                   ),
                 ],
               ),
@@ -780,6 +811,7 @@ String _expeditionReportText(MasilPetState state) {
   return [
     'MasilPet 오늘의 탐험 리포트',
     '방문 ${state.todayCheckInCount}곳 · 카테고리 ${state.todayVisitedCategoryCount}/7',
+    '연속 탐험: ${state.currentVisitStreakDays}일 · 최장 ${state.longestVisitStreakDays}일',
     '최근 장소: ${poi?.title ?? '저장된 방문 장소'} (${latestCheckIn.category.label}, ${latestCheckIn.distanceMeters.round()}m)',
     if (categories.isNotEmpty) '기록한 카테고리: $categories',
     if (reward != null) '받은 보상: ${reward.summaryLabel}',

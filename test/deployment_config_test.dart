@@ -757,6 +757,7 @@ void main() {
     expect(readme, contains('POI 카테고리 필터'));
     expect(readme, contains('추천 코스'));
     expect(readme, contains('오늘의 탐험 리포트'));
+    expect(readme, contains('연속 탐험'));
     expect(readme, contains('탐험 배지'));
     expect(checklist, contains('SUBMISSION_PACKAGE.md'));
     expect(submission, contains('앱 URL'));
@@ -771,6 +772,7 @@ void main() {
     expect(submission, contains('추천 코스'));
     expect(submission, contains('카테고리 필터'));
     expect(submission, contains('오늘의 탐험 리포트'));
+    expect(submission, contains('연속 탐험'));
     expect(submission, contains('탐험 배지'));
     expect(submission, contains('요약 복사'));
     expect(submission, contains('제출 전 증빙'));
@@ -783,6 +785,7 @@ void main() {
     expect(checklist, contains('카테고리 필터'));
     expect(checklist, contains('마실펫과 대화하기'));
     expect(checklist, contains('오늘의 탐험 리포트'));
+    expect(checklist, contains('연속 탐험'));
     expect(checklist, contains('탐험 배지'));
     expect(checklist, contains('요약 복사'));
     expect(submission, contains('운영 전제'));

@@ -193,6 +193,51 @@ class MasilPetState {
 
   int get todayCheckInCount => todayCheckIns.length;
 
+  int get currentVisitStreakDays {
+    final visitedDays = _visitedLocalDaySet();
+    if (visitedDays.isEmpty) {
+      return 0;
+    }
+
+    final today = _localDayStamp(DateTime.now());
+    var cursor = visitedDays.contains(today)
+        ? today
+        : today.subtract(const Duration(days: 1));
+    if (!visitedDays.contains(cursor)) {
+      return 0;
+    }
+
+    var streak = 0;
+    while (visitedDays.contains(cursor)) {
+      streak++;
+      cursor = cursor.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  int get longestVisitStreakDays {
+    final visitedDays = _visitedLocalDaySet().toList()
+      ..sort((left, right) => left.compareTo(right));
+    if (visitedDays.isEmpty) {
+      return 0;
+    }
+
+    var longest = 1;
+    var current = 1;
+    for (var index = 1; index < visitedDays.length; index++) {
+      final gap = visitedDays[index].difference(visitedDays[index - 1]).inDays;
+      if (gap == 1) {
+        current++;
+      } else {
+        current = 1;
+      }
+      if (current > longest) {
+        longest = current;
+      }
+    }
+    return longest;
+  }
+
   int get remainingDailyCheckIns {
     return (dailyCheckInLimit - todayCheckInCount)
         .clamp(0, dailyCheckInLimit)
@@ -323,6 +368,10 @@ class MasilPetState {
     return todayCheckIns.any((checkIn) => checkIn.poiId == poi.id);
   }
 
+  Set<DateTime> _visitedLocalDaySet() {
+    return checkIns.map((checkIn) => _localDayStamp(checkIn.createdAt)).toSet();
+  }
+
   bool canCheckInToday(Poi poi) {
     return hasFreshVerifiedLocation &&
         remainingDailyCheckIns > 0 &&
@@ -445,6 +494,10 @@ class MasilPetState {
       isBusy: isBusy ?? this.isBusy,
     );
   }
+}
+
+DateTime _localDayStamp(DateTime value) {
+  return DateTime.utc(value.year, value.month, value.day);
 }
 
 class MasilPetController extends StateNotifier<MasilPetState> {

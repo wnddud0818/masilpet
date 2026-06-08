@@ -266,6 +266,130 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('profile expedition report starts the first visit',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final reportAction = find.widgetWithText(OutlinedButton, '첫 리포트 만들기');
+    expect(find.text('오늘의 탐험 리포트'), findsOneWidget);
+    expect(
+      find.textContaining('첫 장소를 기록하면 오늘의 방문 장소'),
+      findsOneWidget,
+    );
+    expect(reportAction, findsOneWidget);
+
+    await tester.tap(reportAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile expedition report summarizes today and links pet care',
+      (WidgetTester tester) async {
+    final now = DateTime.now();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        CheckIn(
+          id: 'checkin-report',
+          poiId: starterPoiSeed.first.id,
+          regionId: starterPoiSeed.first.regionId,
+          category: starterPoiSeed.first.category,
+          createdAt: now,
+          distanceMeters: 14,
+          rewardApplied: true,
+          reward: const CheckInReward(
+            stats: GrowthStats(
+              exp: 22,
+              mood: 4,
+              knowledge: 22,
+              affinity: 8,
+            ),
+            eggProgress: 760,
+          ),
+        ),
+      ],
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: ProfileScreen(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('오늘의 탐험 리포트'), findsOneWidget);
+    expect(find.text('오늘 방문'), findsOneWidget);
+    expect(find.text('1곳'), findsOneWidget);
+    expect(find.text('받은 보상'), findsOneWidget);
+    expect(find.text('EXP +22 · 기분 +4 · 지식 +22 · 친밀도 +8 · 알 +760'),
+        findsOneWidget);
+    expect(find.widgetWithText(FilledButton, '요약 복사'), findsOneWidget);
+
+    final petAction = find.widgetWithText(OutlinedButton, '마실펫에게 들려주기');
+    expect(petAction, findsOneWidget);
+
+    await tester.ensureVisible(petAction);
+    await tester.pump();
+    await tester.tap(petAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('profile readiness separates core loop from online sync',
       (WidgetTester tester) async {
     final now = DateTime.now();
@@ -425,10 +549,10 @@ void main() {
 
     expect(find.text('방문 기록'), findsOneWidget);
     expect(find.text('1회'), findsWidgets);
-    expect(find.text(starterPoiSeed.first.title), findsOneWidget);
+    expect(find.text(starterPoiSeed.first.title), findsWidgets);
     expect(find.text(starterPoiSeed.first.category.label), findsOneWidget);
     expect(find.textContaining('12m · 보상 적용'), findsOneWidget);
-    expect(find.textContaining('12m'), findsOneWidget);
+    expect(find.textContaining('12m'), findsWidgets);
     expect(find.textContaining('보상 적용'), findsOneWidget);
     expect(find.text('EXP +33'), findsOneWidget);
     expect(find.text('기분 +4'), findsOneWidget);

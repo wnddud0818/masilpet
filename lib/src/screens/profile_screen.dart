@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../app_build_info.dart';
 import '../models.dart';
@@ -25,12 +26,18 @@ class ProfileScreen extends ConsumerWidget {
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: _ProfileAdaptiveSliverList(
-            primaryCount: 7,
-            secondaryStartIndex: 8,
+            primaryCount: 9,
+            secondaryStartIndex: 10,
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
               _LaunchReadinessCard(state: state),
+              const SizedBox(height: 12),
+              _ExpeditionReportCard(
+                state: state,
+                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
+                onOpenPet: state.isBusy ? null : () => controller.setTab(1),
+              ),
               const SizedBox(height: 12),
               Card(
                 child: Padding(
@@ -179,6 +186,307 @@ class ProfileScreen extends ConsumerWidget {
     if (confirmed == true) {
       await controller.resetProgress();
     }
+  }
+}
+
+class _ExpeditionReportCard extends StatelessWidget {
+  const _ExpeditionReportCard({
+    required this.state,
+    required this.onOpenMap,
+    required this.onOpenPet,
+  });
+
+  final MasilPetState state;
+  final VoidCallback? onOpenMap;
+  final VoidCallback? onOpenPet;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final latestCheckIn = _latestTodayCheckIn(state);
+    final poi =
+        latestCheckIn == null ? null : _poiForCheckIn(state, latestCheckIn);
+    final reward = latestCheckIn?.rewardApplied == true
+        ? latestCheckIn?.reward ??
+            const GrowthEngine().rewardFor(latestCheckIn!.category)
+        : null;
+    final activePet = state.activePet;
+    final nextPoi = state.nextRecommendedPoi;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome_outlined,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '오늘의 탐험 리포트',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (latestCheckIn == null) ...[
+              Text(
+                '첫 장소를 기록하면 오늘의 방문 장소, 보상, 함께한 마실펫이 한 장의 리포트로 정리됩니다.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.4,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: onOpenMap,
+                  icon: const Icon(Icons.map_outlined),
+                  label: const Text('첫 리포트 만들기'),
+                ),
+              ),
+            ] else ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _ReportStatPill(
+                    icon: Icons.flag_outlined,
+                    label: '오늘 방문',
+                    value: '${state.todayCheckInCount}곳',
+                  ),
+                  _ReportStatPill(
+                    icon: Icons.category_outlined,
+                    label: '카테고리',
+                    value: '${state.todayVisitedCategoryCount}/7',
+                  ),
+                  _ReportStatPill(
+                    icon: Icons.pets_outlined,
+                    label: '함께한 펫',
+                    value: activePet?.name ?? '준비 중',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _ReportDetailRow(
+                icon: Icons.place_outlined,
+                title: poi?.title ?? '저장된 방문 장소',
+                body:
+                    '${latestCheckIn.category.label} · ${latestCheckIn.distanceMeters.round()}m',
+              ),
+              if (reward != null) ...[
+                const SizedBox(height: 8),
+                _ReportDetailRow(
+                  icon: Icons.card_giftcard_outlined,
+                  title: '받은 보상',
+                  body: reward.summaryLabel,
+                ),
+              ],
+              if (nextPoi != null) ...[
+                const SizedBox(height: 8),
+                _ReportDetailRow(
+                  icon: Icons.near_me_outlined,
+                  title: '다음 추천',
+                  body:
+                      '${nextPoi.title} · ${nextPoi.category.label} · ${state.currentLocation.distanceTo(nextPoi.coordinates).round()}m',
+                ),
+              ],
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () {
+                      _copyExpeditionReport(context, state);
+                    },
+                    icon: const Icon(Icons.copy_outlined),
+                    label: const Text('요약 복사'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onOpenPet,
+                    icon: const Icon(Icons.forum_outlined),
+                    label: const Text('마실펫에게 들려주기'),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportStatPill extends StatelessWidget {
+  const _ReportStatPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: const BoxConstraints(minWidth: 112),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.primary.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: scheme.primary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _copyExpeditionReport(
+  BuildContext context,
+  MasilPetState state,
+) async {
+  await Clipboard.setData(
+    ClipboardData(text: _expeditionReportText(state)),
+  );
+  if (!context.mounted) {
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('오늘의 탐험 리포트를 복사했습니다.')),
+  );
+}
+
+String _expeditionReportText(MasilPetState state) {
+  final latestCheckIn = _latestTodayCheckIn(state);
+  if (latestCheckIn == null) {
+    return 'MasilPet 오늘의 탐험 리포트\n아직 오늘의 체크인이 없습니다. 지도에서 첫 장소를 기록해 보세요.';
+  }
+
+  final poi = _poiForCheckIn(state, latestCheckIn);
+  final reward = latestCheckIn.rewardApplied
+      ? latestCheckIn.reward ??
+          const GrowthEngine().rewardFor(latestCheckIn.category)
+      : null;
+  final activePet = state.activePet;
+  final nextPoi = state.nextRecommendedPoi;
+  final categories =
+      state.todayVisitedCategories.map((category) => category.label).join(', ');
+
+  return [
+    'MasilPet 오늘의 탐험 리포트',
+    '방문 ${state.todayCheckInCount}곳 · 카테고리 ${state.todayVisitedCategoryCount}/7',
+    '최근 장소: ${poi?.title ?? '저장된 방문 장소'} (${latestCheckIn.category.label}, ${latestCheckIn.distanceMeters.round()}m)',
+    if (categories.isNotEmpty) '기록한 카테고리: $categories',
+    if (reward != null) '받은 보상: ${reward.summaryLabel}',
+    if (activePet != null) '함께한 마실펫: ${activePet.name} Lv.${activePet.level}',
+    if (nextPoi != null)
+      '다음 추천: ${nextPoi.title} (${nextPoi.category.label}, ${state.currentLocation.distanceTo(nextPoi.coordinates).round()}m)',
+  ].join('\n');
+}
+
+CheckIn? _latestTodayCheckIn(MasilPetState state) {
+  final today = [...state.todayCheckIns];
+  if (today.isEmpty) {
+    return null;
+  }
+  today.sort((left, right) => right.createdAt.compareTo(left.createdAt));
+  return today.first;
+}
+
+Poi? _poiForCheckIn(MasilPetState state, CheckIn checkIn) {
+  for (final poi in state.pois) {
+    if (poi.id == checkIn.poiId) {
+      return poi;
+    }
+  }
+  return null;
+}
+
+class _ReportDetailRow extends StatelessWidget {
+  const _ReportDetailRow({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: scheme.primary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

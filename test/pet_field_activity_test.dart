@@ -103,4 +103,31 @@ void main() {
 
     expect(walkingFrameCount, greaterThanOrEqualTo(3));
   });
+
+  testWidgets('play field renders the neighborhood yard scene', (tester) async {
+    final controller = _controller();
+    final state = controller.state;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PetPlayField(
+          templates: starterPetTemplates,
+          pets: state.pets,
+          eggs: state.eggs,
+          activePetId: state.activePetId,
+          activity: state.fieldActivity,
+          activityNonce: state.fieldActivityNonce,
+          height: 300,
+          scene: PetPlayFieldScene.neighborhoodYard,
+          spriteScale: 1.16,
+        ),
+      ),
+    );
+
+    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
+    expect(field.scene, PetPlayFieldScene.neighborhoodYard);
+    expect(field.height, 300);
+    expect(find.byType(CustomPaint), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 }

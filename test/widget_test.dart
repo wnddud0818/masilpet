@@ -2364,6 +2364,73 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('house screen promotes a large yard field on desktop width',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1180, 820);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
+    final fieldRect = tester.getRect(find.byType(PetPlayField));
+    final overviewTop = tester.getTopLeft(find.byType(MetricGrid)).dy;
+    expect(field.scene, PetPlayFieldScene.neighborhoodYard);
+    expect(field.spriteScale, 1.16);
+    expect(fieldRect.height, moreOrLessEquals(360));
+    expect(fieldRect.right, lessThanOrEqualTo(1180));
+    expect(fieldRect.top, lessThan(overviewTop));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house screen promotes a large yard field on phone width',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          firebaseReadyProvider.overrideWithValue(false),
+          firebaseStartupIssueProvider.overrideWithValue(
+            FirebaseStartupIssue.missingWebConfiguration,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
+    final fieldRect = tester.getRect(find.byType(PetPlayField));
+    final overviewTop = tester.getTopLeft(find.byType(MetricGrid)).dy;
+    expect(field.scene, PetPlayFieldScene.neighborhoodYard);
+    expect(field.spriteScale, 1.16);
+    expect(fieldRect.height, moreOrLessEquals(300));
+    expect(fieldRect.right, lessThanOrEqualTo(390));
+    expect(fieldRect.top, lessThan(overviewTop));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('house care plan links daily actions to map and pet care',
       (WidgetTester tester) async {
     final controller = MasilPetController(

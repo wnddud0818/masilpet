@@ -6,6 +6,11 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../pet_assets.dart';
 
+enum PetPlayFieldScene {
+  seasidePark,
+  neighborhoodYard,
+}
+
 class PetPlayField extends StatefulWidget {
   const PetPlayField({
     required this.templates,
@@ -15,8 +20,10 @@ class PetPlayField extends StatefulWidget {
     required this.activityNonce,
     this.eggs = const [],
     this.height = 260,
+    this.scene = PetPlayFieldScene.seasidePark,
+    this.spriteScale = 1.0,
     super.key,
-  });
+  }) : assert(spriteScale > 0);
 
   final List<PetTemplate> templates;
   final List<Pet> pets;
@@ -25,6 +32,8 @@ class PetPlayField extends StatefulWidget {
   final PetFieldActivity activity;
   final int activityNonce;
   final double height;
+  final PetPlayFieldScene scene;
+  final double spriteScale;
 
   @override
   State<PetPlayField> createState() => _PetPlayFieldState();
@@ -111,7 +120,7 @@ class _PetPlayFieldState extends State<PetPlayField>
                     children: [
                       Positioned.fill(
                         child: CustomPaint(
-                          painter: _PlayFieldPainter(t),
+                          painter: _PlayFieldPainter(t, scene: widget.scene),
                         ),
                       ),
                       for (var i = 0; i < widget.eggs.take(2).length; i++)
@@ -128,6 +137,7 @@ class _PetPlayFieldState extends State<PetPlayField>
                           t: t,
                           fieldSize: constraints.biggest,
                           activeActivity: _displayActivity,
+                          spriteScale: widget.spriteScale,
                         ),
                     ],
                   );
@@ -195,6 +205,7 @@ class _PlayPet extends StatelessWidget {
     required this.t,
     required this.fieldSize,
     required this.activeActivity,
+    required this.spriteScale,
   });
 
   final _Playmate playmate;
@@ -203,6 +214,7 @@ class _PlayPet extends StatelessWidget {
   final double t;
   final Size fieldSize;
   final PetFieldActivity activeActivity;
+  final double spriteScale;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +223,9 @@ class _PlayPet extends StatelessWidget {
             ? activeActivity
             : _ambientActivity(index, t, isActive: playmate.isActive);
     final sizeRatio = totalCount >= 5 ? 0.105 : 0.12;
-    final size = (fieldSize.width * sizeRatio).clamp(58.0, 108.0);
+    final size =
+        ((fieldSize.width * sizeRatio).clamp(58.0, 108.0) * spriteScale)
+            .clamp(58.0, 128.0);
     final movementT = activity == PetFieldActivity.walking
         ? t * (0.72 + index * 0.05) + index * 0.17
         : t + index * 0.21;
@@ -492,12 +506,22 @@ class _PlayEgg extends StatelessWidget {
 }
 
 class _PlayFieldPainter extends CustomPainter {
-  const _PlayFieldPainter(this.t);
+  const _PlayFieldPainter(this.t, {required this.scene});
 
   final double t;
+  final PetPlayFieldScene scene;
 
   @override
   void paint(Canvas canvas, Size size) {
+    switch (scene) {
+      case PetPlayFieldScene.seasidePark:
+        _paintSeasidePark(canvas, size);
+      case PetPlayFieldScene.neighborhoodYard:
+        _paintNeighborhoodYard(canvas, size);
+    }
+  }
+
+  void _paintSeasidePark(Canvas canvas, Size size) {
     final sky = Paint()
       ..shader = const LinearGradient(
         colors: [Color(0xFFE0F2FE), Color(0xFFF0FDFA)],
@@ -586,6 +610,268 @@ class _PlayFieldPainter extends CustomPainter {
     _drawFlowers(canvas, size);
   }
 
+  void _paintNeighborhoodYard(Canvas canvas, Size size) {
+    final sky = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFFFFF7ED), Color(0xFFD9F99D), Color(0xFFF8FAFC)],
+        stops: [0, 0.54, 1],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, sky);
+
+    final sun = Paint()..color = const Color(0xFFFCD34D);
+    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.16), 26, sun);
+
+    _drawNeighborhoodHouse(
+      canvas,
+      Rect.fromLTWH(
+        size.width * 0.08,
+        size.height * 0.17,
+        size.width * 0.35,
+        size.height * 0.29,
+      ),
+      isPrimary: true,
+    );
+    _drawNeighborhoodHouse(
+      canvas,
+      Rect.fromLTWH(
+        size.width * 0.58,
+        size.height * 0.2,
+        size.width * 0.3,
+        size.height * 0.24,
+      ),
+      isPrimary: false,
+    );
+
+    final wallTop = size.height * 0.41;
+    final wallPaint = Paint()..color = const Color(0xFFF5E6C8);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(-8, wallTop, size.width + 16, size.height * 0.12),
+        const Radius.circular(12),
+      ),
+      wallPaint,
+    );
+    final wallLine = Paint()
+      ..color = const Color(0xFFE0C89D)
+      ..strokeWidth = 2;
+    for (var x = -8.0; x < size.width + 16; x += 44) {
+      canvas.drawLine(
+          Offset(x, wallTop + 8), Offset(x, wallTop + 34), wallLine);
+    }
+    canvas.drawLine(
+      Offset(0, wallTop + size.height * 0.12),
+      Offset(size.width, wallTop + size.height * 0.12),
+      wallLine,
+    );
+
+    final yard = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFFA7F3D0), Color(0xFF34D399)],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(
+        Rect.fromLTWH(0, size.height * 0.5, size.width, size.height * 0.5),
+      );
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.5, size.width, size.height * 0.5),
+      yard,
+    );
+
+    final matPaint = Paint()..color = const Color(0xFFFDE68A);
+    final yardPath = Path()
+      ..moveTo(size.width * 0.42, size.height)
+      ..cubicTo(
+        size.width * 0.32,
+        size.height * 0.84,
+        size.width * 0.45,
+        size.height * 0.7,
+        size.width * 0.43,
+        size.height * 0.53,
+      )
+      ..lineTo(size.width * 0.57, size.height * 0.53)
+      ..cubicTo(
+        size.width * 0.61,
+        size.height * 0.7,
+        size.width * 0.72,
+        size.height * 0.84,
+        size.width * 0.62,
+        size.height,
+      )
+      ..close();
+    canvas.drawPath(yardPath, matPaint);
+
+    final stonePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.52)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (var i = 0; i < 5; i++) {
+      final y = size.height * (0.58 + i * 0.08);
+      final width = size.width * (0.12 + i * 0.02);
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(size.width * (0.5 + math.sin(i) * 0.03), y),
+          width: width,
+          height: 12,
+        ),
+        stonePaint,
+      );
+    }
+
+    _drawYardPlanter(
+      canvas,
+      Offset(size.width * 0.13, size.height * 0.65),
+      1.0,
+    );
+    _drawYardPlanter(
+      canvas,
+      Offset(size.width * 0.88, size.height * 0.67),
+      0.82,
+    );
+    _drawYardFlowers(canvas, size);
+  }
+
+  void _drawNeighborhoodHouse(
+    Canvas canvas,
+    Rect body, {
+    required bool isPrimary,
+  }) {
+    final wall = Paint()
+      ..color = isPrimary ? const Color(0xFFFFEDD5) : const Color(0xFFE0F2FE);
+    final wallShadow = Paint()
+      ..color = const Color(0xFF334155).withValues(alpha: 0.08);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        body.shift(const Offset(0, 5)),
+        const Radius.circular(8),
+      ),
+      wallShadow,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(body, const Radius.circular(8)),
+      wall,
+    );
+
+    final roofHeight = body.height * 0.38;
+    final roof = Path()
+      ..moveTo(body.left - body.width * 0.08, body.top + roofHeight * 0.35)
+      ..quadraticBezierTo(
+        body.center.dx,
+        body.top - roofHeight * 0.55,
+        body.right + body.width * 0.08,
+        body.top + roofHeight * 0.35,
+      )
+      ..lineTo(body.right, body.top + roofHeight)
+      ..lineTo(body.left, body.top + roofHeight)
+      ..close();
+    canvas.drawPath(roof, Paint()..color = const Color(0xFFB45309));
+
+    final tileLine = Paint()
+      ..color = const Color(0xFF7C2D12).withValues(alpha: 0.34)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    for (var i = 0; i < 4; i++) {
+      final y = body.top + roofHeight * (0.42 + i * 0.15);
+      final path = Path()..moveTo(body.left + body.width * 0.05, y);
+      path.quadraticBezierTo(
+          body.center.dx, y - 9, body.right - body.width * 0.05, y);
+      canvas.drawPath(path, tileLine);
+    }
+
+    final door = Rect.fromLTWH(
+      body.left + body.width * 0.42,
+      body.top + body.height * 0.52,
+      body.width * 0.16,
+      body.height * 0.34,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(door, const Radius.circular(6)),
+      Paint()..color = const Color(0xFF92400E),
+    );
+
+    final windowPaint = Paint()..color = const Color(0xFFBAE6FD);
+    final windowStroke = Paint()
+      ..color = Colors.white.withValues(alpha: 0.82)
+      ..strokeWidth = 2;
+    for (final dx in [0.18, 0.68]) {
+      final window = Rect.fromLTWH(
+        body.left + body.width * dx,
+        body.top + body.height * 0.48,
+        body.width * 0.16,
+        body.height * 0.16,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(window, const Radius.circular(4)),
+        windowPaint,
+      );
+      canvas.drawLine(window.centerLeft, window.centerRight, windowStroke);
+      canvas.drawLine(window.topCenter, window.bottomCenter, windowStroke);
+    }
+  }
+
+  void _drawYardPlanter(Canvas canvas, Offset base, double scale) {
+    final planter = Rect.fromCenter(
+      center: base,
+      width: 86 * scale,
+      height: 24 * scale,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(planter, Radius.circular(8 * scale)),
+      Paint()..color = const Color(0xFFB45309),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        planter.deflate(4 * scale),
+        Radius.circular(6 * scale),
+      ),
+      Paint()..color = const Color(0xFF78350F),
+    );
+
+    final leafColors = [
+      const Color(0xFF16A34A),
+      const Color(0xFF22C55E),
+      const Color(0xFF15803D),
+    ];
+    for (var i = 0; i < 7; i++) {
+      final x = planter.left + planter.width * (0.12 + i * 0.13);
+      final y = planter.top - (i.isEven ? 9 : 15) * scale;
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(x, y),
+          width: 18 * scale,
+          height: 28 * scale,
+        ),
+        Paint()..color = leafColors[i % leafColors.length],
+      );
+    }
+  }
+
+  void _drawYardFlowers(Canvas canvas, Size size) {
+    final stem = Paint()
+      ..color = const Color(0xFF047857)
+      ..strokeWidth = 2;
+    final colors = [
+      const Color(0xFFF43F5E),
+      const Color(0xFFF59E0B),
+      const Color(0xFF38BDF8),
+      const Color(0xFFA855F7),
+    ];
+
+    for (var i = 0; i < 18; i++) {
+      final leftSide = i.isEven;
+      final x = size.width *
+          (leftSide ? 0.04 + (i * 0.031) % 0.22 : 0.74 + (i * 0.027) % 0.22);
+      final y = size.height * (0.73 + (i % 4) * 0.045);
+      canvas.drawLine(Offset(x, y + 8), Offset(x, y - 5), stem);
+      canvas.drawCircle(
+        Offset(x, y - 8),
+        4,
+        Paint()..color = colors[i % colors.length],
+      );
+    }
+  }
+
   void _drawTree(Canvas canvas, Size size, Offset root, double scale) {
     final trunk = Paint()..color = const Color(0xFFA16207);
     final leaves = Paint()..color = const Color(0xFF16A34A);
@@ -634,6 +920,6 @@ class _PlayFieldPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _PlayFieldPainter oldDelegate) {
-    return oldDelegate.t != t;
+    return oldDelegate.t != t || oldDelegate.scene != scene;
   }
 }

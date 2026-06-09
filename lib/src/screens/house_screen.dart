@@ -29,6 +29,8 @@ class HouseScreen extends ConsumerWidget {
             children: [
               const StatusBanner(),
               const SizedBox(height: 12),
+              _HousePlayField(state: state),
+              const SizedBox(height: 12),
               _HouseOverviewCard(state: state),
               const SizedBox(height: 12),
               _HouseCarePlanCard(
@@ -41,20 +43,39 @@ class HouseScreen extends ConsumerWidget {
                 state: state,
                 onSelectPet: controller.selectPet,
               ),
-              const SizedBox(height: 16),
-              PetPlayField(
-                templates: state.templates,
-                pets: state.pets,
-                eggs: state.eggs,
-                activePetId: state.activePetId,
-                activity: state.fieldActivity,
-                activityNonce: state.fieldActivityNonce,
-                height: 180,
-              ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HousePlayField extends StatelessWidget {
+  const _HousePlayField({required this.state});
+
+  static const _wideBreakpoint = 840.0;
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final height = constraints.maxWidth >= _wideBreakpoint ? 360.0 : 300.0;
+
+        return PetPlayField(
+          templates: state.templates,
+          pets: state.pets,
+          eggs: state.eggs,
+          activePetId: state.activePetId,
+          activity: state.fieldActivity,
+          activityNonce: state.fieldActivityNonce,
+          height: height,
+          scene: PetPlayFieldScene.neighborhoodYard,
+          spriteScale: 1.16,
+        );
+      },
     );
   }
 }

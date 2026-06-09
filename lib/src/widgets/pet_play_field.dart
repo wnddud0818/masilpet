@@ -41,6 +41,8 @@ class PetPlayField extends StatefulWidget {
 
 class _PetPlayFieldState extends State<PetPlayField>
     with SingleTickerProviderStateMixin {
+  static const _fieldLoopDuration = Duration(milliseconds: 14000);
+
   late final AnimationController _controller;
   Timer? _activityTimer;
   PetFieldActivity _displayActivity = PetFieldActivity.idle;
@@ -51,7 +53,7 @@ class _PetPlayFieldState extends State<PetPlayField>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 14000),
+      duration: _fieldLoopDuration,
     )..repeat();
     _seenActivityNonce = widget.activityNonce;
     if (widget.activityNonce > 0) {
@@ -115,6 +117,9 @@ class _PetPlayFieldState extends State<PetPlayField>
                 animation: _controller,
                 builder: (context, child) {
                   final t = _controller.value;
+                  final timeSeconds = t *
+                      _fieldLoopDuration.inMilliseconds /
+                      Duration.millisecondsPerSecond;
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -135,6 +140,7 @@ class _PetPlayFieldState extends State<PetPlayField>
                           index: i,
                           totalCount: playmates.length,
                           t: t,
+                          timeSeconds: timeSeconds,
                           fieldSize: constraints.biggest,
                           activeActivity: _displayActivity,
                           spriteScale: widget.spriteScale,
@@ -203,6 +209,7 @@ class _PlayPet extends StatelessWidget {
     required this.index,
     required this.totalCount,
     required this.t,
+    required this.timeSeconds,
     required this.fieldSize,
     required this.activeActivity,
     required this.spriteScale,
@@ -212,6 +219,7 @@ class _PlayPet extends StatelessWidget {
   final int index;
   final int totalCount;
   final double t;
+  final double timeSeconds;
   final Size fieldSize;
   final PetFieldActivity activeActivity;
   final double spriteScale;
@@ -226,19 +234,6 @@ class _PlayPet extends StatelessWidget {
     final size =
         ((fieldSize.width * sizeRatio).clamp(58.0, 108.0) * spriteScale)
             .clamp(58.0, 128.0);
-    final movementT = activity == PetFieldActivity.walking
-        ? t * (0.72 + index * 0.05) + index * 0.17
-        : t + index * 0.21;
-    final wave = math.sin(movementT * math.pi * 2);
-    final bobSpeed = switch (activity) {
-      PetFieldActivity.eating => 4.2,
-      PetFieldActivity.greeting => 3.4,
-      PetFieldActivity.jumping => 2.8,
-      PetFieldActivity.sleeping => 0.9,
-      PetFieldActivity.walking => 2.35,
-      PetFieldActivity.idle => 2.5,
-    };
-    final bob = math.sin((t * bobSpeed + index * 0.18) * math.pi * 2).abs();
     final baseX = switch (index % 5) {
       0 => 0.14,
       1 => 0.33,
@@ -246,98 +241,96 @@ class _PlayPet extends StatelessWidget {
       3 => 0.74,
       _ => 0.88,
     };
-    final travel = activity == PetFieldActivity.walking
-        ? 0.095 - (index % 3) * 0.012
-        : 0.055;
-    final x = ((baseX + wave * travel) * fieldSize.width)
-        .clamp(8.0, fieldSize.width - size - 8);
     final lane = (index * 2) % 3;
     final yBase = fieldSize.height * (0.47 + lane * 0.09);
-    final hop = switch (activity) {
-      PetFieldActivity.jumping => 38.0,
-      PetFieldActivity.walking => 10.0,
-      PetFieldActivity.eating => 7.0,
-      PetFieldActivity.sleeping => 2.0,
-      PetFieldActivity.greeting => 14.0,
-      PetFieldActivity.idle => 10.0,
-    };
-    final y = (yBase - bob * hop).clamp(42.0, fieldSize.height - size - 18);
-    final isFacingLeft = wave < 0;
-    final frame = ((t * _frameSpeed(activity) + index) % 4).floor() + 1;
+    final pose = _poseFor(
+      activity: activity,
+      baseX: baseX,
+      yBase: yBase,
+      size: size,
+    );
+    final frame =
+        ((timeSeconds * _frameRate(activity) + index) % 4).floor() + 1;
     final imagePath = _activityAsset(playmate.template.assetKey, playmate.stage,
         activity: activity, frame: frame);
 
     return Positioned(
-      left: x,
-      top: y,
-      child: Transform.scale(
-        scaleX: isFacingLeft ? -1 : 1,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.13),
-                  blurRadius: 16,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Image.asset(
-                  imagePath,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      PetAssets.action(
-                        playmate.template.assetKey,
-                        _fallbackAction(activity),
-                      ),
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Image.asset(
-                          PetAssets.growth(
-                              playmate.template.assetKey, playmate.stage),
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: Color(playmate.template.colorValue)
-                                    .withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  playmate.template.initials,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        color:
-                                            Color(playmate.template.colorValue),
-                                        fontWeight: FontWeight.w800,
-                                      ),
+      left: pose.x,
+      top: pose.y,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.13),
+                blurRadius: 16,
+                offset: Offset(0, 7 + pose.shadowLift),
+              ),
+            ],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Transform.rotate(
+                angle: pose.rotation,
+                child: Transform.scale(
+                  scaleX: pose.isFacingLeft ? -1 : 1,
+                  scaleY: pose.scaleY,
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Image.asset(
+                        PetAssets.action(
+                          playmate.template.assetKey,
+                          _fallbackAction(activity),
+                        ),
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Image.asset(
+                            PetAssets.growth(
+                              playmate.template.assetKey,
+                              playmate.stage,
+                            ),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Color(playmate.template.colorValue)
+                                      .withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
+                                child: Center(
+                                  child: Text(
+                                    playmate.template.initials,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge
+                                        ?.copyWith(
+                                          color: Color(
+                                              playmate.template.colorValue),
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
-                if (playmate.isActive &&
-                    activeActivity != PetFieldActivity.idle &&
-                    activity != PetFieldActivity.idle)
-                  _ActivityCue(activity: activity, t: t, size: size),
-              ],
-            ),
+              ),
+              if (playmate.isActive &&
+                  activeActivity != PetFieldActivity.idle &&
+                  activity != PetFieldActivity.idle)
+                _ActivityCue(activity: activity, t: t, size: size),
+            ],
           ),
         ),
       ),
@@ -362,14 +355,83 @@ class _PlayPet extends StatelessWidget {
     return PetFieldActivity.walking;
   }
 
-  double _frameSpeed(PetFieldActivity activity) {
+  _PetPose _poseFor({
+    required PetFieldActivity activity,
+    required double baseX,
+    required double yBase,
+    required double size,
+  }) {
+    final phaseSeed = index * 0.37;
+    final walkDuration = 8.4 + (index % 3) * 1.25;
+    final walkPhase = timeSeconds / walkDuration + phaseSeed;
+    final walkAngle = walkPhase * math.pi * 2;
+    final walkWave = math.sin(walkAngle);
+    final travel = 0.105 - (index % 3) * 0.014;
+    final idleSway = math.sin(timeSeconds * 0.74 + phaseSeed) * 0.012;
+    final xRatio = activity == PetFieldActivity.walking
+        ? baseX + walkWave * travel
+        : baseX + idleSway;
+
+    final stridePhase = timeSeconds * (0.95 + index * 0.04) + phaseSeed;
+    final strideWave = math.sin(stridePhase * math.pi * 2);
+    final actionWave = math.sin((timeSeconds * 0.85 + phaseSeed) * math.pi * 2);
+    final jumpPhase = (timeSeconds * 0.72 + phaseSeed) % 1;
+    final jumpLift = math
+        .pow(math.sin(jumpPhase * math.pi).clamp(0.0, 1.0), 1.15)
+        .toDouble();
+    final jumpHeight = playmate.isActive ? 22.0 : 10.0;
+    final double lift = switch (activity) {
+      PetFieldActivity.walking => strideWave.abs() * 1.1,
+      PetFieldActivity.eating => (actionWave + 1) * 0.45,
+      PetFieldActivity.greeting => (actionWave + 1) * 1.2,
+      PetFieldActivity.jumping => jumpLift * jumpHeight,
+      PetFieldActivity.sleeping =>
+        (math.sin((timeSeconds * 0.42 + phaseSeed) * math.pi * 2) + 1) * 0.4,
+      PetFieldActivity.idle => (actionWave + 1) * 0.45,
+    };
+    final groundRoll = activity == PetFieldActivity.walking
+        ? math.sin(walkAngle + index) * 0.35
+        : 0.0;
+    final x = (xRatio * fieldSize.width).clamp(8.0, fieldSize.width - size - 8);
+    final y =
+        (yBase + groundRoll - lift).clamp(42.0, fieldSize.height - size - 18);
+    final double rotation = switch (activity) {
+      PetFieldActivity.walking => strideWave * 0.006,
+      PetFieldActivity.greeting => actionWave * 0.014,
+      PetFieldActivity.jumping => -actionWave * 0.018,
+      PetFieldActivity.eating => actionWave * 0.006,
+      PetFieldActivity.sleeping => 0.0,
+      PetFieldActivity.idle => actionWave * 0.004,
+    };
+    final double scaleY = switch (activity) {
+      PetFieldActivity.walking => 1.0 - strideWave.abs() * 0.003,
+      PetFieldActivity.jumping => 1.0 + jumpLift * 0.018,
+      PetFieldActivity.eating => 1.0 - actionWave.abs() * 0.003,
+      PetFieldActivity.greeting => 1.0 + actionWave.abs() * 0.004,
+      PetFieldActivity.sleeping => 1.0,
+      PetFieldActivity.idle => 1.0,
+    };
+
+    return _PetPose(
+      x: x,
+      y: y,
+      isFacingLeft: activity == PetFieldActivity.walking
+          ? math.cos(walkAngle) < 0
+          : index.isOdd,
+      rotation: rotation,
+      scaleY: scaleY,
+      shadowLift: lift * 0.08,
+    );
+  }
+
+  double _frameRate(PetFieldActivity activity) {
     return switch (activity) {
-      PetFieldActivity.walking => 7,
-      PetFieldActivity.eating => 10,
-      PetFieldActivity.greeting => 9,
-      PetFieldActivity.sleeping => 5,
-      PetFieldActivity.jumping => 8,
-      PetFieldActivity.idle => 6,
+      PetFieldActivity.walking => 4.2,
+      PetFieldActivity.eating => 3.2,
+      PetFieldActivity.greeting => 3.8,
+      PetFieldActivity.sleeping => 1.8,
+      PetFieldActivity.jumping => 4.0,
+      PetFieldActivity.idle => 2.4,
     };
   }
 
@@ -399,6 +461,24 @@ class _PlayPet extends StatelessWidget {
       PetFieldActivity.idle => 'idle',
     };
   }
+}
+
+class _PetPose {
+  const _PetPose({
+    required this.x,
+    required this.y,
+    required this.isFacingLeft,
+    required this.rotation,
+    required this.scaleY,
+    required this.shadowLift,
+  });
+
+  final double x;
+  final double y;
+  final bool isFacingLeft;
+  final double rotation;
+  final double scaleY;
+  final double shadowLift;
 }
 
 class _ActivityCue extends StatelessWidget {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     required this.title,
@@ -15,30 +17,67 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tokens = context.masilPetTheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: MasilPetSpacing.md),
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 18, color: scheme.primary),
-            const SizedBox(width: 6),
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: tokens.mint.withValues(alpha: 0.72),
+                borderRadius: MasilPetRadii.smallBorder,
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.16),
+                ),
+              ),
+              child: Icon(icon, size: 18, color: scheme.primary),
+            ),
+            const SizedBox(width: MasilPetSpacing.sm),
+          ] else ...[
+            Container(
+              width: 4,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: MasilPetPalette.leaf,
+                borderRadius: MasilPetRadii.pillBorder,
+              ),
+            ),
+            const SizedBox(width: MasilPetSpacing.sm),
           ],
           Expanded(
             child: Text(
               title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    color: tokens.ink,
+                    fontWeight: FontWeight.w900,
                   ),
             ),
           ),
-          if (detail != null)
-            Text(
-              detail!,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
+          if (detail != null) ...[
+            const SizedBox(width: MasilPetSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: MasilPetSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: MasilPetRadii.pillBorder,
+                border: Border.all(color: tokens.outline),
+              ),
+              child: Text(
+                detail!,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: tokens.mutedInk,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
             ),
+          ],
         ],
       ),
     );
@@ -66,22 +105,32 @@ class EmptyStateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final tokens = context.masilPetTheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(MasilPetSpacing.lg),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: scheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    tokens.mint,
+                    MasilPetPalette.sunPale,
+                  ],
+                ),
+                borderRadius: MasilPetRadii.controlBorder,
+                border: Border.all(color: tokens.outline, width: 1.1),
+                boxShadow: MasilPetShadows.soft,
               ),
-              child: Icon(icon, color: scheme.onPrimaryContainer),
+              child: Icon(icon, color: scheme.primary),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: MasilPetSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,13 +138,19 @@ class EmptyStateCard extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          color: tokens.ink,
+                          fontWeight: FontWeight.w900,
                         ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(body),
+                  const SizedBox(height: MasilPetSpacing.xxs),
+                  Text(
+                    body,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: tokens.mutedInk,
+                        ),
+                  ),
                   if (actionLabel != null && onAction != null) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: MasilPetSpacing.md),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: OutlinedButton.icon(

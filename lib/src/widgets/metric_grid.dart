@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 class MetricGridItem {
   const MetricGridItem({
     required this.icon,
@@ -78,33 +80,70 @@ class _MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 82),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(item.icon, size: 18, color: scheme.primary),
-            const SizedBox(height: 6),
-            Text(
-              item.value,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+    final tokens = context.masilPetTheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Semantics(
+      container: true,
+      label: '${item.label}: ${item.value}',
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 94),
+          child: Container(
+            padding: const EdgeInsets.all(MasilPetSpacing.md),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  tokens.paper,
+                  scheme.surfaceContainerHigh.withValues(alpha: 0.78),
+                ],
+              ),
+              borderRadius: MasilPetRadii.panelBorder,
+              border: Border.all(color: tokens.outline, width: 1.1),
+              boxShadow: MasilPetShadows.soft,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tokens.mint.withValues(alpha: 0.68),
+                    borderRadius: MasilPetRadii.smallBorder,
+                    border: Border.all(
+                      color: scheme.primary.withValues(alpha: 0.16),
+                    ),
                   ),
-              overflow: TextOverflow.ellipsis,
+                  child: Icon(item.icon, size: 18, color: scheme.primary),
+                ),
+                const SizedBox(height: MasilPetSpacing.sm),
+                Text(
+                  item.value,
+                  maxLines: 1,
+                  style: textTheme.titleMedium?.copyWith(
+                    color: tokens.ink,
+                    fontWeight: FontWeight.w900,
+                    height: 1.05,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: MasilPetSpacing.xxs),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  style: textTheme.labelSmall?.copyWith(
+                    color: tokens.mutedInk,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              item.label,
-              style: Theme.of(context).textTheme.labelSmall,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
       ),
     );

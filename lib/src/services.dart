@@ -90,6 +90,95 @@ class GrowthEngine {
   }
 }
 
+class CareEngine {
+  const CareEngine();
+
+  static const maxDecayDuration = Duration(hours: 24);
+  static const satietyDecayInterval = Duration(hours: 2);
+  static const cleanlinessDecayInterval = Duration(hours: 3);
+  static const vitalityDecayInterval = Duration(hours: 4);
+
+  PetCareState resolve(PetCareState care, DateTime now) {
+    final elapsed = now.difference(care.updatedAt);
+    final elapsedMinutes = elapsed.isNegative
+        ? 0
+        : math.min(elapsed.inMinutes, maxDecayDuration.inMinutes);
+    final sameCountDay = isSameLocalDay(care.dailyCountDay, now);
+    final resolvedAt = now.isBefore(care.updatedAt) ? care.updatedAt : now;
+
+    return care.copyWith(
+      satiety:
+          care.satiety - (elapsedMinutes ~/ satietyDecayInterval.inMinutes),
+      cleanliness: care.cleanliness -
+          (elapsedMinutes ~/ cleanlinessDecayInterval.inMinutes),
+      vitality:
+          care.vitality - (elapsedMinutes ~/ vitalityDecayInterval.inMinutes),
+      updatedAt: resolvedAt,
+      dailyCountDay: sameCountDay ? care.dailyCountDay : now,
+      feedCountToday: sameCountDay ? care.feedCountToday : 0,
+      playCountToday: sameCountDay ? care.playCountToday : 0,
+      cleanCountToday: sameCountDay ? care.cleanCountToday : 0,
+    );
+  }
+
+  PetCareState afterFeed(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety + 28,
+      vitality: current.vitality + 3,
+      updatedAt: now,
+      dailyCountDay: now,
+      feedCountToday: current.feedCountToday + 1,
+    );
+  }
+
+  PetCareState afterPlay(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety - 2,
+      cleanliness: current.cleanliness - 3,
+      vitality: current.vitality + 18,
+      updatedAt: now,
+      dailyCountDay: now,
+      playCountToday: current.playCountToday + 1,
+    );
+  }
+
+  PetCareState afterClean(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      cleanliness: current.cleanliness + 32,
+      vitality: current.vitality + 2,
+      updatedAt: now,
+      dailyCountDay: now,
+      cleanCountToday: current.cleanCountToday + 1,
+    );
+  }
+
+  PetCareState afterSleep(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety - 1,
+      vitality: current.vitality + 34,
+      updatedAt: now,
+    );
+  }
+
+  PetCareState afterTalk(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      vitality: current.vitality + 6,
+      updatedAt: now,
+    );
+  }
+
+  String localDayKey(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+}
+
 class StaticDialogueService {
   const StaticDialogueService();
 

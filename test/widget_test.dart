@@ -54,7 +54,10 @@ void main() {
     await tester.pump();
 
     expect(find.byType(MasilPetApp), findsOneWidget);
-    expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
+    expect(
+      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('profile release diagnostics fit on phone width',
@@ -84,6 +87,12 @@ void main() {
     );
     await tester.pump();
 
+    await tester.ensureVisible(find.text('앱 정보 및 연결'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('앱 정보 및 연결'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('앱 정보 및 연결'), findsOneWidget);
     expect(find.text('앱 버전'), findsOneWidget);
     expect(find.text('local-dev'), findsOneWidget);
     expect(find.text('빌드 채널'), findsOneWidget);
@@ -221,7 +230,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile readiness links missing check-in to map',
+  testWidgets('profile journey snapshot links the next walk to map',
       (WidgetTester tester) async {
     final controller = MasilPetController(
       firebaseReady: false,
@@ -254,10 +263,13 @@ void main() {
     );
     await tester.pump();
 
-    final checkInAction = find.widgetWithText(TextButton, '지도에서 체크인하기');
-    expect(find.text('탐험 준비 상태'), findsOneWidget);
+    final checkInAction = find.widgetWithText(FilledButton, '산책 이어가기');
+    expect(find.text('오늘, 첫 발자국을 남겨볼까요?'), findsOneWidget);
+    expect(find.text('남긴 발자국'), findsOneWidget);
+    expect(find.text('연속 산책'), findsWidgets);
+    expect(find.text('친구 도감'), findsOneWidget);
     expect(checkInAction, findsOneWidget);
-    expect(tester.widget<TextButton>(checkInAction).onPressed, isNotNull);
+    expect(tester.widget<FilledButton>(checkInAction).onPressed, isNotNull);
 
     await tester.tap(checkInAction);
     await tester.pump();
@@ -537,7 +549,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile readiness separates core loop from online sync',
+  testWidgets('profile journey snapshot keeps local progress approachable',
       (WidgetTester tester) async {
     final now = DateTime.now();
     final controller = MasilPetController(
@@ -584,16 +596,20 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('오늘의 탐험 루프'), findsOneWidget);
-    expect(find.text('3/3단계'), findsOneWidget);
-    expect(find.text('배포 동기화'), findsOneWidget);
-    expect(find.text('기기 내 진행 (설정 필요)'), findsWidgets);
+    expect(find.text('1일째 함께 걷고 있어요'), findsOneWidget);
+    expect(find.text('남긴 발자국'), findsOneWidget);
+    expect(find.text('친구 도감'), findsOneWidget);
     expect(
-      find.text(
-        '체크인·펫 보유·부화 루프가 기기 내 진행으로 이어지고 있습니다.',
-      ),
+      find.text('연결이 없어도 이 기기에서 돌봄과 산책을 계속할 수 있어요.'),
       findsOneWidget,
     );
+
+    final petAction = find.widgetWithText(OutlinedButton, '친구 만나기');
+    expect(petAction, findsOneWidget);
+    await tester.tap(petAction);
+    await tester.pump();
+
+    expect(controller.state.selectedTab, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -736,7 +752,7 @@ void main() {
     );
     await tester.pump();
 
-    final readinessTopLeft = tester.getTopLeft(find.text('탐험 준비 상태'));
+    final readinessTopLeft = tester.getTopLeft(find.text('오늘, 첫 발자국을 남겨볼까요?'));
     final quickActionsTopLeft = tester.getTopLeft(find.text('빠른 작업'));
     expect(quickActionsTopLeft.dx, greaterThan(readinessTopLeft.dx));
     expect((quickActionsTopLeft.dy - readinessTopLeft.dy).abs(), lessThan(160));
@@ -968,19 +984,28 @@ void main() {
     );
     await tester.pump();
 
+    final undiscoveredCount = controller.state.templates.length -
+        controller.state.discoveredTemplateIds.length;
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.byTooltip('지도 탭: 오늘 체크인 1회'), findsWidgets);
     expect(find.byTooltip('마실펫 탭: 대화 4회 가능'), findsWidgets);
     expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
-    expect(find.byTooltip('도감 탭: 미발견 6종'), findsWidgets);
-    expect(find.byTooltip('내 정보 탭: 탐험 준비 75%'), findsWidgets);
+    expect(find.byTooltip('도감 탭: 미발견 $undiscoveredCount종'), findsWidgets);
+    expect(find.byTooltip('기록 탭: 1일 연속 산책'), findsWidgets);
     expect(find.byType(Badge), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('home shell uses navigation rail on desktop width',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    );
     tester.view.physicalSize = const Size(1180, 820);
     tester.view.devicePixelRatio = 1;
     addTearDown(() {
@@ -991,9 +1016,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
           ),
         ],
         child: const MaterialApp(home: HomeShell()),
@@ -1002,14 +1026,16 @@ void main() {
     await tester.pump();
 
     final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    final undiscoveredCount = controller.state.templates.length -
+        controller.state.discoveredTemplateIds.length;
     expect(find.byType(NavigationBar), findsNothing);
     expect(rail.extended, isTrue);
     expect(rail.destinations, hasLength(5));
     expect(find.byTooltip('지도 탭: 위치 확인 필요'), findsWidgets);
     expect(find.byTooltip('마실펫 탭: 대화 5회 가능'), findsWidgets);
     expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
-    expect(find.byTooltip('도감 탭: 미발견 6종'), findsWidgets);
-    expect(find.byTooltip('내 정보 탭: 탐험 준비 50%'), findsWidgets);
+    expect(find.byTooltip('도감 탭: 미발견 $undiscoveredCount종'), findsWidgets);
+    expect(find.byTooltip('기록 탭: 첫 산책을 기다리는 중'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -1414,6 +1440,8 @@ void main() {
     await tester.pump();
 
     final fallbackMapAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
+    await tester.ensureVisible(fallbackMapAction);
+    await tester.pump();
     await tester.tap(fallbackMapAction);
     await tester.pump();
 
@@ -1844,6 +1872,8 @@ void main() {
     final petAction = find.widgetWithText(FilledButton, '마실펫에게 들려주기');
     expect(petAction, findsOneWidget);
 
+    await tester.ensureVisible(petAction);
+    await tester.pump();
     await tester.tap(petAction);
     await tester.pump();
 
@@ -1852,6 +1882,8 @@ void main() {
     final reportAction = find.widgetWithText(OutlinedButton, '리포트 보기');
     expect(reportAction, findsOneWidget);
 
+    await tester.ensureVisible(reportAction);
+    await tester.pump();
     await tester.tap(reportAction);
     await tester.pump();
 
@@ -2076,8 +2108,9 @@ void main() {
 
     final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
     final routineTopLeft = tester.getTopLeft(find.text('오늘의 돌봄 루틴'));
+    expect(find.text('오늘의 컨디션'), findsOneWidget);
     expect(routineTopLeft.dx, greaterThan(fieldTopLeft.dx));
-    expect((routineTopLeft.dy - fieldTopLeft.dy).abs(), lessThan(80));
+    expect((routineTopLeft.dy - fieldTopLeft.dy).abs(), lessThan(120));
     expect(tester.takeException(), isNull);
   });
 
@@ -2142,7 +2175,10 @@ void main() {
     expect(find.text('지식 +22'), findsOneWidget);
     expect(find.text('알 +760'), findsOneWidget);
 
-    final dialogueAction = find.widgetWithText(FilledButton, '마실펫과 대화하기');
+    final dialogueAction = find.ancestor(
+      of: find.text('대화'),
+      matching: find.byType(InkWell),
+    );
     expect(dialogueAction, findsOneWidget);
 
     await tester.ensureVisible(dialogueAction);
@@ -2152,6 +2188,132 @@ void main() {
 
     expect(controller.state.dialogueCountToday, 1);
     expect(controller.state.statusMessage, contains('오래된 길에도 바람길'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet care actions update play clean and sleep feedback',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(1);
+    final initialCare = controller.state.activePetCare!;
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final playAction = find.ancestor(
+      of: find.text('놀아주기'),
+      matching: find.byType(InkWell),
+    );
+    await tester.ensureVisible(playAction);
+    await tester.pump();
+    await tester.tap(playAction);
+    await tester.pump();
+
+    expect(
+      controller.state.activePetCare!.playCountToday,
+      initialCare.playCountToday + 1,
+    );
+    expect(controller.state.fieldActivity, PetFieldActivity.jumping);
+
+    final cleanAction = find.ancestor(
+      of: find.text('씻겨주기'),
+      matching: find.byType(InkWell),
+    );
+    await tester.ensureVisible(cleanAction);
+    await tester.pump();
+    await tester.tap(cleanAction);
+    await tester.pump();
+
+    expect(
+      controller.state.activePetCare!.cleanCountToday,
+      initialCare.cleanCountToday + 1,
+    );
+    expect(
+      controller.state.activePetCare!.cleanliness,
+      greaterThanOrEqualTo(initialCare.cleanliness),
+    );
+
+    final sleepAction = find.byTooltip('포근하게 재우기');
+    await tester.ensureVisible(sleepAction);
+    await tester.pump();
+    await tester.tap(sleepAction);
+    await tester.pump();
+
+    expect(controller.state.fieldActivity, PetFieldActivity.sleeping);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet care routine awards daily heart points once',
+      (WidgetTester tester) async {
+    final controller = MasilPetController(
+      firebaseReady: false,
+      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      localProgressRepository: null,
+    )..setTab(1);
+    controller.playActivePet();
+    controller.cleanActivePet();
+    await controller.feedActivePet();
+    await controller.talkWithActivePet();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith(
+            (ref) => controller,
+          ),
+        ],
+        child: const MaterialApp(home: Scaffold(body: PetScreen())),
+      ),
+    );
+    await tester.pump();
+
+    final claimAction = find.widgetWithText(FilledButton, '마음 포인트 30 받기');
+    expect(find.text('오늘의 돌봄 루틴'), findsOneWidget);
+    expect(find.text('4/4'), findsOneWidget);
+    expect(claimAction, findsOneWidget);
+
+    await tester.ensureVisible(claimAction);
+    await tester.pump();
+    await tester.tap(claimAction);
+    await tester.pump();
+
+    expect(controller.state.carePoints, dailyCareRewardPoints);
+    expect(find.text('30 P'), findsWidgets);
+    expect(find.text('오늘의 포인트 받기 완료'), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, '마음 포인트 30 받기'),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -2190,7 +2352,10 @@ void main() {
     expect(find.text('2레벨 필요'), findsOneWidget);
     expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'));
+    final growthAction = find.widgetWithText(TextButton, '지도에서 성장 보상 얻기');
+    await tester.ensureVisible(growthAction);
+    await tester.pump();
+    await tester.tap(growthAction);
     await tester.pump();
 
     expect(controller.state.selectedTab, 0);
@@ -2286,11 +2451,16 @@ void main() {
     );
     await tester.pump();
 
-    final doneTalkAction = find.widgetWithText(FilledButton, '대화 완료');
-    expect(find.text('대화 가능'), findsOneWidget);
-    expect(find.text('0회'), findsOneWidget);
+    final doneTalkAction = find.ancestor(
+      of: find.text('대화 완료'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      find.text('오늘 대화 5/5회 · 새 장소를 다녀오면 내일 다시 이어집니다.'),
+      findsOneWidget,
+    );
     expect(doneTalkAction, findsOneWidget);
-    expect(tester.widget<FilledButton>(doneTalkAction).onPressed, isNull);
+    expect(tester.widget<InkWell>(doneTalkAction).onTap, isNull);
     expect(
       find.widgetWithText(OutlinedButton, '지도에서 새 이야기 찾기'),
       findsOneWidget,
@@ -2654,7 +2824,7 @@ void main() {
   });
 
   testWidgets(
-      'dex screen pairs collection and TourAPI mapping on desktop width',
+      'dex screen pairs collection and discovery hints on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1180, 820);
@@ -2678,7 +2848,7 @@ void main() {
     await tester.pump();
 
     final collectionTopLeft = tester.getTopLeft(find.text('수집한 마실펫'));
-    final mappingTopLeft = tester.getTopLeft(find.text('TourAPI 카테고리 매핑'));
+    final mappingTopLeft = tester.getTopLeft(find.text('발견 힌트가 있는 산책지'));
     expect(mappingTopLeft.dx, greaterThan(collectionTopLeft.dx));
     expect((mappingTopLeft.dy - collectionTopLeft.dy).abs(), lessThan(80));
     expect(tester.takeException(), isNull);
@@ -2714,7 +2884,20 @@ void main() {
     await tester.pump();
 
     expect(find.text('탐험 필요'), findsWidgets);
-    expect(find.byIcon(Icons.lock_outline), findsWidgets);
+    expect(find.byIcon(Icons.cruelty_free_rounded), findsWidgets);
+    expect(find.text('미발견 마실펫'), findsWidgets);
+    expect(find.text('어떤 친구일까요?'), findsWidgets);
+    expect(find.text('스티커 앨범 필터'), findsOneWidget);
+    expect(find.text('발견 상태'), findsOneWidget);
+    expect(find.text('장소 힌트'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('dex-discovery-filter-undiscovered')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dex-category-filter-all')),
+      findsOneWidget,
+    );
     expect(find.text('다음 발견 후보'), findsOneWidget);
     expect(find.textContaining('항구마루 · 음식 카테고리'), findsOneWidget);
     expect(find.textContaining('자갈치시장 · 음식'), findsOneWidget);
@@ -2725,9 +2908,23 @@ void main() {
     expect(find.text('지식 +1'), findsOneWidget);
     expect(find.text('친밀도 +5'), findsOneWidget);
     expect(find.text('알 +620'), findsOneWidget);
-    expect(find.textContaining('음식점 매핑'), findsOneWidget);
-    expect(find.text('전국 기본 장소'), findsWidgets);
+    expect(find.text('추천 산책지'), findsWidgets);
     expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
+
+    final undiscoveredFilter =
+        find.byKey(const ValueKey('dex-discovery-filter-undiscovered'));
+    await tester.ensureVisible(undiscoveredFilter);
+    await tester.pump();
+    await tester.tap(undiscoveredFilter);
+    await tester.pump();
+
+    final undiscoveredCount = controller.state.templates.length -
+        controller.state.discoveredTemplateIds.length;
+    expect(find.text('$undiscoveredCount종 표시'), findsOneWidget);
+    expect(
+      tester.widget<ChoiceChip>(undiscoveredFilter).selected,
+      isTrue,
+    );
 
     final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
     expect(categoryAction, findsOneWidget);
@@ -2793,7 +2990,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dex TourAPI mapping surfaces POI source ids',
+  testWidgets('dex discovery hints use friendly POI source labels',
       (WidgetTester tester) async {
     final controller = MasilPetController(
       firebaseReady: false,
@@ -2835,9 +3032,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('TourAPI 카테고리 매핑'), findsOneWidget);
+    expect(find.text('발견 힌트가 있는 산책지'), findsOneWidget);
     expect(find.text('동백섬 산책로'), findsOneWidget);
-    expect(find.text('TourAPI ID 2785118'), findsWidgets);
+    expect(find.text('지역 산책지'), findsWidgets);
+    expect(find.textContaining('2785118'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -2888,7 +3086,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dex screen empty TourAPI mapping links back to map',
+  testWidgets('dex screen empty discovery hints link back to map',
       (WidgetTester tester) async {
     final controller = MasilPetController(
       firebaseReady: false,
@@ -2918,7 +3116,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('TourAPI 장소 데이터가 없습니다'), findsOneWidget);
+    expect(find.text('아직 등록된 산책지가 없습니다'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, '지도에서 다시 조회'), findsOneWidget);
 
     await tester.ensureVisible(
@@ -2955,20 +3153,23 @@ void main() {
     await tester.pump();
 
     final startButton =
-        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
+        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
     expect(startButton, findsOneWidget);
-    expect(find.text('오늘 한 바퀴'), findsOneWidget);
-    expect(find.text('최근 15분 위치 확인'), findsOneWidget);
-    expect(find.text('150m 체크인'), findsOneWidget);
-    expect(find.text('하우스와 도감 누적'), findsOneWidget);
-    expect(find.text('기기 내 진행 모드'), findsOneWidget);
-    expect(find.textContaining('Firebase Web 설정값'), findsOneWidget);
-    expect(find.byIcon(Icons.storage_outlined), findsOneWidget);
+    expect(find.text('첫 산책 시작하기'), findsOneWidget);
+    expect(find.text('걷고, 만나고,\n함께 자라요'), findsOneWidget);
+    expect(find.text('01  동네를 걷고'), findsOneWidget);
+    expect(find.text('내 주변 산책지를 찾아요'), findsOneWidget);
+    expect(find.text('02  장소를 만나고'), findsOneWidget);
+    expect(find.text('방문을 새로운 기억으로 남겨요'), findsOneWidget);
+    expect(find.text('03  함께 자라요'), findsOneWidget);
+    expect(find.text('대화하고 돌보며 진화해요'), findsOneWidget);
+    expect(
+      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
     expect(tester.getRect(find.byType(PetPlayField)).right,
         lessThanOrEqualTo(390));
-    expect(tester.getRect(find.text('150m')).right, lessThanOrEqualTo(390));
-    expect(
-        tester.getRect(find.text('하우스와 도감 누적')).right, lessThanOrEqualTo(390));
     expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
     expect(tester.getRect(startButton).right, lessThanOrEqualTo(390));
     expect(tester.takeException(), isNull);
@@ -2999,8 +3200,8 @@ void main() {
     final titleTopLeft = tester.getTopLeft(find.text('MasilPet'));
     final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
     final startButton =
-        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
-    final journeyTopLeft = tester.getTopLeft(find.text('오늘 한 바퀴'));
+        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
+    final journeyTopLeft = tester.getTopLeft(find.text('01  동네를 걷고'));
     expect(fieldTopLeft.dx, greaterThan(titleTopLeft.dx));
     expect(journeyTopLeft.dx, greaterThanOrEqualTo(titleTopLeft.dx));
     expect(journeyTopLeft.dx, lessThan(fieldTopLeft.dx));
@@ -3044,9 +3245,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     final startButton =
-        find.widgetWithIcon(FilledButton, Icons.play_arrow_rounded);
+        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
     expect(find.text('MasilPet'), findsOneWidget);
-    expect(find.text('TourAPI 기반 지역 탐험'), findsOneWidget);
+    expect(find.text('걷고, 만나고,\n함께 자라요'), findsOneWidget);
+    expect(find.text('01  동네를 걷고'), findsOneWidget);
+    expect(
+      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
+      findsOneWidget,
+    );
     expect(startButton, findsOneWidget);
     expect(
       tester.getTopLeft(find.text('MasilPet')).dy,
@@ -3095,7 +3301,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('수집한 마실펫'), findsOneWidget);
-    expect(find.text('TourAPI 카테고리 매핑'), findsOneWidget);
+    expect(find.text('발견 힌트가 있는 산책지'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

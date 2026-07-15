@@ -74,6 +74,7 @@ class _HousePlayField extends StatelessWidget {
           height: height,
           scene: PetPlayFieldScene.neighborhoodYard,
           spriteScale: 1.16,
+          showVisitors: false,
         );
       },
     );

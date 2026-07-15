@@ -22,6 +22,7 @@ class PetPlayField extends StatefulWidget {
     this.height = 260,
     this.scene = PetPlayFieldScene.seasidePark,
     this.spriteScale = 1.0,
+    this.showVisitors = true,
     super.key,
   }) : assert(spriteScale > 0);
 
@@ -34,6 +35,7 @@ class PetPlayField extends StatefulWidget {
   final double height;
   final PetPlayFieldScene scene;
   final double spriteScale;
+  final bool showVisitors;
 
   @override
   State<PetPlayField> createState() => _PetPlayFieldState();
@@ -47,6 +49,7 @@ class _PetPlayFieldState extends State<PetPlayField>
   Timer? _activityTimer;
   PetFieldActivity _displayActivity = PetFieldActivity.idle;
   int _seenActivityNonce = 0;
+  bool _animationsEnabled = false;
 
   @override
   void initState() {
@@ -54,10 +57,27 @@ class _PetPlayFieldState extends State<PetPlayField>
     _controller = AnimationController(
       vsync: this,
       duration: _fieldLoopDuration,
-    )..repeat();
+    );
     _seenActivityNonce = widget.activityNonce;
     if (widget.activityNonce > 0) {
       _showActivity(widget.activity);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final animationsEnabled = TickerMode.valuesOf(context).enabled &&
+        !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+    if (_animationsEnabled == animationsEnabled) {
+      return;
+    }
+
+    _animationsEnabled = animationsEnabled;
+    if (_animationsEnabled) {
+      _controller.repeat();
+    } else {
+      _controller.stop(canceled: false);
     }
   }
 
@@ -100,60 +120,92 @@ class _PetPlayFieldState extends State<PetPlayField>
   @override
   Widget build(BuildContext context) {
     final playmates = _buildPlaymates();
+    final borderRadius = _playFieldBorderRadius(context);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD7E3DC)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: SizedBox(
-          height: widget.height,
-          width: double.infinity,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  final t = _controller.value;
-                  final timeSeconds = t *
-                      _fieldLoopDuration.inMilliseconds /
-                      Duration.millisecondsPerSecond;
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned.fill(
-                        child: CustomPaint(
-                          painter: _PlayFieldPainter(t, scene: widget.scene),
+    return Semantics(
+      container: true,
+      image: true,
+      excludeSemantics: true,
+      label: _playFieldSemanticsLabel(playmates),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            borderRadius: borderRadius,
+          ),
+          child: SizedBox(
+            height: widget.height,
+            width: double.infinity,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    final t = _controller.value;
+                    final timeSeconds = t *
+                        _fieldLoopDuration.inMilliseconds /
+                        Duration.millisecondsPerSecond;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _PlayFieldPainter(t, scene: widget.scene),
+                          ),
                         ),
-                      ),
-                      for (var i = 0; i < widget.eggs.take(2).length; i++)
-                        _PlayEgg(
-                          index: i,
-                          t: t,
-                          fieldSize: constraints.biggest,
-                        ),
-                      for (var i = 0; i < playmates.length; i++)
-                        _PlayPet(
-                          playmate: playmates[i],
-                          index: i,
-                          totalCount: playmates.length,
-                          t: t,
-                          timeSeconds: timeSeconds,
-                          fieldSize: constraints.biggest,
-                          activeActivity: _displayActivity,
-                          spriteScale: widget.spriteScale,
-                        ),
-                    ],
-                  );
-                },
-              );
-            },
+                        for (var i = 0; i < widget.eggs.take(2).length; i++)
+                          _PlayEgg(
+                            index: i,
+                            t: t,
+                            fieldSize: constraints.biggest,
+                          ),
+                        for (var i = 0; i < playmates.length; i++)
+                          _PlayPet(
+                            playmate: playmates[i],
+                            index: i,
+                            totalCount: playmates.length,
+                            t: t,
+                            timeSeconds: timeSeconds,
+                            fieldSize: constraints.biggest,
+                            activeActivity: _displayActivity,
+                            spriteScale: widget.spriteScale,
+                          ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
     );
+  }
+
+  BorderRadius _playFieldBorderRadius(BuildContext context) {
+    final cardShape = Theme.of(context).cardTheme.shape;
+    if (cardShape is RoundedRectangleBorder) {
+      return cardShape.borderRadius.resolve(Directionality.of(context));
+    }
+    return BorderRadius.circular(8);
+  }
+
+  String _playFieldSemanticsLabel(List<_Playmate> playmates) {
+    Pet? activePet;
+    for (final pet in widget.pets) {
+      if (pet.id == widget.activePetId) {
+        activePet = pet;
+        break;
+      }
+    }
+
+    final activePetLabel = activePet == null
+        ? '대표 마실펫이 없습니다'
+        : '대표 마실펫 ${activePet.name}, ${_activitySemanticsLabel(_displayActivity)}';
+    return '마실펫 놀이터. $activePetLabel. 함께 있는 마실펫 ${playmates.length}마리.';
   }
 
   List<_Playmate> _buildPlaymates() {
@@ -175,10 +227,14 @@ class _PetPlayFieldState extends State<PetPlayField>
         .nonNulls
         .toList();
 
+    if (!widget.showVisitors || owned.length >= 5) {
+      return owned.take(5).toList();
+    }
+
     final usedTemplateIds = owned.map((item) => item.template.id).toSet();
     final visitors = widget.templates
         .where((template) => !usedTemplateIds.contains(template.id))
-        .take(math.max(0, 5 - owned.length))
+        .take(5 - owned.length)
         .map(
           (template) => _Playmate(
             template: template,
@@ -189,6 +245,17 @@ class _PetPlayFieldState extends State<PetPlayField>
 
     return [...owned, ...visitors].take(5).toList();
   }
+}
+
+String _activitySemanticsLabel(PetFieldActivity activity) {
+  return switch (activity) {
+    PetFieldActivity.idle => '놀이터를 산책하는 중',
+    PetFieldActivity.walking => '산책하는 중',
+    PetFieldActivity.eating => '간식을 먹는 중',
+    PetFieldActivity.greeting => '인사하는 중',
+    PetFieldActivity.jumping => '신나게 뛰는 중',
+    PetFieldActivity.sleeping => '잠자는 중',
+  };
 }
 
 class _Playmate {
@@ -280,23 +347,26 @@ class _PlayPet extends StatelessWidget {
                 child: Transform.scale(
                   scaleX: pose.isFacingLeft ? -1 : 1,
                   scaleY: pose.scaleY,
-                  child: Image.asset(
+                  child: _assetImage(
+                    context,
                     imagePath,
-                    fit: BoxFit.contain,
+                    size,
                     errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
+                      return _assetImage(
+                        context,
                         PetAssets.action(
                           playmate.template.assetKey,
                           _fallbackAction(activity),
                         ),
-                        fit: BoxFit.contain,
+                        size,
                         errorBuilder: (context, error, stackTrace) {
-                          return Image.asset(
+                          return _assetImage(
+                            context,
                             PetAssets.growth(
                               playmate.template.assetKey,
                               playmate.stage,
                             ),
-                            fit: BoxFit.contain,
+                            size,
                             errorBuilder: (context, error, stackTrace) {
                               return DecoratedBox(
                                 decoration: BoxDecoration(
@@ -334,6 +404,27 @@ class _PlayPet extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _assetImage(
+    BuildContext context,
+    String assetPath,
+    double logicalSize, {
+    ImageErrorWidgetBuilder? errorBuilder,
+  }) {
+    final cacheSize = (logicalSize * MediaQuery.devicePixelRatioOf(context))
+        .ceil()
+        .clamp(64, 256)
+        .toInt();
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.none,
+      cacheWidth: cacheSize,
+      cacheHeight: cacheSize,
+      gaplessPlayback: true,
+      errorBuilder: errorBuilder,
     );
   }
 

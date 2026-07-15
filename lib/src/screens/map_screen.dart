@@ -10,7 +10,6 @@ import '../seed_data.dart';
 import '../services.dart';
 import '../state.dart';
 import '../widgets/metric_grid.dart';
-import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/reward_chip_row.dart';
 import '../widgets/section_header.dart';
@@ -46,6 +45,21 @@ class MapScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           sliver: ResponsiveSliverList(
             children: [
+              _WalkSummaryStrip(
+                state: state,
+                onUseDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+              ),
+              const SizedBox(height: 12),
+              _MapExplorationLayout(
+                state: state,
+                nearby: nearby,
+                onUseDeviceLocation:
+                    state.isBusy ? null : controller.useDeviceLocation,
+                selectedCategory: state.mapCategoryFocus,
+                onCategorySelected: controller.setMapCategoryFocus,
+              ),
+              const SizedBox(height: 12),
               const StatusBanner(),
               if (latestCheckIn != null) ...[
                 const SizedBox(height: 12),
@@ -75,29 +89,100 @@ class MapScreen extends ConsumerWidget {
                 onOpenPet: state.isBusy ? null : () => controller.setTab(1),
                 onOpenHouse: state.isBusy ? null : () => controller.setTab(2),
               ),
-              const SizedBox(height: 12),
-              _MapExplorationLayout(
-                state: state,
-                nearby: nearby,
-                onUseDeviceLocation:
-                    state.isBusy ? null : controller.useDeviceLocation,
-                selectedCategory: state.mapCategoryFocus,
-                onCategorySelected: controller.setMapCategoryFocus,
-              ),
-              const SizedBox(height: 16),
-              PetPlayField(
-                templates: state.templates,
-                pets: state.pets,
-                eggs: state.eggs,
-                activePetId: state.activePetId,
-                activity: state.fieldActivity,
-                activityNonce: state.fieldActivityNonce,
-                height: 190,
-              ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _WalkSummaryStrip extends StatelessWidget {
+  const _WalkSummaryStrip({
+    required this.state,
+    required this.onUseDeviceLocation,
+  });
+
+  final MasilPetState state;
+  final VoidCallback? onUseDeviceLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final next = state.nextRecommendedPoi;
+    final checkedCount = state.todayCheckInCount;
+    final goalProgress = checkedCount.clamp(0, 4);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 10, 14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F7EF), Color(0xFFFFF3C7)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDCCFB2), width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox.square(
+                dimension: 48,
+                child: CircularProgressIndicator(
+                  value: goalProgress / 4,
+                  strokeWidth: 6,
+                  strokeCap: StrokeCap.round,
+                  color: const Color(0xFF287A62),
+                  backgroundColor: Colors.white.withValues(alpha: 0.78),
+                ),
+              ),
+              Text(
+                '$goalProgress/4',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: const Color(0xFF195744),
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  checkedCount == 0 ? '오늘의 첫 발자국을 남겨볼까요?' : '오늘도 함께 걷는 중',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  next == null ? '주변 산책지를 찾고 있어요' : '다음 추천 · ${next.title}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: '현재 위치 확인',
+            onPressed: onUseDeviceLocation,
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.88),
+              foregroundColor: const Color(0xFF287A62),
+            ),
+            icon: const Icon(Icons.my_location_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

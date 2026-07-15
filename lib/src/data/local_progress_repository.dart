@@ -139,9 +139,14 @@ class LocalProgressSnapshot {
     required this.lastVisitedCategory,
     required this.dialogueCountToday,
     required this.dialogueDay,
+    this.careByPetId = const {},
+    this.carePoints = 0,
+    this.dailyCareRewardClaimKey,
   });
 
   factory LocalProgressSnapshot.fromMap(Map<String, dynamic> map) {
+    final dailyCareRewardClaimKey =
+        _stringFromValue(map['dailyCareRewardClaimKey']);
     return LocalProgressSnapshot(
       onboardingComplete: map['onboardingComplete'] == true,
       pois: _listOfMaps(map['pois']).map(_poiFromMap).toList(),
@@ -160,6 +165,10 @@ class LocalProgressSnapshot {
       ),
       dialogueCountToday: _intFromValue(map['dialogueCountToday']) ?? 0,
       dialogueDay: _dateFromValue(map['dialogueDay']),
+      careByPetId: _careByPetIdFromMap(map['careByPetId']),
+      carePoints: _intFromValue(map['carePoints']) ?? 0,
+      dailyCareRewardClaimKey:
+          dailyCareRewardClaimKey.isEmpty ? null : dailyCareRewardClaimKey,
     );
   }
 
@@ -175,6 +184,9 @@ class LocalProgressSnapshot {
   final PoiCategory? lastVisitedCategory;
   final int dialogueCountToday;
   final DateTime dialogueDay;
+  final Map<String, PetCareState> careByPetId;
+  final int carePoints;
+  final String? dailyCareRewardClaimKey;
 
   Map<String, dynamic> toMap() {
     return {
@@ -191,8 +203,51 @@ class LocalProgressSnapshot {
       'lastVisitedCategory': lastVisitedCategory?.name,
       'dialogueCountToday': dialogueCountToday,
       'dialogueDay': dialogueDay.toIso8601String(),
+      'careByPetId': {
+        for (final entry in careByPetId.entries)
+          entry.key: _careToMap(entry.value),
+      },
+      'carePoints': carePoints,
+      'dailyCareRewardClaimKey': dailyCareRewardClaimKey,
     };
   }
+}
+
+Map<String, dynamic> _careToMap(PetCareState care) {
+  return {
+    'satiety': care.satiety,
+    'cleanliness': care.cleanliness,
+    'vitality': care.vitality,
+    'updatedAt': care.updatedAt.toIso8601String(),
+    'dailyCountDay': care.dailyCountDay.toIso8601String(),
+    'feedCountToday': care.feedCountToday,
+    'playCountToday': care.playCountToday,
+    'cleanCountToday': care.cleanCountToday,
+  };
+}
+
+Map<String, PetCareState> _careByPetIdFromMap(Object? value) {
+  final map = _mapFromValue(value);
+  final result = <String, PetCareState>{};
+  for (final entry in map.entries) {
+    final careMap = _mapFromValue(entry.value);
+    if (careMap.isEmpty) {
+      continue;
+    }
+    final updatedAt = _dateFromValue(careMap['updatedAt']);
+    result[entry.key] = PetCareState(
+      satiety: _intFromValue(careMap['satiety']) ?? 72,
+      cleanliness: _intFromValue(careMap['cleanliness']) ?? 76,
+      vitality: _intFromValue(careMap['vitality']) ?? 74,
+      updatedAt: updatedAt,
+      dailyCountDay:
+          _nullableDateFromValue(careMap['dailyCountDay']) ?? updatedAt,
+      feedCountToday: _intFromValue(careMap['feedCountToday']) ?? 0,
+      playCountToday: _intFromValue(careMap['playCountToday']) ?? 0,
+      cleanCountToday: _intFromValue(careMap['cleanCountToday']) ?? 0,
+    );
+  }
+  return result;
 }
 
 Map<String, dynamic> _poiToMap(Poi poi) {

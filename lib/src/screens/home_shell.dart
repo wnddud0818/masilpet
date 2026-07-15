@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services.dart';
 import '../state.dart';
+import '../theme.dart';
 import 'dex_screen.dart';
 import 'house_screen.dart';
 import 'map_screen.dart';
@@ -14,6 +15,7 @@ class HomeShell extends ConsumerWidget {
 
   static const _wideNavigationBreakpoint = 720.0;
   static const _extendedRailBreakpoint = 1040.0;
+  static const _navigationOrder = [0, 2, 1, 3, 4];
 
   static const _screens = [
     MapScreen(),
@@ -27,6 +29,7 @@ class HomeShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(masilPetControllerProvider);
     final tab = state.selectedTab;
+    final navigationIndex = _navigationOrder.indexOf(tab);
     final controller = ref.read(masilPetControllerProvider.notifier);
     final signals = _homeNavSignals(state);
 
@@ -37,8 +40,10 @@ class HomeShell extends ConsumerWidget {
           return Scaffold(
             body: const SafeArea(child: _HomeTabStack()),
             bottomNavigationBar: NavigationBar(
-              selectedIndex: tab,
-              onDestinationSelected: controller.setTab,
+              selectedIndex: navigationIndex < 0 ? 2 : navigationIndex,
+              onDestinationSelected: (index) {
+                controller.setTab(_navigationOrder[index]);
+              },
               destinations: _navigationDestinations(signals),
             ),
           );
@@ -56,8 +61,10 @@ class HomeShell extends ConsumerWidget {
                   labelType: extendRail
                       ? NavigationRailLabelType.none
                       : NavigationRailLabelType.all,
-                  selectedIndex: tab,
-                  onDestinationSelected: controller.setTab,
+                  selectedIndex: navigationIndex < 0 ? 2 : navigationIndex,
+                  onDestinationSelected: (index) {
+                    controller.setTab(_navigationOrder[index]);
+                  },
                   destinations: _railDestinations(signals),
                 ),
                 const VerticalDivider(width: 1),
@@ -82,7 +89,13 @@ class _HomeTabStack extends ConsumerWidget {
 
     return IndexedStack(
       index: tab,
-      children: HomeShell._screens,
+      children: [
+        for (final (index, screen) in HomeShell._screens.indexed)
+          TickerMode(
+            enabled: index == tab,
+            child: screen,
+          ),
+      ],
     );
   }
 }
@@ -102,17 +115,6 @@ List<NavigationDestination> _navigationDestinations(_HomeNavSignals signals) {
     ),
     NavigationDestination(
       icon: _HomeNavIcon(
-        icon: Icons.pets_outlined,
-        signal: signals.pet,
-      ),
-      selectedIcon: _HomeNavIcon(
-        icon: Icons.pets,
-        signal: signals.pet,
-      ),
-      label: '마실펫',
-    ),
-    NavigationDestination(
-      icon: _HomeNavIcon(
         icon: Icons.home_outlined,
         signal: signals.house,
       ),
@@ -121,6 +123,19 @@ List<NavigationDestination> _navigationDestinations(_HomeNavSignals signals) {
         signal: signals.house,
       ),
       label: '하우스',
+    ),
+    NavigationDestination(
+      icon: _HomeNavIcon(
+        icon: Icons.pets_outlined,
+        signal: signals.pet,
+        featured: true,
+      ),
+      selectedIcon: _HomeNavIcon(
+        icon: Icons.pets,
+        signal: signals.pet,
+        featured: true,
+      ),
+      label: '마실펫',
     ),
     NavigationDestination(
       icon: _HomeNavIcon(
@@ -142,7 +157,7 @@ List<NavigationDestination> _navigationDestinations(_HomeNavSignals signals) {
         icon: Icons.person,
         signal: signals.profile,
       ),
-      label: '내 정보',
+      label: '기록',
     ),
   ];
 }
@@ -162,17 +177,6 @@ List<NavigationRailDestination> _railDestinations(_HomeNavSignals signals) {
     ),
     NavigationRailDestination(
       icon: _HomeNavIcon(
-        icon: Icons.pets_outlined,
-        signal: signals.pet,
-      ),
-      selectedIcon: _HomeNavIcon(
-        icon: Icons.pets,
-        signal: signals.pet,
-      ),
-      label: const Text('마실펫'),
-    ),
-    NavigationRailDestination(
-      icon: _HomeNavIcon(
         icon: Icons.home_outlined,
         signal: signals.house,
       ),
@@ -181,6 +185,19 @@ List<NavigationRailDestination> _railDestinations(_HomeNavSignals signals) {
         signal: signals.house,
       ),
       label: const Text('하우스'),
+    ),
+    NavigationRailDestination(
+      icon: _HomeNavIcon(
+        icon: Icons.pets_outlined,
+        signal: signals.pet,
+        featured: true,
+      ),
+      selectedIcon: _HomeNavIcon(
+        icon: Icons.pets,
+        signal: signals.pet,
+        featured: true,
+      ),
+      label: const Text('마실펫'),
     ),
     NavigationRailDestination(
       icon: _HomeNavIcon(
@@ -202,7 +219,7 @@ List<NavigationRailDestination> _railDestinations(_HomeNavSignals signals) {
         icon: Icons.person,
         signal: signals.profile,
       ),
-      label: const Text('내 정보'),
+      label: const Text('기록'),
     ),
   ];
 }
@@ -211,14 +228,29 @@ class _HomeNavIcon extends StatelessWidget {
   const _HomeNavIcon({
     required this.icon,
     required this.signal,
+    this.featured = false,
   });
 
   final IconData icon;
   final _HomeNavSignal signal;
+  final bool featured;
 
   @override
   Widget build(BuildContext context) {
     Widget child = Icon(icon);
+    if (featured) {
+      child = Container(
+        width: 38,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: MasilPetPalette.sunPale,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: MasilPetPalette.outline),
+        ),
+        child: child,
+      );
+    }
     final badgeLabel = signal.badgeLabel;
     if (signal.showBadge) {
       child = Badge(
@@ -270,7 +302,6 @@ _HomeNavSignals _homeNavSignals(MasilPetState state) {
   final undiscoveredCount =
       (state.templates.length - state.discoveredTemplateIds.length)
           .clamp(0, state.templates.length);
-  final readinessScore = state.launchReadinessScore;
 
   return _HomeNavSignals(
     map: _mapNavSignal(state),
@@ -288,11 +319,13 @@ _HomeNavSignals _homeNavSignals(MasilPetState state) {
       showBadge: undiscoveredCount > 0,
     ),
     profile: _HomeNavSignal(
-      tooltip: readinessScore == 100
-          ? '내 정보 탭: 탐험 준비 완료'
-          : '내 정보 탭: 탐험 준비 $readinessScore%',
-      badgeLabel: readinessScore == 100 ? null : '$readinessScore',
-      showBadge: readinessScore < 100,
+      tooltip: state.currentVisitStreakDays == 0
+          ? '기록 탭: 첫 산책을 기다리는 중'
+          : '기록 탭: ${state.currentVisitStreakDays}일 연속 산책',
+      badgeLabel: state.currentVisitStreakDays == 0
+          ? null
+          : '${state.currentVisitStreakDays}',
+      showBadge: state.currentVisitStreakDays > 0,
     ),
   );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models.dart';
+import '../theme.dart';
 
 class RarityBadge extends StatelessWidget {
   const RarityBadge({
@@ -16,16 +17,30 @@ class RarityBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _rarityColor(rarity);
     final label = rarityDisplayLabel(rarity);
+    final tokens = context.masilPetTheme;
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 7 : 8,
-        vertical: compact ? 4 : 5,
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 5 : 6,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
+        color: Color.alphaBlend(
+          color.withValues(alpha: 0.11),
+          tokens.paper,
+        ),
+        borderRadius: MasilPetRadii.pillBorder,
+        border: Border.all(
+          color: color.withValues(alpha: 0.34),
+          width: 1.05,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.07),
+            blurRadius: 7,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -52,13 +67,13 @@ class RarityBadge extends StatelessWidget {
 Color _rarityColor(String rarity) {
   switch (rarity.trim().toLowerCase()) {
     case 'rare':
-      return const Color(0xFF2563EB);
+      return MasilPetPalette.skyDeep;
     case 'epic':
-      return const Color(0xFF7C3AED);
+      return MasilPetPalette.lavenderDeep;
     case 'common':
-      return const Color(0xFF0F766E);
+      return MasilPetPalette.leaf;
     default:
-      return const Color(0xFF64748B);
+      return MasilPetPalette.mutedInk;
   }
 }
 
@@ -69,6 +84,6 @@ IconData _rarityIcon(String rarity) {
     case 'epic':
       return Icons.auto_awesome;
     default:
-      return Icons.star_border_rounded;
+      return Icons.star_rounded;
   }
 }

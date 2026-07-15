@@ -561,7 +561,421 @@ const starterPetTemplateSeed = [
     initials: 'GR',
     assetKey: 'roof_mascot_pipeline_128',
   },
+  {
+    id: 'seoul-damsae',
+    name: '담새',
+    regionId: 'seoul',
+    rarity: 'rare',
+    primaryCategory: 'history',
+    basePersonality: '성곽과 오래된 골목의 작은 변화를 먼저 알아채는 차분한 길잡이.',
+    colorValue: 0x7c5c43,
+    initials: '담',
+    assetKey: 'seoul_damsae',
+  },
+  {
+    id: 'incheon-gaetbyeol',
+    name: '갯별이',
+    regionId: 'incheon',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '갯벌의 반짝이는 물길을 따라 새로운 풍경을 찾아다닌다.',
+    colorValue: 0x38bdf8,
+    initials: '갯',
+    assetKey: 'incheon_gaetbyeol',
+  },
+  {
+    id: 'suwon-seongdori',
+    name: '성돌이',
+    regionId: 'gyeonggi',
+    rarity: 'epic',
+    primaryCategory: 'history',
+    basePersonality: '성곽길을 장난스럽게 뛰어다니면서도 동료를 든든하게 지킨다.',
+    colorValue: 0xe76f51,
+    initials: '성',
+    assetKey: 'suwon_seongdori',
+  },
+  {
+    id: 'gangwon-seolsol',
+    name: '설솔이',
+    regionId: 'gangwon',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '설산의 맑은 공기와 솔숲 길을 좋아하는 씩씩하고 온화한 친구.',
+    colorValue: 0x5cc8c2,
+    initials: '설',
+    assetKey: 'gangwon_seolsol',
+  },
+  {
+    id: 'chungju-sagwari',
+    name: '사과리',
+    regionId: 'chungbuk',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '과수원 그늘에서 천천히 쉬며 달콤한 향을 나누는 다정한 친구.',
+    colorValue: 0xe85555,
+    initials: '사',
+    assetKey: 'chungju_sagwari',
+  },
+  {
+    id: 'jeonju-giwarang',
+    name: '기와랑',
+    regionId: 'jeonbuk',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '한옥 처마 아래에서 들은 이야기를 또박또박 기억해 들려준다.',
+    colorValue: 0x334e7d,
+    initials: '기',
+    assetKey: 'jeonju_giwarang',
+  },
+  {
+    id: 'boseong-charongi',
+    name: '차롱이',
+    regionId: 'jeonnam',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '차밭의 향기처럼 느긋하고 상냥하게 산책의 피로를 풀어준다.',
+    colorValue: 0x58a65c,
+    initials: '차',
+    assetKey: 'boseong_charongi',
+  },
+  {
+    id: 'gyeongju-geumbit',
+    name: '금빛이',
+    regionId: 'gyeongbuk',
+    rarity: 'epic',
+    primaryCategory: 'history',
+    basePersonality: '왕릉의 풀빛과 오래된 금빛 이야기를 조용히 살피는 지혜로운 친구.',
+    colorValue: 0xd6a739,
+    initials: '금',
+    assetKey: 'gyeongju_geumbit',
+  },
+  {
+    id: 'busan-paranguri',
+    name: '파랑구리',
+    regionId: 'busan',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '바닷바람을 타고 먼저 인사하며 누구와도 금세 친해진다.',
+    colorValue: 0x2e9cca,
+    initials: '파',
+    assetKey: 'busan_paranguri',
+  },
+  {
+    id: 'jeju-dolkongi',
+    name: '돌콩이',
+    regionId: 'jeju',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '현무암 길과 귤 향기를 따라다니는 호기심 많고 장난스러운 친구.',
+    colorValue: 0x56545b,
+    initials: '돌',
+    assetKey: 'jeju_dolkongi',
+  },
+  {
+    id: 'daejeon-bitnari',
+    name: '빛나리',
+    regionId: 'daejeon',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '새로운 원리와 반짝이는 아이디어를 발견하면 귀를 쫑긋 세우는 호기심 많은 친구.',
+    colorValue: 0x19a7a0,
+    initials: '빛',
+    assetKey: 'daejeon_bitnari',
+  },
+  {
+    id: 'daegu-silkkori',
+    name: '실꼬리',
+    regionId: 'daegu',
+    rarity: 'rare',
+    primaryCategory: 'shopping',
+    basePersonality: '고운 천과 다채로운 색을 좋아하고 골목의 작은 공방을 빠르게 찾아낸다.',
+    colorValue: 0xde6b5f,
+    initials: '실',
+    assetKey: 'daegu_silkkori',
+  },
+  {
+    id: 'gwangju-yebomi',
+    name: '예봄이',
+    regionId: 'gwangju',
+    rarity: 'epic',
+    primaryCategory: 'culture',
+    basePersonality: '빛과 색이 만나는 순간을 사랑하며 새로운 작품 앞에서 눈을 반짝인다.',
+    colorValue: 0x73c7a4,
+    initials: '예',
+    assetKey: 'gwangju_yebomi',
+  },
+  {
+    id: 'ulsan-goraemi',
+    name: '고래미',
+    regionId: 'ulsan',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '잔잔한 파도와 바닷바람을 따라 느긋하게 헤엄치며 먼저 인사를 건넨다.',
+    colorValue: 0x37b9c9,
+    initials: '고',
+    assetKey: 'ulsan_goraemi',
+  },
+  {
+    id: 'sejong-geulburi',
+    name: '글부리',
+    regionId: 'sejong',
+    rarity: 'epic',
+    primaryCategory: 'culture',
+    basePersonality: '새로운 이야기를 차곡차곡 모아 누구나 이해하기 쉽게 들려주는 다정한 기록가.',
+    colorValue: 0x2d4d78,
+    initials: '글',
+    assetKey: 'sejong_geulburi',
+  },
+  {
+    id: 'goyang-kkochdali',
+    name: '꽃달이',
+    regionId: 'gyeonggi',
+    rarity: 'rare',
+    primaryCategory: 'festival',
+    basePersonality: '꽃향기와 축제 음악을 따라다니며 주변 분위기를 화사하게 만드는 친구.',
+    colorValue: 0xa77bdb,
+    initials: '꽃',
+    assetKey: 'goyang_kkochdali',
+  },
+  {
+    id: 'paju-chaekdori',
+    name: '책돌이',
+    regionId: 'gyeonggi',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '책장 사이의 조용한 냄새를 좋아하고 재미있는 문장을 마음속에 오래 간직한다.',
+    colorValue: 0x48795c,
+    initials: '책',
+    assetKey: 'paju_chaekdori',
+  },
+  {
+    id: 'chuncheon-mulnabi',
+    name: '물나비',
+    regionId: 'gangwon',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '호수 위 잔물결처럼 가볍게 움직이며 산책 친구의 발걸음을 맞춰 준다.',
+    colorValue: 0x45b8c4,
+    initials: '물',
+    assetKey: 'chuncheon_mulnabi',
+  },
+  {
+    id: 'sokcho-haedongi',
+    name: '해동이',
+    regionId: 'gangwon',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '이른 아침 바다의 첫빛을 기다렸다가 가장 먼저 반가운 인사를 건넨다.',
+    colorValue: 0x4aa8d8,
+    initials: '해',
+    assetKey: 'sokcho_haedongi',
+  },
+  {
+    id: 'gongju-bamgomi',
+    name: '밤곰이',
+    regionId: 'chungnam',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '포근한 숲길과 달콤한 간식을 좋아하며 좋은 것은 꼭 반으로 나눈다.',
+    colorValue: 0xa96f3e,
+    initials: '밤',
+    assetKey: 'gongju_bamgomi',
+  },
+  {
+    id: 'taean-noeuri',
+    name: '노을이',
+    regionId: 'chungnam',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '모래길 끝에서 노을빛이 번지는 순간을 기다리는 차분하고 따뜻한 친구.',
+    colorValue: 0xec826a,
+    initials: '노',
+    assetKey: 'taean_noeuri',
+  },
+  {
+    id: 'andong-talrabi',
+    name: '탈토리',
+    regionId: 'gyeongbuk',
+    rarity: 'epic',
+    primaryCategory: 'culture',
+    basePersonality: '익살스러운 표정으로 오래된 이야기를 신나게 풀어내는 재치 있는 안내자.',
+    colorValue: 0x3c8c84,
+    initials: '탈',
+    assetKey: 'andong_talrabi',
+  },
+  {
+    id: 'pohang-haebitdol',
+    name: '해빛돌이',
+    regionId: 'gyeongbuk',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '수평선 위 첫 햇빛을 따라 힘차게 나아가며 동료에게 용기를 건넨다.',
+    colorValue: 0x4d7298,
+    initials: '해',
+    assetKey: 'pohang_haebitdol',
+  },
+  {
+    id: 'tongyeong-najeoni',
+    name: '나전이',
+    regionId: 'gyeongnam',
+    rarity: 'epic',
+    primaryCategory: 'culture',
+    basePersonality: '바다빛 조각을 하나씩 모아 평범한 하루도 반짝이는 추억으로 꾸민다.',
+    colorValue: 0x2f5d7c,
+    initials: '나',
+    assetKey: 'tongyeong_najeoni',
+  },
+  {
+    id: 'jinju-deungari',
+    name: '등아리',
+    regionId: 'gyeongnam',
+    rarity: 'rare',
+    primaryCategory: 'festival',
+    basePersonality: '어두운 강가에서도 작은 빛으로 길을 밝혀 주는 명랑하고 든든한 친구.',
+    colorValue: 0xe1a63a,
+    initials: '등',
+    assetKey: 'jinju_deungari',
+  },
+  {
+    id: 'yeosu-bambada',
+    name: '밤바다',
+    regionId: 'jeonnam',
+    rarity: 'epic',
+    primaryCategory: 'nature',
+    basePersonality: '달빛이 비친 밤바다를 바라보며 조용한 파도 소리를 친구와 나누길 좋아한다.',
+    colorValue: 0x183d73,
+    initials: '밤',
+    assetKey: 'yeosu_bambada',
+  },
+  {
+    id: 'suncheon-galpi',
+    name: '갈피',
+    regionId: 'jeonnam',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '갈대 사이의 작은 움직임도 놓치지 않고 습지 친구들을 다정하게 살핀다.',
+    colorValue: 0x7e9b61,
+    initials: '갈',
+    assetKey: 'suncheon_galpi',
+  },
+  {
+    id: 'mokpo-hongari',
+    name: '홍아리',
+    regionId: 'jeonnam',
+    rarity: 'rare',
+    primaryCategory: 'food',
+    basePersonality: '항구의 맛있는 냄새를 따라 둥실둥실 움직이며 새로운 별미를 함께 찾는다.',
+    colorValue: 0xc95c73,
+    initials: '홍',
+    assetKey: 'mokpo_hongari',
+  },
+  {
+    id: 'damyang-juksoli',
+    name: '죽솔이',
+    regionId: 'jeonnam',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '대숲 바람에 귀를 기울이며 서두르지 않고 산책의 리듬을 맞춰 준다.',
+    colorValue: 0x4b8b57,
+    initials: '죽',
+    assetKey: 'damyang_juksoli',
+  },
+  {
+    id: 'iksan-boseoki',
+    name: '보석이',
+    regionId: 'jeonbuk',
+    rarity: 'epic',
+    primaryCategory: 'history',
+    basePersonality: '오래된 흔적 속 숨은 빛을 발견하면 반짝이는 가시로 기쁨을 표현한다.',
+    colorValue: 0x8e6ab7,
+    initials: '보',
+    assetKey: 'iksan_boseoki',
+  },
 ];
+
+const regionalDialogueProfiles = [
+  {templateId: 'seoul-damsae', name: '담새', region: '서울'},
+  {templateId: 'incheon-gaetbyeol', name: '갯별이', region: '인천'},
+  {templateId: 'suwon-seongdori', name: '성돌이', region: '수원'},
+  {templateId: 'gangwon-seolsol', name: '설솔이', region: '강원'},
+  {templateId: 'chungju-sagwari', name: '사과리', region: '충주'},
+  {templateId: 'jeonju-giwarang', name: '기와랑', region: '전주'},
+  {templateId: 'boseong-charongi', name: '차롱이', region: '보성'},
+  {templateId: 'gyeongju-geumbit', name: '금빛이', region: '경주'},
+  {templateId: 'busan-paranguri', name: '파랑구리', region: '부산'},
+  {templateId: 'jeju-dolkongi', name: '돌콩이', region: '제주'},
+  {templateId: 'daejeon-bitnari', name: '빛나리', region: '대전'},
+  {templateId: 'daegu-silkkori', name: '실꼬리', region: '대구'},
+  {templateId: 'gwangju-yebomi', name: '예봄이', region: '광주'},
+  {templateId: 'ulsan-goraemi', name: '고래미', region: '울산'},
+  {templateId: 'sejong-geulburi', name: '글부리', region: '세종'},
+  {templateId: 'goyang-kkochdali', name: '꽃달이', region: '고양'},
+  {templateId: 'paju-chaekdori', name: '책돌이', region: '파주'},
+  {templateId: 'chuncheon-mulnabi', name: '물나비', region: '춘천'},
+  {templateId: 'sokcho-haedongi', name: '해동이', region: '속초'},
+  {templateId: 'gongju-bamgomi', name: '밤곰이', region: '공주'},
+  {templateId: 'taean-noeuri', name: '노을이', region: '태안'},
+  {templateId: 'andong-talrabi', name: '탈토리', region: '안동'},
+  {templateId: 'pohang-haebitdol', name: '해빛돌이', region: '포항'},
+  {templateId: 'tongyeong-najeoni', name: '나전이', region: '통영'},
+  {templateId: 'jinju-deungari', name: '등아리', region: '진주'},
+  {templateId: 'yeosu-bambada', name: '밤바다', region: '여수'},
+  {templateId: 'suncheon-galpi', name: '갈피', region: '순천'},
+  {templateId: 'mokpo-hongari', name: '홍아리', region: '목포'},
+  {templateId: 'damyang-juksoli', name: '죽솔이', region: '담양'},
+  {templateId: 'iksan-boseoki', name: '보석이', region: '익산'},
+];
+
+const regionalDialogueSeed = regionalDialogueProfiles.flatMap((profile) => [
+  {
+    id: `${profile.templateId}-default`,
+    templateId: profile.templateId,
+    trigger: 'default',
+    text: `${profile.name}와 함께 ${profile.region}의 새로운 길을 천천히 찾아보자.`,
+  },
+  {
+    id: `${profile.templateId}-nature`,
+    templateId: profile.templateId,
+    trigger: 'nature',
+    text: `${profile.region}의 바람과 풀빛을 가까이에서 만나니 마음이 가벼워졌어.`,
+  },
+  {
+    id: `${profile.templateId}-food`,
+    templateId: profile.templateId,
+    trigger: 'food',
+    text: `${profile.region}의 맛과 향기에는 이곳 사람들의 다정한 이야기가 담겨 있어.`,
+  },
+  {
+    id: `${profile.templateId}-festival`,
+    templateId: profile.templateId,
+    trigger: 'festival',
+    text: `${profile.region}의 축제 소리가 들려. 신나는 순간을 함께 기억해두자.`,
+  },
+  {
+    id: `${profile.templateId}-culture`,
+    templateId: profile.templateId,
+    trigger: 'culture',
+    text: `${profile.region}의 문화 공간을 둘러보니 새로운 이야기가 하나 더 생겼어.`,
+  },
+  {
+    id: `${profile.templateId}-history`,
+    templateId: profile.templateId,
+    trigger: 'history',
+    text: `${profile.region}의 오래된 길을 걸으니 지나온 시간이 조용히 들려오는 것 같아.`,
+  },
+  {
+    id: `${profile.templateId}-shopping`,
+    templateId: profile.templateId,
+    trigger: 'shopping',
+    text: `${profile.region}의 상점과 시장을 살피며 작은 보물 같은 풍경을 찾았어.`,
+  },
+  {
+    id: `${profile.templateId}-other`,
+    templateId: profile.templateId,
+    trigger: 'other',
+    text: `${profile.region}에서는 잠깐 쉬어가는 순간도 좋은 산책의 일부야.`,
+  },
+]);
 
 const dialogueSeed = [
   {
@@ -900,6 +1314,7 @@ const dialogueSeed = [
     trigger: 'other',
     text: '쉬어가는 장소에도 이름의 이유가 있어. 잠시 멈춰서 들어보자.',
   },
+  ...regionalDialogueSeed,
 ];
 
 export const seedStarterRegionData = onCall({region: functionRegion}, async (request) => {
@@ -1184,7 +1599,7 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
 
     if (!needsStarterBootstrap && openEggs.empty &&
       (todayCheckins.empty || poi.category === 'history' || poi.category === 'festival')) {
-      const templateId = templateForCategory(poi.category);
+      const templateId = templateForCategory(poi.category, poi.regionId, poiId);
       transaction.set(userRef.collection('eggs').doc(`egg-${templateId}-${now.toMillis()}`), {
         templateId,
         originRegionId: poi.regionId,
@@ -1503,9 +1918,42 @@ function eggProgressFor(category: PoiCategory): number {
   }
 }
 
-function templateForCategory(category: PoiCategory): string {
-  const matched = starterPetTemplateSeed.find((template) => template.primaryCategory === category);
-  return matched?.id ?? 'wave-naru';
+function templateForCategory(
+  category: PoiCategory,
+  regionId: string,
+  poiId: string,
+): string {
+  const regionalCategoryMatches = starterPetTemplateSeed.filter((template) =>
+    template.regionId === regionId && template.primaryCategory === category,
+  );
+  if (regionalCategoryMatches.length > 0) {
+    return regionalCategoryMatches[
+      stableTemplateIndex(poiId, regionalCategoryMatches.length)
+    ].id;
+  }
+
+  const regionalMatches = starterPetTemplateSeed.filter((template) =>
+    template.regionId === regionId,
+  );
+  if (regionalMatches.length > 0) {
+    return regionalMatches[stableTemplateIndex(poiId, regionalMatches.length)].id;
+  }
+
+  const categoryMatches = starterPetTemplateSeed.filter((template) =>
+    template.primaryCategory === category,
+  );
+  if (categoryMatches.length > 0) {
+    return categoryMatches[stableTemplateIndex(poiId, categoryMatches.length)].id;
+  }
+  return 'wave-naru';
+}
+
+function stableTemplateIndex(value: string, length: number): number {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash % length;
 }
 
 function addStats(left: GrowthStats, right: GrowthStats): GrowthStats {

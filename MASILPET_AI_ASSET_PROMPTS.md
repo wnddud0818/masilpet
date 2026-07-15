@@ -296,24 +296,18 @@ Do not copy text, logos, or official marks from the reference.
 No text, no labels, no background, no watermark, no tall body, no long limbs, no sharp accessories, no serious expression.
 ```
 
-### 성장 단계 3종
+### 앱 성장 단계 3종
 
-성장 시트의 chibi 비율 규칙은 **baby 단계부터** 적용한다. egg 단계는 머리/얼굴이 없으므로 별도 규칙으로 다룬다.
+앱에서 사용하는 `growth` 시트는 Flutter `PetStage`와 동일하게 **baby → grown → evolved** 순서다. 알 이미지는 부화 화면용 별도 `evolution` 시트에서만 사용하며 `growth` 시트에 넣지 않는다.
 
 ```text
-Egg stage rules (apply only to the first cell):
-- a soft rounded egg shape, not a face
-- no eyes, no nose, no mouth, no facial expression on the egg shell
-- shell pattern or color hints inspired by the reference, but no copied logos or text
-- centered inside the cell, with the same baseline as the other stages
-
-Using the provided MasilPet reference, create a 3-stage evolution sprite sheet.
+Using the provided MasilPet reference, create a 3-stage app growth sprite sheet.
 
 Layout: 1 row x 3 columns.
 Render the entire sheet at exactly 1536x512 pixels (each cell exactly 512x512).
 Stages:
-1. egg form (no face, see Egg stage rules above)
-2. baby pet form
+1. baby pet form matching the fixed character reference
+2. grown pet form, slightly larger but still compact and chibi
 3. evolved companion form
 
 Target sprite size: 64x64 pixels per stage.
@@ -328,13 +322,13 @@ Do not redesign the character into a completely unrelated creature.
 Cute style rules:
 - cute-first redesign across all stages, even if exact source fidelity is reduced
 - soft mascot-like cute proportions across all stages, not fabric or 3D plush material
-- baby chibi proportions from baby stage onward
-- head takes about 65% to 70% of total body height from baby stage onward
-- extra-large rounded face with oversized dot eyes from baby stage onward
+- baby chibi proportions across all stages
+- head takes about 65% to 70% of total body height across all stages
+- extra-large rounded face with oversized dot eyes across all stages
 - smaller compact body, short and squat
-- very tiny bean-shaped hands and feet from baby stage onward
-- soft rounded cheeks with subtle blush-like color accents from baby stage onward
-- gentle happy expression by default from baby stage onward
+- very tiny bean-shaped hands and feet across all stages
+- soft rounded cheeks with subtle blush-like color accents across all stages
+- gentle happy expression by default across all stages
 - simplified accessories or tail if the character has one, made shorter, rounder, and cuter
 - limited bright cute color palette, 16 to 24 colors
 - soft rounded silhouette with no sharp corners
@@ -534,7 +528,7 @@ No exclamation marks, no motion lines, no text.
 | --- | --- | --- |
 | 감정표현 6종 | 2 rows x 3 columns | `neutral`, `happy`, `excited`, `sad`, `surprised`, `sleepy` |
 | 감정표현 12종 | 3 rows x 4 columns | `neutral`, `happy`, `excited`, `sad`, `angry`, `surprised`, `shy`, `tired`, `sleepy`, `hungry`, `curious`, `proud` |
-| 성장 단계 | 1 row x 3 columns | `egg`, `baby`, `evolved` |
+| 성장 단계 | 1 row x 3 columns | `baby`, `grown`, `evolved` |
 | 행동 대표 포즈 | 2 rows x 3 columns | `idle`, `walking`, `jumping`, `eating`, `sleeping`, `greeting` |
 | Idle 애니메이션 | 1 row x 4 columns | `idle_01`, `idle_02`, `idle_03`, `idle_04` |
 | Walk 애니메이션 | 1 row x 4 columns | `walk_01`, `walk_02`, `walk_03`, `walk_04` |
@@ -559,9 +553,9 @@ assets/masilpets/[pet_id]/
     sad.png
     surprised.png
     sleepy.png
-  evolution/
-    egg.png
+  growth/
     baby.png
+    grown.png
     evolved.png
   actions/
     idle.png
@@ -693,7 +687,7 @@ Style: clean cute 64x64 pixel art, transparent background, evenly spaced grid, t
 ### 성장 단계
 
 ```text
-Create a 3-stage evolution line for an original MasilPet.
+Create a 3-stage app growth line for an original MasilPet.
 
 Region: [지역명]
 Motif: [지역 상징]
@@ -701,8 +695,8 @@ Personality: [성격]
 Core colors: [색상]
 
 Stages:
-1. egg form inspired by the regional motif
-2. baby pet form, small and cute
+1. baby pet form, small and cute
+2. grown pet form, slightly larger but still compact and cute
 3. evolved companion form, more expressive and regionally distinctive
 
 All stages must feel like the same character growing over time.
@@ -711,12 +705,12 @@ Prioritize a cute, round, pet-like silhouette in every stage over complex origin
 Cute style rules:
 - cute-first design across all stages
 - soft mascot-like cute proportions across all stages, not fabric or 3D plush material
-- baby chibi proportions from baby stage onward
-- head takes about 65% to 70% of total body height from baby stage onward
-- extra-large rounded face with oversized dot eyes from baby stage onward
-- compact short body and very tiny bean-shaped hands and feet from baby stage onward
-- soft rounded cheeks with subtle blush-like color accents from baby stage onward
-- gentle happy expression by default from baby stage onward
+- baby chibi proportions across all stages
+- head takes about 65% to 70% of total body height across all stages
+- extra-large rounded face with oversized dot eyes across all stages
+- compact short body and very tiny bean-shaped hands and feet across all stages
+- soft rounded cheeks with subtle blush-like color accents across all stages
+- gentle happy expression by default across all stages
 - limited bright cute color palette, 16 to 24 colors
 - soft rounded silhouette with no sharp corners
 - no sharp or tall body proportions
@@ -790,7 +784,8 @@ proud: chest out, confident smile
 [ ] 배경이 단색(흰색 권장)이거나 투명이다 (그라디언트/풍경 없음)
 [ ] 외곽선이 깨끗하고 anti-aliased 흐림이 없다
 [ ] 애니메이션 시트는 4프레임의 발/몸통 위치가 일관된다
-[ ] 성장 시트의 egg 단계에 얼굴/눈이 그려지지 않았다 (있으면 재생성)
+[ ] 앱용 `growth` 시트가 baby/grown/evolved 순서이며 알이 들어가지 않았다
+[ ] 별도 `evolution` 시트를 만들었다면 egg 단계에 얼굴/눈이 없다
 [ ] 공공/지자체 IP의 텍스트, 로고, 공식 마크가 복제되지 않았다
 ```
 

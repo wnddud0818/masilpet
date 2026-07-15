@@ -366,6 +366,10 @@ void main() {
       () {
     const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
     final state = MasilPetState.initial(firebaseReady: false).copyWith(
+      // Keep this ranking contract focused on the original category-based
+      // collection set. Regional additions may legitimately add another
+      // undiscovered pet to a category the starter pet already represents.
+      templates: starterPetTemplates.take(7).toList(growable: false),
       currentLocation: currentLocation,
       pois: const [
         Poi(
@@ -422,7 +426,76 @@ void main() {
     expect(templateCategories, containsAll(PoiCategory.values));
     expect(
       starterPetTemplates.map((template) => template.id),
-      containsAll(['spark-yuri', 'alley-raon']),
+      containsAll([
+        'spark-yuri',
+        'alley-raon',
+        'daejeon-bitnari',
+        'daegu-silkkori',
+        'gwangju-yebomi',
+        'ulsan-goraemi',
+        'sejong-geulburi',
+        'goyang-kkochdali',
+        'paju-chaekdori',
+        'chuncheon-mulnabi',
+        'sokcho-haedongi',
+        'gongju-bamgomi',
+        'taean-noeuri',
+        'andong-talrabi',
+        'pohang-haebitdol',
+        'tongyeong-najeoni',
+        'jinju-deungari',
+        'yeosu-bambada',
+        'suncheon-galpi',
+        'mokpo-hongari',
+        'damyang-juksoli',
+        'iksan-boseoki',
+      ]),
+    );
+  });
+
+  test('regional check-ins grant the matching regional pet egg', () async {
+    final controller = _controller(
+      locationService: const FakeLocationService(),
+    );
+    controller.state = controller.state.copyWith(eggs: const []);
+
+    await controller.useDeviceLocation();
+    await controller.attemptCheckIn(starterPoiSeed.first);
+
+    expect(controller.state.eggs, hasLength(1));
+    expect(controller.state.eggs.single.templateId, 'seoul-damsae');
+    expect(controller.state.eggs.single.originRegionId, 'seoul');
+  });
+
+  test('regional POIs distribute eggs across multiple matching pets', () async {
+    final templateIds = <String>[];
+    for (final poiId in const [
+      'jeonnam-poi-a',
+      'jeonnam-poi-b',
+      'jeonnam-poi-c',
+    ]) {
+      final controller = _controller(
+        locationService: const FakeLocationService(),
+      );
+      controller.state = controller.state.copyWith(eggs: const []);
+      await controller.useDeviceLocation();
+      await controller.attemptCheckIn(
+        Poi(
+          id: poiId,
+          tourApiContentId: 'seed-$poiId',
+          title: poiId,
+          regionId: 'jeonnam',
+          category: PoiCategory.nature,
+          coordinates: starterPoiSeed.first.coordinates,
+          shortDescription: 'regional pet distribution fixture',
+        ),
+      );
+      templateIds.add(controller.state.eggs.single.templateId);
+    }
+
+    expect(
+      templateIds.toSet(),
+      {'yeosu-bambada', 'suncheon-galpi', 'damyang-juksoli'},
     );
   });
 

@@ -15,10 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-from PIL import Image, ImageColor, ImageOps
+from PIL import Image, ImageColor, ImageFilter, ImageOps
 
 
-SLICER_VERSION = "2.0.0"
+SLICER_VERSION = "2.4.0"
 PET_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 DEFAULT_OUTPUT_SIZE = 512
 DEFAULT_FIT_SIZE = 448
@@ -36,6 +36,11 @@ DEFAULT_STRICT_BLACK_THRESHOLD = 88
 DEFAULT_STRICT_SNAP_NEUTRAL_TOLERANCE = 28
 DEFAULT_STRICT_POSTERIZE_BITS = 3
 DEFAULT_OUTLINE_COLOR = "#18181a"
+DEFAULT_BACKGROUND_ONLY_BG_THRESHOLD = 180
+DEFAULT_OUTLINE_PROTECTION_COLOR_DISTANCE = 12
+DEFAULT_OUTLINE_PROTECTION_FILTER_SIZE = 7
+DEFAULT_STRAY_COMPONENT_MIN_AREA_RATIO = 0.03
+DEFAULT_STRAY_COMPONENT_MAX_GAP_RATIO = 0.03
 
 
 @dataclass(frozen=True)
@@ -151,6 +156,43 @@ def apply_strict_pixel_art_defaults(args: argparse.Namespace, raw_args: list[str
         args.black_threshold = DEFAULT_STRICT_BLACK_THRESHOLD
     if not argument_was_provided(raw_args, "--snap-neutral-tolerance"):
         args.snap_neutral_tolerance = DEFAULT_STRICT_SNAP_NEUTRAL_TOLERANCE
+    if (
+        not argument_was_provided(raw_args, "--remove-stray-components")
+        and not argument_was_provided(raw_args, "--keep-stray-components")
+    ):
+        args.remove_stray_components = True
+
+
+def apply_background_only_defaults(
+    args: argparse.Namespace,
+    raw_args: list[str],
+) -> None:
+    if not args.background_only:
+        return
+    if args.strict_pixel_art:
+        raise ValueError("--background-only cannot be combined with --strict-pixel-art.")
+    if args.keep_background:
+        raise ValueError("--background-only cannot be combined with --keep-background.")
+    if argument_was_provided(raw_args, "--pixel-grid-size"):
+        raise ValueError("--background-only cannot be combined with --pixel-grid-size.")
+
+    args.pixel_grid_size = 0
+    args.posterize_bits = 0
+    args.rebuild_outline = False
+    args.no_quantize = True
+    args.no_color_snap = True
+    if not argument_was_provided(raw_args, "--bg-threshold"):
+        args.bg_threshold = DEFAULT_BACKGROUND_ONLY_BG_THRESHOLD
+    if (
+        not argument_was_provided(raw_args, "--remove-stray-components")
+        and not argument_was_provided(raw_args, "--keep-stray-components")
+    ):
+        args.remove_stray_components = True
+    if (
+        not argument_was_provided(raw_args, "--protect-enclosed-regions")
+        and not argument_was_provided(raw_args, "--no-protect-enclosed-regions")
+    ):
+        args.protect_enclosed_regions = True
 
 
 def parse_args(argv: Iterable[str]) -> argparse.Namespace:
@@ -204,6 +246,15 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         help=(
             "Normalize on a 128px pixel grid, reduce to a tighter palette, harden alpha, "
             "then upscale with nearest-neighbor. Explicit options override the shortcut."
+        ),
+    )
+    parser.add_argument(
+        "--background-only",
+        action="store_true",
+        help=(
+            "Preserve generated resolution and colors: remove the background, trim, "
+            "and place on the output canvas without palette reduction, pixel-grid "
+            "rebuild, posterization, color snapping, or outline reconstruction."
         ),
     )
     parser.add_argument(
@@ -267,11 +318,43 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
         default=2,
         help="Extra source-pixel padding around the detected character bbox. Defaults to 2.",
     )
+    parser.set_defaults(remove_stray_components=None)
+    parser.add_argument(
+        "--remove-stray-components",
+        dest="remove_stray_components",
+        action="store_true",
+        help=(
+            "Remove tiny disconnected foreground fragments far from the main subject. "
+            "Enabled automatically by --strict-pixel-art."
+        ),
+    )
+    parser.add_argument(
+        "--keep-stray-components",
+        dest="remove_stray_components",
+        action="store_false",
+        help="Preserve all disconnected foreground fragments in strict pixel-art mode.",
+    )
     parser.add_argument(
         "--bg-threshold",
         type=int,
         default=DEFAULT_BG_THRESHOLD,
         help="RGB distance threshold for detecting edge-connected background. Defaults to 180.",
+    )
+    parser.set_defaults(protect_enclosed_regions=None)
+    parser.add_argument(
+        "--protect-enclosed-regions",
+        dest="protect_enclosed_regions",
+        action="store_true",
+        help=(
+            "Close small outline gaps before background flood-fill so light face and "
+            "body interiors are not removed. Enabled automatically by --background-only."
+        ),
+    )
+    parser.add_argument(
+        "--no-protect-enclosed-regions",
+        dest="protect_enclosed_regions",
+        action="store_false",
+        help="Disable outline-gap protection during background removal.",
     )
     parser.add_argument(
         "--alpha-threshold",
@@ -356,8 +439,13 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     )
     args = parser.parse_args(raw_args)
     apply_strict_pixel_art_defaults(args, raw_args)
+    apply_background_only_defaults(args, raw_args)
     if args.rebuild_outline is None:
         args.rebuild_outline = False
+    if args.remove_stray_components is None:
+        args.remove_stray_components = False
+    if args.protect_enclosed_regions is None:
+        args.protect_enclosed_regions = False
     return args
 
 
@@ -490,12 +578,33 @@ def edge_background_mask(
     image: Image.Image,
     bg_threshold: int,
     alpha_threshold: int,
+    protect_enclosed_regions: bool = False,
 ) -> bytearray:
     width, height = image.size
     pixels = image.load()
     background = estimate_background_color(image)
     visited = bytearray(width * height)
     queue: deque[tuple[int, int]] = deque()
+    protected_pixels = None
+
+    if protect_enclosed_regions:
+        protection_threshold = min(
+            bg_threshold,
+            DEFAULT_OUTLINE_PROTECTION_COLOR_DISTANCE,
+        )
+        barrier = Image.new("L", image.size, 0)
+        barrier_pixels = barrier.load()
+        for y in range(height):
+            for x in range(width):
+                red, green, blue, alpha = pixels[x, y]
+                if alpha <= alpha_threshold:
+                    continue
+                if color_distance((red, green, blue), background) > protection_threshold:
+                    barrier_pixels[x, y] = 255
+        protected = barrier.filter(
+            ImageFilter.MaxFilter(DEFAULT_OUTLINE_PROTECTION_FILTER_SIZE)
+        ).filter(ImageFilter.MinFilter(DEFAULT_OUTLINE_PROTECTION_FILTER_SIZE))
+        protected_pixels = protected.load()
 
     def index(x: int, y: int) -> int:
         return y * width + x
@@ -504,6 +613,8 @@ def edge_background_mask(
         red, green, blue, alpha = pixels[x, y]
         if alpha <= alpha_threshold:
             return True
+        if protected_pixels is not None and protected_pixels[x, y] > 0:
+            return False
         return color_distance((red, green, blue), background) <= bg_threshold
 
     def add_if_background(x: int, y: int) -> None:
@@ -529,22 +640,118 @@ def edge_background_mask(
     return visited
 
 
+def remove_stray_foreground_components(
+    foreground: Image.Image,
+    alpha_threshold: int,
+) -> Image.Image:
+    """Drop tiny, distant components caused by neighboring sprite-cell spill.
+
+    Generated sheets occasionally leave a narrow colored fragment exactly at a cell
+    boundary. The largest connected alpha component is treated as the character.
+    Detached components are retained when they are sizeable or spatially close to
+    that character, preserving legitimate props, feet, and accessories.
+    """
+    width, height = foreground.size
+    alpha = foreground.getchannel("A")
+    alpha_pixels = alpha.load()
+    visited = bytearray(width * height)
+    components: list[tuple[list[int], tuple[int, int, int, int]]] = []
+
+    for y in range(height):
+        for x in range(width):
+            start = y * width + x
+            if visited[start] or alpha_pixels[x, y] <= alpha_threshold:
+                continue
+
+            visited[start] = 1
+            queue: deque[int] = deque((start,))
+            offsets: list[int] = []
+            left = right = x
+            top = bottom = y
+
+            while queue:
+                offset = queue.popleft()
+                current_x = offset % width
+                current_y = offset // width
+                offsets.append(offset)
+                left = min(left, current_x)
+                top = min(top, current_y)
+                right = max(right, current_x)
+                bottom = max(bottom, current_y)
+
+                for next_x, next_y in (
+                    (current_x - 1, current_y),
+                    (current_x + 1, current_y),
+                    (current_x, current_y - 1),
+                    (current_x, current_y + 1),
+                ):
+                    if not (0 <= next_x < width and 0 <= next_y < height):
+                        continue
+                    next_offset = next_y * width + next_x
+                    if (
+                        visited[next_offset]
+                        or alpha_pixels[next_x, next_y] <= alpha_threshold
+                    ):
+                        continue
+                    visited[next_offset] = 1
+                    queue.append(next_offset)
+
+            components.append((offsets, (left, top, right + 1, bottom + 1)))
+
+    if len(components) <= 1:
+        return foreground
+
+    components.sort(key=lambda item: len(item[0]), reverse=True)
+    main_offsets, main_bbox = components[0]
+    minimum_kept_area = max(
+        4,
+        round(len(main_offsets) * DEFAULT_STRAY_COMPONENT_MIN_AREA_RATIO),
+    )
+    maximum_kept_gap = max(
+        2,
+        round(min(width, height) * DEFAULT_STRAY_COMPONENT_MAX_GAP_RATIO),
+    )
+    main_left, main_top, main_right, main_bottom = main_bbox
+    removable_offsets: list[int] = []
+
+    for offsets, bbox in components[1:]:
+        if len(offsets) >= minimum_kept_area:
+            continue
+        left, top, right, bottom = bbox
+        horizontal_gap = max(main_left - right, left - main_right, 0)
+        vertical_gap = max(main_top - bottom, top - main_bottom, 0)
+        if max(horizontal_gap, vertical_gap) <= maximum_kept_gap:
+            continue
+        removable_offsets.extend(offsets)
+
+    if not removable_offsets:
+        return foreground
+
+    cleaned = foreground.copy()
+    cleaned_pixels = cleaned.load()
+    for offset in removable_offsets:
+        cleaned_pixels[offset % width, offset // width] = (0, 0, 0, 0)
+    return cleaned
+
+
 def foreground_from_cell(
     cell: Image.Image,
     bg_threshold: int,
     alpha_threshold: int,
     trim_padding: int,
+    remove_stray_components: bool = False,
+    protect_enclosed_regions: bool = False,
 ) -> tuple[Image.Image, tuple[int, int, int, int] | None]:
     width, height = cell.size
-    mask = edge_background_mask(cell, bg_threshold, alpha_threshold)
+    mask = edge_background_mask(
+        cell,
+        bg_threshold,
+        alpha_threshold,
+        protect_enclosed_regions,
+    )
     pixels = cell.load()
     foreground = Image.new("RGBA", cell.size, (0, 0, 0, 0))
     foreground_pixels = foreground.load()
-
-    left = width
-    top = height
-    right = 0
-    bottom = 0
 
     for y in range(height):
         for x in range(width):
@@ -552,14 +759,18 @@ def foreground_from_cell(
             if alpha <= alpha_threshold or mask[y * width + x]:
                 continue
             foreground_pixels[x, y] = (red, green, blue, alpha)
-            left = min(left, x)
-            top = min(top, y)
-            right = max(right, x + 1)
-            bottom = max(bottom, y + 1)
 
-    if left >= right or top >= bottom:
+    if remove_stray_components:
+        foreground = remove_stray_foreground_components(
+            foreground,
+            alpha_threshold,
+        )
+
+    bbox = foreground.getchannel("A").getbbox()
+    if bbox is None:
         return foreground, None
 
+    left, top, right, bottom = bbox
     left = max(0, left - trim_padding)
     top = max(0, top - trim_padding)
     right = min(width, right + trim_padding)
@@ -870,6 +1081,8 @@ def normalize_cells(
             args.bg_threshold,
             args.alpha_threshold,
             args.trim_padding,
+            args.remove_stray_components,
+            args.protect_enclosed_regions,
         )
         if bbox is None:
             extracted.append(
@@ -1039,6 +1252,13 @@ def slicer_options_summary(args: argparse.Namespace) -> dict:
         "anchor": args.anchor,
         "bottomPadding": args.bottom_padding,
         "trimPadding": args.trim_padding,
+        "removeStrayComponents": bool(args.remove_stray_components),
+        "protectEnclosedRegions": bool(args.protect_enclosed_regions),
+        "protectionColorDistance": (
+            DEFAULT_OUTLINE_PROTECTION_COLOR_DISTANCE
+            if args.protect_enclosed_regions
+            else None
+        ),
         "bgThreshold": args.bg_threshold,
         "alphaThreshold": args.alpha_threshold,
         "paletteColors": args.palette_colors,
@@ -1051,6 +1271,7 @@ def slicer_options_summary(args: argparse.Namespace) -> dict:
         "blackThreshold": args.black_threshold,
         "snapNeutralTolerance": args.snap_neutral_tolerance,
         "strictPixelArt": bool(args.strict_pixel_art),
+        "backgroundOnly": bool(args.background_only),
         "pixelGridSize": args.pixel_grid_size,
         "posterizeBits": args.posterize_bits,
         "rebuildOutline": bool(args.rebuild_outline),

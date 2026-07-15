@@ -90,7 +90,8 @@ Before invoking the slicer, run through the full checklist in `MASILPET_AI_ASSET
 - Background is uniform (preferred: solid white) or transparent.
 - Character size and feet baseline are consistent across cells.
 - No reference text/logo copied from public mascot sources.
-- Egg cell of a `growth`/`evolution` sheet has no face.
+- App `growth` sheets use `baby`, `grown`, `evolved` with no egg cell.
+- If a separate concept-only `evolution` sheet is requested, its egg cell has no face.
 
 If any item fails, regenerate the sheet instead of slicing.
 
@@ -121,17 +122,21 @@ $sheets = @(
 foreach ($sheet in $sheets) {
   $inputPath = Join-Path "assets\_incoming\$pet" $sheet.file
   if (Test-Path -LiteralPath $inputPath) {
-    python tools\slice_sprite_sheet.py --pet-id $pet --sheet-type $sheet.type --input $inputPath --overwrite
+    python tools\slice_sprite_sheet.py --pet-id $pet --sheet-type $sheet.type --input $inputPath --background-only --overwrite
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
   }
 }
 ```
 
-For strict pixel-grid cleanup when an AI sheet still looks soft, add:
+Use `--background-only` for the normal AI asset workflow. It preserves the generated resolution and colors while protecting light face/body interiors during background removal.
+
+For strict pixel-grid cleanup when the user explicitly wants a chunkier reduced-palette result, replace `--background-only` with:
 
 ```powershell
 --strict-pixel-art
 ```
+
+Strict mode also removes tiny disconnected fragments far from the main character, which prevents neighboring-cell spill from appearing beside the final sprite. Use `--keep-stray-components` only when a deliberately detached prop must be preserved.
 
 For stronger white/black cleanup, add:
 

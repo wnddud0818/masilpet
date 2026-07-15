@@ -1621,7 +1621,11 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       return currentEggs;
     }
 
-    final template = _templateForCategory(poi.category, poi.regionId);
+    final template = _templateForCategory(
+      poi.category,
+      poi.regionId,
+      poi.id,
+    );
     return [
       ...currentEggs,
       Egg(
@@ -1636,22 +1640,47 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     ];
   }
 
-  PetTemplate _templateForCategory(PoiCategory category, String regionId) {
-    for (final template in state.templates) {
-      if (template.regionId == regionId &&
-          template.primaryCategory == category) {
-        return template;
-      }
+  PetTemplate _templateForCategory(
+    PoiCategory category,
+    String regionId,
+    String poiId,
+  ) {
+    final regionalCategoryMatches = state.templates
+        .where(
+          (template) =>
+              template.regionId == regionId &&
+              template.primaryCategory == category,
+        )
+        .toList(growable: false);
+    if (regionalCategoryMatches.isNotEmpty) {
+      return regionalCategoryMatches[
+          _stableTemplateIndex(poiId, regionalCategoryMatches.length)];
     }
-    for (final template in state.templates) {
-      if (template.regionId == regionId) {
-        return template;
-      }
+
+    final regionalMatches = state.templates
+        .where((template) => template.regionId == regionId)
+        .toList(growable: false);
+    if (regionalMatches.isNotEmpty) {
+      return regionalMatches[
+          _stableTemplateIndex(poiId, regionalMatches.length)];
     }
-    return state.templates.firstWhere(
-      (template) => template.primaryCategory == category,
-      orElse: () => state.templates.first,
-    );
+
+    final categoryMatches = state.templates
+        .where((template) => template.primaryCategory == category)
+        .toList(growable: false);
+    if (categoryMatches.isNotEmpty) {
+      return categoryMatches[
+          _stableTemplateIndex(poiId, categoryMatches.length)];
+    }
+    return state.templates.first;
+  }
+
+  int _stableTemplateIndex(String value, int length) {
+    var hash = 0;
+    for (final codeUnit in value.codeUnits) {
+      hash = (hash * 31 + codeUnit) & 0xFFFFFFFF;
+    }
+    return hash % length;
   }
 
   String _messageForRemoteStepFailure(MasilPetBackendException error) {

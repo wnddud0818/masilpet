@@ -131,6 +131,94 @@ void main() {
     expect(walkingFrameCount, greaterThanOrEqualTo(3));
   });
 
+  testWidgets('pet pauses naturally before changing direction', (tester) async {
+    final state = _controller().state;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _playField(state, showVisitors: false),
+      ),
+    );
+
+    expect(
+      _assetNames(tester).any((name) => name.contains('/animations/walk_')),
+      isTrue,
+    );
+
+    await tester.pump(const Duration(milliseconds: 3600));
+    expect(
+      _assetNames(tester).any((name) => name.contains('/animations/idle_')),
+      isTrue,
+    );
+
+    await tester.pump(const Duration(milliseconds: 1200));
+    expect(
+      _assetNames(tester).any((name) => name.contains('/animations/walk_')),
+      isTrue,
+    );
+  });
+
+  testWidgets('pet movement stays continuous across the field loop boundary',
+      (tester) async {
+    final state = _controller().state;
+    final activePetId = state.activePetId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _playField(state, showVisitors: false),
+      ),
+    );
+
+    final pet = find.byKey(ValueKey('pet-play-field-pet-$activePetId'));
+    await tester.pump(const Duration(milliseconds: 13950));
+    final beforeLoop = tester.getTopLeft(pet);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    final afterLoop = tester.getTopLeft(pet);
+
+    expect((afterLoop - beforeLoop).distance, lessThan(12));
+  });
+
+  testWidgets('tap on a pet triggers a visible reaction and callback',
+      (tester) async {
+    final state = _controller().state;
+    final tappedPetIds = <String>[];
+    final activePetId = state.activePetId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PetPlayField(
+          templates: starterPetTemplates,
+          pets: state.pets,
+          eggs: state.eggs,
+          activePetId: activePetId,
+          activity: state.fieldActivity,
+          activityNonce: state.fieldActivityNonce,
+          showVisitors: false,
+          onPetTap: tappedPetIds.add,
+        ),
+      ),
+    );
+
+    final pet = find.byKey(ValueKey('pet-play-field-pet-$activePetId'));
+    expect(pet, findsOneWidget);
+
+    await tester.tap(pet);
+    await tester.pump();
+
+    expect(tappedPetIds, [activePetId]);
+    expect(
+      _assetNames(tester).any((name) => name.contains('/animations/greet_')),
+      isTrue,
+    );
+    expect(
+      find.bySemanticsLabel(
+        '${state.templates.first.name} 캐릭터',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('play field renders the neighborhood yard scene', (tester) async {
     final controller = _controller();
     final state = controller.state;

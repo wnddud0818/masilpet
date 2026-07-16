@@ -342,7 +342,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
             slice_sprite_sheet.run(
                 [
                     "--pet-id",
-                    "wave_naru",
+                    "sample_pet",
                     "--sheet-type",
                     "growth",
                     "--input",
@@ -352,7 +352,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
                 ]
             )
 
-            growth_dir = root / "assets" / "pets" / "wave_naru" / "growth"
+            growth_dir = root / "assets" / "pets" / "sample_pet" / "growth"
             self.assertTrue((growth_dir / "baby.png").exists())
             self.assertTrue((growth_dir / "grown.png").exists())
             self.assertTrue((growth_dir / "evolved.png").exists())
@@ -364,7 +364,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
             make_sheet(input_path, rows=2, cols=3)
             args = [
                 "--pet-id",
-                "story_goun",
+                "sample_pet",
                 "--sheet-type",
                 "emotions",
                 "--input",

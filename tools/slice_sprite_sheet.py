@@ -203,7 +203,7 @@ def parse_args(argv: Iterable[str]) -> argparse.Namespace:
     parser.add_argument(
         "--pet-id",
         required=True,
-        help="Pet asset key, for example roof_mascot or wave_naru.",
+        help="Pet asset key, for example roof_mascot or sample_pet.",
     )
     parser.add_argument(
         "--sheet-type",

@@ -19,7 +19,7 @@ Work from the MasilPet repo root. The expected repo files are:
 
 ## Asset Scope
 
-Choose a lowercase `pet_id` using letters, digits, underscores, or hyphens, for example `roof_mascot` or `wave_naru`.
+Choose a lowercase `pet_id` using letters, digits, underscores, or hyphens, for example `roof_mascot` or `sample_pet`.
 
 Prefer one character family per generated image. Do not ask the image model to create multiple unrelated pets in one image. For quality, generate one sheet type at a time:
 

@@ -651,7 +651,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final dialogueCountToday = isSameLocalDay(snapshot.dialogueDay, now)
         ? snapshot.dialogueCountToday
         : 0;
-    final restoredPets = snapshot.pets.isEmpty ? state.pets : snapshot.pets;
+    final restoredPets = _withCanonicalPetNames(
+      snapshot.pets.isEmpty ? state.pets : snapshot.pets,
+    );
     final restoredCareByPetId = _careForPets(
       pets: restoredPets,
       existing: snapshot.careByPetId,
@@ -913,7 +915,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         return;
       }
 
-      final remotePets = progress.pets.isEmpty ? state.pets : progress.pets;
+      final remotePets = _withCanonicalPetNames(
+        progress.pets.isEmpty ? state.pets : progress.pets,
+      );
       state = state.copyWith(
         pets: remotePets,
         eggs: progress.eggs,
@@ -1329,9 +1333,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     final template = templateFor(activePet.templateId);
-    final line = _dialogueService.lineFor(
+    final currentCare = _careFor(activePet, now);
+    final line = _dialogueService.lineForConversation(
       template: template,
+      pet: activePet,
+      care: currentCare,
       lastCategory: state.lastVisitedCategory,
+      now: now,
+      interactionIndex: resetCount,
     );
     var rewardStats =
         const GrowthStats(exp: 2, mood: 4, knowledge: 0, affinity: 1);
@@ -1376,7 +1385,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       ),
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterTalk(_careFor(activePet, now), now),
+        _careEngine.afterTalk(currentCare, now),
       ),
       dialogueCountToday: resetCount + 1,
       dialogueDay: now,
@@ -1396,6 +1405,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     final now = DateTime.now();
+    final template = templateFor(activePet.templateId);
     final currentCare = _careFor(activePet, now);
     if (currentCare.feedCountToday >= dailyFeedCareLimit) {
       state = state.copyWith(
@@ -1448,10 +1458,16 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       pets: _replacePet(updated),
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterFeed(_careFor(activePet, now), now),
+        _careEngine.afterFeed(currentCare, now),
       ),
       isBusy: false,
-      statusMessage: '${activePet.name}의 기분이 좋아졌습니다.',
+      statusMessage: _dialogueService
+          .lineForAction(
+            template: template,
+            trigger: 'fed',
+            variantSeed: currentCare.feedCountToday,
+          )
+          .text,
       fieldActivity: PetFieldActivity.eating,
       bumpFieldActivity: true,
     );
@@ -1466,12 +1482,20 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     final now = DateTime.now();
+    final template = templateFor(activePet.templateId);
+    final currentCare = _careFor(activePet, now);
     state = state.copyWith(
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterPlay(_careFor(activePet, now), now),
+        _careEngine.afterPlay(currentCare, now),
       ),
-      statusMessage: '${activePet.name}과 신나게 놀았습니다.',
+      statusMessage: _dialogueService
+          .lineForAction(
+            template: template,
+            trigger: 'played',
+            variantSeed: currentCare.playCountToday,
+          )
+          .text,
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
@@ -1486,12 +1510,20 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     final now = DateTime.now();
+    final template = templateFor(activePet.templateId);
+    final currentCare = _careFor(activePet, now);
     state = state.copyWith(
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterClean(_careFor(activePet, now), now),
+        _careEngine.afterClean(currentCare, now),
       ),
-      statusMessage: '${activePet.name}이 반짝반짝 깨끗해졌습니다.',
+      statusMessage: _dialogueService
+          .lineForAction(
+            template: template,
+            trigger: 'cleaned',
+            variantSeed: currentCare.cleanCountToday,
+          )
+          .text,
       fieldActivity: PetFieldActivity.greeting,
       bumpFieldActivity: true,
     );
@@ -1506,12 +1538,19 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     final now = DateTime.now();
+    final template = templateFor(activePet.templateId);
+    final currentCare = _careFor(activePet, now);
     state = state.copyWith(
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterSleep(_careFor(activePet, now), now),
+        _careEngine.afterSleep(currentCare, now),
       ),
-      statusMessage: '${activePet.name}이 포근하게 쉬고 있습니다.',
+      statusMessage: _dialogueService
+          .lineForAction(
+            template: template,
+            trigger: 'resting',
+          )
+          .text,
       fieldActivity: PetFieldActivity.sleeping,
       bumpFieldActivity: true,
     );
@@ -1570,6 +1609,21 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
   PetTemplate templateFor(String templateId) {
     return state.templates.firstWhere((template) => template.id == templateId);
+  }
+
+  List<Pet> _withCanonicalPetNames(Iterable<Pet> pets) {
+    return pets.map((pet) {
+      final matchingTemplates = state.templates.where(
+        (template) => template.id == pet.templateId,
+      );
+      if (matchingTemplates.isEmpty) {
+        return pet;
+      }
+      final canonicalName = matchingTemplates.first.name;
+      return pet.name == canonicalName
+          ? pet
+          : pet.copyWith(name: canonicalName);
+    }).toList(growable: false);
   }
 
   List<Pet> _replacePet(Pet updated) {

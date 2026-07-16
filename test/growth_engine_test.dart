@@ -74,6 +74,125 @@ void main() {
     }
   });
 
+  test('every character has a unique name and full situational voice', () {
+    final names = starterPetTemplates.map((template) => template.name).toSet();
+    expect(names, hasLength(starterPetTemplates.length));
+    expect(characterDialogueProfiles, hasLength(starterPetTemplates.length));
+    expect(starterDialogueSeed, hasLength(777));
+
+    for (final template in starterPetTemplates) {
+      final profile = characterDialogueProfiles.singleWhere(
+        (profile) => profile.templateId == template.id,
+      );
+      expect(
+        profile.lines.keys,
+        containsAll(dialogueSituationTriggers),
+        reason: '${template.name}에 빠진 상황 대사가 있습니다.',
+      );
+      expect(
+        profile.lines['default'],
+        hasLength(greaterThanOrEqualTo(2)),
+        reason: '${template.name}의 반복 대화 변주가 부족합니다.',
+      );
+      for (final lines in profile.lines.values) {
+        for (final text in lines) {
+          expect(text.trim(), isNotEmpty, reason: template.name);
+          expect(
+            text,
+            isNot(matches(RegExp(r'보상|친밀도|경험치|EXP'))),
+            reason: '${template.name}의 대사가 시스템 문구처럼 들립니다.',
+          );
+        }
+      }
+    }
+  });
+
+  test('conversation context prioritizes needs and rotates situations', () {
+    const dialogue = StaticDialogueService();
+    final template = starterPetTemplates.first;
+    final now = DateTime(2026, 7, 16, 8);
+    final pet = Pet(
+      id: 'pet-dialogue-test',
+      templateId: template.id,
+      name: template.name,
+      stage: PetStage.evolved,
+      level: 5,
+      stats: const GrowthStats(exp: 500, mood: 80, knowledge: 60, affinity: 80),
+      originRegionId: template.regionId,
+      hatchedAt: now,
+      lastInteractedAt: null,
+    );
+
+    final hungry = dialogue.lineForConversation(
+      template: template,
+      pet: pet,
+      care: PetCareState(
+        satiety: 20,
+        cleanliness: 80,
+        vitality: 80,
+        updatedAt: now,
+      ),
+      lastCategory: PoiCategory.history,
+      now: now,
+      interactionIndex: 0,
+    );
+    expect(hungry.trigger, 'hungry');
+
+    final healthyCare = PetCareState(updatedAt: now);
+    expect(
+      dialogue
+          .lineForConversation(
+            template: template,
+            pet: pet,
+            care: healthyCare,
+            lastCategory: PoiCategory.history,
+            now: now,
+            interactionIndex: 0,
+          )
+          .trigger,
+      'history',
+    );
+    expect(
+      dialogue
+          .lineForConversation(
+            template: template,
+            pet: pet,
+            care: healthyCare,
+            lastCategory: PoiCategory.history,
+            now: now,
+            interactionIndex: 1,
+          )
+          .trigger,
+      'morning',
+    );
+    expect(
+      dialogue
+          .lineForConversation(
+            template: template,
+            pet: pet,
+            care: healthyCare,
+            lastCategory: PoiCategory.history,
+            now: now,
+            interactionIndex: 3,
+          )
+          .trigger,
+      'close',
+    );
+    expect(
+      dialogue
+          .lineForConversation(
+            template: template,
+            pet: pet,
+            care: healthyCare,
+            lastCategory: PoiCategory.history,
+            now: now,
+            interactionIndex: 4,
+          )
+          .trigger,
+      'evolved',
+    );
+  });
+
   test('pet templates reference complete display asset sets', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();
     const requiredGrowth = ['baby', 'grown', 'evolved'];

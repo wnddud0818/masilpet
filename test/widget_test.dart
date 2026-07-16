@@ -398,7 +398,7 @@ void main() {
     expect(find.text('대화 연결'), findsOneWidget);
     expect(find.text('역사 기억 1회'), findsOneWidget);
     expect(
-      find.textContaining('경복궁의 역사 기억이 파도나루의 성장'),
+      find.textContaining('경복궁의 역사 기억이 너울의 성장'),
       findsOneWidget,
     );
     expect(find.text('받은 보상'), findsOneWidget);
@@ -1652,7 +1652,7 @@ void main() {
 
     expect(find.text('오늘 새 카테고리'), findsOneWidget);
     expect(find.text('도감 후보'), findsOneWidget);
-    expect(find.text('설화고운'), findsOneWidget);
+    expect(find.text('새록'), findsOneWidget);
     expect(find.text('알 +680'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -1749,8 +1749,8 @@ void main() {
       findsNothing,
     );
     expect(find.text('다음'), findsOneWidget);
-    expect(find.text('설화고운'), findsWidgets);
-    expect(find.text('항구마루'), findsWidgets);
+    expect(find.text('새록'), findsWidgets);
+    expect(find.text('포구리'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -2169,7 +2169,7 @@ void main() {
 
     expect(find.text('동행 대화'), findsOneWidget);
     expect(find.text('역사 기억'), findsOneWidget);
-    expect(find.textContaining('오래된 길에도 바람길'), findsOneWidget);
+    expect(find.textContaining('오래된 길에도 바람은'), findsOneWidget);
     expect(find.textContaining('경복궁 · 역사 · 12m'), findsOneWidget);
     expect(find.text('EXP +22'), findsOneWidget);
     expect(find.text('지식 +22'), findsOneWidget);
@@ -2187,7 +2187,7 @@ void main() {
     await tester.pump();
 
     expect(controller.state.dialogueCountToday, 1);
-    expect(controller.state.statusMessage, contains('오래된 길에도 바람길'));
+    expect(controller.state.statusMessage, contains('오래된 길에도 바람은'));
     expect(tester.takeException(), isNull);
   });
 
@@ -2899,7 +2899,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('다음 발견 후보'), findsOneWidget);
-    expect(find.textContaining('항구마루 · 음식 카테고리'), findsOneWidget);
+    expect(find.textContaining('포구리 · 음식 카테고리'), findsOneWidget);
     expect(find.textContaining('자갈치시장 · 음식'), findsOneWidget);
     expect(find.text('위치 확인 필요'), findsOneWidget);
     expect(find.text('체크인 시 예상 보상'), findsOneWidget);
@@ -3070,7 +3070,7 @@ void main() {
 
     final nextStampAction = find.widgetWithText(TextButton, '다음 스탬프 찾기');
     expect(find.text('전국 탐험 여권'), findsOneWidget);
-    expect(find.text('파도나루'), findsWidgets);
+    expect(find.text('너울'), findsWidgets);
     expect(find.text('일반'), findsWidgets);
     expect(find.textContaining('common'), findsNothing);
     expect(find.text('스탬프 대기'), findsWidgets);

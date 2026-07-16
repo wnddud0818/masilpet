@@ -460,40 +460,27 @@ class _PetMessageBubble extends StatelessWidget {
 
 String _friendlyPetMessage(MasilPetState state, Pet pet) {
   final raw = state.statusMessage.trim();
-  const technicalWords = [
-    'Firebase',
-    '설정값',
-    '온라인 동기화',
-    '기기 내 진행',
-    '계정과 진행도',
-  ];
-  if (raw.isNotEmpty && !technicalWords.any(raw.contains)) {
+  final template = state.templates.firstWhere(
+    (item) => item.id == pet.templateId,
+    orElse: () => state.templates.first,
+  );
+  const dialogue = StaticDialogueService();
+  if (raw.isNotEmpty &&
+      dialogue.isDialogueText(
+        templateId: template.id,
+        text: raw,
+      )) {
     return raw;
   }
-
-  final care = state.activePetCare;
-  if (care != null) {
-    if (care.satiety <= care.cleanliness &&
-        care.satiety <= care.vitality &&
-        care.satiety < 55) {
-      return '배에서 꼬르륵 소리가 나요. 같이 맛있는 걸 먹어요!';
-    }
-    if (care.cleanliness <= care.vitality && care.cleanliness < 55) {
-      return '산책 준비 전에 보송보송 씻고 싶어요.';
-    }
-    if (care.vitality < 55) {
-      return '조금 쉬었다가 신나게 놀면 좋겠어요.';
-    }
-  }
-
-  final hour = DateTime.now().hour;
-  if (hour < 11) {
-    return '좋은 아침이에요! 오늘은 어디로 걸어볼까요?';
-  }
-  if (hour < 18) {
-    return '반가워요! 오늘도 함께 작은 모험을 만들어요.';
-  }
-  return '${pet.name}과 포근하게 하루를 마무리해요.';
+  final seed = pet.id.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
+  return dialogue
+      .lineForAmbient(
+        template: template,
+        care: state.careForPet(pet.id),
+        now: DateTime.now(),
+        variantSeed: seed,
+      )
+      .text;
 }
 
 class _DailyCareCard extends StatelessWidget {

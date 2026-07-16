@@ -38,6 +38,7 @@ The default pipeline operates **across the whole sheet** for color consistency:
 
 1. Slice all equal-sized grid cells from the source sheet.
 2. For each cell: detect the edge-connected background color, remove it, crop to the character bbox.
+   In strict pixel-art mode, tiny disconnected fragments far from the main subject are removed automatically so neighboring-cell spill does not survive slicing.
 3. Resize each character to fit inside a 448x448 box by default.
 4. Build a single shared palette across all non-empty cells and quantize every cell to it (48 colors, hard alpha).
 5. Snap neutral near-white and near-black pixels to pure white and pure black.
@@ -58,8 +59,11 @@ Useful options:
 --anchor feet          # force foot/bottom placement
 --bottom-padding 32    # bottom padding for feet placement
 --bg-threshold 180     # background removal tolerance
+--background-only      # preserve source detail/colors; remove background + normalize canvas only
 --palette-colors 48    # max opaque colors after quantization
---strict-pixel-art     # 128px grid, nearest resize, tighter palette, posterize, outline rebuild
+--strict-pixel-art     # 128px grid, tighter palette, outline rebuild, stray-fragment cleanup
+--remove-stray-components # remove tiny distant foreground fragments without strict mode
+--keep-stray-components   # preserve every detached fragment in strict mode
 --pixel-grid-size 128  # optional low-res pixel grid before nearest-neighbor upscaling
 --posterize-bits 3     # reduce channel precision for flatter pixel-art colors
 --rebuild-outline      # add a hard outline around the normalized alpha mask
@@ -81,7 +85,15 @@ For normal app assets, the defaults are enough:
 python tools/slice_sprite_sheet.py --pet-id roof_mascot --sheet-type actions --input assets/_incoming/roof_mascot/action_poses_sheet.png
 ```
 
-For AI-generated pixel art that still has soft edges or uneven pseudo-pixels, use strict pixel-art mode. This rebuilds each sprite on a 128x128 logical pixel canvas, snaps alpha harder, reduces the palette, posterizes soft gradients, rebuilds a crisp outline, and nearest-neighbor upscales to the final 512x512 PNG:
+For AI-generated sheets that already have the intended pixel detail and palette, prefer background-only mode. It keeps the original colors and source resolution, removes only the edge-connected background, protects light face/body interiors behind imperfect outlines, removes tiny neighboring-cell fragments, and normalizes the result onto the app canvas:
+
+```powershell
+python tools/slice_sprite_sheet.py --pet-id roof_mascot --sheet-type actions --input assets/_incoming/roof_mascot/action_poses_sheet.png --background-only --overwrite
+```
+
+Background-only mode uses separate thresholds for removal and protection: near-white exterior pixels can be removed with the normal `180` tolerance, while pixels more than `12` RGB-distance units from the sampled background form a protective barrier. A small outline closing step prevents background flood-fill from leaking into a light face or body through minor outline gaps.
+
+For AI-generated pixel art that still has soft edges or uneven pseudo-pixels, use strict pixel-art mode only when a deliberately chunkier, reduced-palette result is desired. This rebuilds each sprite on a 128x128 logical pixel canvas, snaps alpha harder, reduces the palette, posterizes soft gradients, rebuilds a crisp outline, and nearest-neighbor upscales to the final 512x512 PNG:
 
 ```powershell
 python tools/slice_sprite_sheet.py --pet-id roof_mascot --sheet-type actions --input assets/_incoming/roof_mascot/action_poses_sheet.png --strict-pixel-art --overwrite

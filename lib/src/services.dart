@@ -90,20 +90,236 @@ class GrowthEngine {
   }
 }
 
+class CareEngine {
+  const CareEngine();
+
+  static const maxDecayDuration = Duration(hours: 24);
+  static const satietyDecayInterval = Duration(hours: 2);
+  static const cleanlinessDecayInterval = Duration(hours: 3);
+  static const vitalityDecayInterval = Duration(hours: 4);
+
+  PetCareState resolve(PetCareState care, DateTime now) {
+    final elapsed = now.difference(care.updatedAt);
+    final elapsedMinutes = elapsed.isNegative
+        ? 0
+        : math.min(elapsed.inMinutes, maxDecayDuration.inMinutes);
+    final sameCountDay = isSameLocalDay(care.dailyCountDay, now);
+    final resolvedAt = now.isBefore(care.updatedAt) ? care.updatedAt : now;
+
+    return care.copyWith(
+      satiety:
+          care.satiety - (elapsedMinutes ~/ satietyDecayInterval.inMinutes),
+      cleanliness: care.cleanliness -
+          (elapsedMinutes ~/ cleanlinessDecayInterval.inMinutes),
+      vitality:
+          care.vitality - (elapsedMinutes ~/ vitalityDecayInterval.inMinutes),
+      updatedAt: resolvedAt,
+      dailyCountDay: sameCountDay ? care.dailyCountDay : now,
+      feedCountToday: sameCountDay ? care.feedCountToday : 0,
+      playCountToday: sameCountDay ? care.playCountToday : 0,
+      cleanCountToday: sameCountDay ? care.cleanCountToday : 0,
+    );
+  }
+
+  PetCareState afterFeed(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety + 28,
+      vitality: current.vitality + 3,
+      updatedAt: now,
+      dailyCountDay: now,
+      feedCountToday: current.feedCountToday + 1,
+    );
+  }
+
+  PetCareState afterPlay(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety - 2,
+      cleanliness: current.cleanliness - 3,
+      vitality: current.vitality + 18,
+      updatedAt: now,
+      dailyCountDay: now,
+      playCountToday: current.playCountToday + 1,
+    );
+  }
+
+  PetCareState afterClean(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      cleanliness: current.cleanliness + 32,
+      vitality: current.vitality + 2,
+      updatedAt: now,
+      dailyCountDay: now,
+      cleanCountToday: current.cleanCountToday + 1,
+    );
+  }
+
+  PetCareState afterSleep(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      satiety: current.satiety - 1,
+      vitality: current.vitality + 34,
+      updatedAt: now,
+    );
+  }
+
+  PetCareState afterTalk(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return current.copyWith(
+      vitality: current.vitality + 6,
+      updatedAt: now,
+    );
+  }
+
+  String localDayKey(DateTime value) {
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '${value.year}-$month-$day';
+  }
+}
+
 class StaticDialogueService {
   const StaticDialogueService();
 
   DialogueLine lineFor({
     required PetTemplate template,
     required PoiCategory? lastCategory,
+    int variantSeed = 0,
   }) {
     final trigger = lastCategory?.name ?? 'default';
-    return starterDialogueSeed.firstWhere(
-      (line) => line.templateId == template.id && line.trigger == trigger,
-      orElse: () => starterDialogueSeed.firstWhere(
-        (line) => line.templateId == template.id && line.trigger == 'default',
-      ),
+    return lineForTrigger(
+      template: template,
+      trigger: trigger,
+      variantSeed: variantSeed,
     );
+  }
+
+  DialogueLine lineForConversation({
+    required PetTemplate template,
+    required Pet pet,
+    required PetCareState care,
+    required PoiCategory? lastCategory,
+    required DateTime now,
+    required int interactionIndex,
+  }) {
+    final needTrigger = _careNeedTrigger(care, threshold: 45);
+    if (needTrigger != null) {
+      return lineForTrigger(
+        template: template,
+        trigger: needTrigger,
+        variantSeed: interactionIndex,
+      );
+    }
+
+    final timeTrigger = _timeTrigger(now);
+    final visitTrigger = lastCategory?.name;
+    final cycle = interactionIndex % 5;
+    final trigger = switch (cycle) {
+      0 => visitTrigger ?? 'default',
+      1 => timeTrigger,
+      2 => 'default',
+      3 => pet.stats.affinity >= 60 ? 'close' : visitTrigger ?? 'default',
+      _ => pet.stage == PetStage.evolved ? 'evolved' : timeTrigger,
+    };
+
+    return lineForTrigger(
+      template: template,
+      trigger: trigger,
+      variantSeed: now.day + interactionIndex,
+    );
+  }
+
+  DialogueLine lineForAmbient({
+    required PetTemplate template,
+    required PetCareState? care,
+    required DateTime now,
+    int variantSeed = 0,
+  }) {
+    final needTrigger = care == null
+        ? null
+        : _careNeedTrigger(
+            care,
+            threshold: 55,
+          );
+    return lineForTrigger(
+      template: template,
+      trigger: needTrigger ?? _timeTrigger(now),
+      variantSeed: now.day + variantSeed,
+    );
+  }
+
+  DialogueLine lineForAction({
+    required PetTemplate template,
+    required String trigger,
+    int variantSeed = 0,
+  }) {
+    return lineForTrigger(
+      template: template,
+      trigger: trigger,
+      variantSeed: variantSeed,
+    );
+  }
+
+  DialogueLine lineForTrigger({
+    required PetTemplate template,
+    required String trigger,
+    int variantSeed = 0,
+  }) {
+    final matching = starterDialogueSeed
+        .where(
+          (line) => line.templateId == template.id && line.trigger == trigger,
+        )
+        .toList(growable: false);
+    final fallback = matching.isNotEmpty
+        ? matching
+        : starterDialogueSeed
+            .where(
+              (line) =>
+                  line.templateId == template.id && line.trigger == 'default',
+            )
+            .toList(growable: false);
+    if (fallback.isEmpty) {
+      throw StateError('${template.id} 캐릭터의 기본 대사가 없습니다.');
+    }
+    final normalizedSeed = variantSeed < 0 ? -variantSeed : variantSeed;
+    return fallback[normalizedSeed % fallback.length];
+  }
+
+  bool isDialogueText({
+    required String templateId,
+    required String text,
+  }) {
+    return starterDialogueSeed.any(
+      (line) => line.templateId == templateId && line.text == text,
+    );
+  }
+
+  String? _careNeedTrigger(PetCareState care, {required int threshold}) {
+    final minimum = math.min(
+      care.satiety,
+      math.min(care.cleanliness, care.vitality),
+    );
+    if (minimum >= threshold) {
+      return null;
+    }
+    if (minimum == care.satiety) {
+      return 'hungry';
+    }
+    if (minimum == care.cleanliness) {
+      return 'dirty';
+    }
+    return 'tired';
+  }
+
+  String _timeTrigger(DateTime now) {
+    if (now.hour < 11) {
+      return 'morning';
+    }
+    if (now.hour < 18) {
+      return 'afternoon';
+    }
+    return 'evening';
   }
 }
 

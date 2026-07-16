@@ -141,6 +141,74 @@ def make_key_color_sheet(path: Path, rows: int, cols: int, cell_size: int = 80) 
     image.save(path)
 
 
+def make_stray_component_sheet(
+    path: Path,
+    rows: int,
+    cols: int,
+    cell_size: int = 120,
+) -> None:
+    image = Image.new(
+        "RGBA",
+        (cols * cell_size, rows * cell_size),
+        (250, 250, 250, 255),
+    )
+    draw = ImageDraw.Draw(image)
+    for row in range(rows):
+        for col in range(cols):
+            origin_x = col * cell_size
+            origin_y = row * cell_size
+            draw.rounded_rectangle(
+                (origin_x + 32, origin_y + 24, origin_x + 94, origin_y + 102),
+                radius=18,
+                fill=(220, 120, 80, 255),
+                outline=(35, 30, 45, 255),
+                width=4,
+            )
+            draw.rectangle(
+                (origin_x, origin_y + 52, origin_x + 2, origin_y + 65),
+                fill=(60, 90, 120, 255),
+            )
+    image.save(path)
+
+
+def make_light_subject_with_outline_gap_sheet(
+    path: Path,
+    rows: int,
+    cols: int,
+    cell_size: int = 120,
+) -> None:
+    image = Image.new(
+        "RGBA",
+        (cols * cell_size, rows * cell_size),
+        (255, 255, 255, 255),
+    )
+    draw = ImageDraw.Draw(image)
+    for row in range(rows):
+        for col in range(cols):
+            origin_x = col * cell_size
+            origin_y = row * cell_size
+            draw.ellipse(
+                (origin_x + 24, origin_y + 18, origin_x + 96, origin_y + 104),
+                fill=(255, 255, 255, 255),
+                outline=(25, 35, 55, 255),
+                width=6,
+            )
+            # Simulate a small AI-generated break in the dark outer outline.
+            draw.rectangle(
+                (origin_x + 59, origin_y + 17, origin_x + 61, origin_y + 26),
+                fill=(255, 255, 255, 255),
+            )
+            draw.ellipse(
+                (origin_x + 45, origin_y + 48, origin_x + 53, origin_y + 56),
+                fill=(25, 35, 55, 255),
+            )
+            draw.ellipse(
+                (origin_x + 67, origin_y + 48, origin_x + 75, origin_y + 56),
+                fill=(25, 35, 55, 255),
+            )
+    image.save(path)
+
+
 def alpha_bbox(path: Path) -> tuple[int, int, int, int]:
     with Image.open(path).convert("RGBA") as image:
         bbox = image.getchannel("A").getbbox()
@@ -174,6 +242,39 @@ def alpha_values(path: Path) -> set[int]:
         alpha = image.getchannel("A")
         data = alpha.get_flattened_data() if hasattr(alpha, "get_flattened_data") else alpha.getdata()
         return set(data)
+
+
+def alpha_component_count(path: Path) -> int:
+    with Image.open(path).convert("RGBA") as image:
+        alpha = image.getchannel("A")
+        pixels = alpha.load()
+        width, height = alpha.size
+        visited = bytearray(width * height)
+        components = 0
+        for y in range(height):
+            for x in range(width):
+                start = y * width + x
+                if visited[start] or pixels[x, y] == 0:
+                    continue
+                components += 1
+                visited[start] = 1
+                queue = [(x, y)]
+                while queue:
+                    current_x, current_y = queue.pop()
+                    for next_x, next_y in (
+                        (current_x - 1, current_y),
+                        (current_x + 1, current_y),
+                        (current_x, current_y - 1),
+                        (current_x, current_y + 1),
+                    ):
+                        if not (0 <= next_x < width and 0 <= next_y < height):
+                            continue
+                        offset = next_y * width + next_x
+                        if visited[offset] or pixels[next_x, next_y] == 0:
+                            continue
+                        visited[offset] = 1
+                        queue.append((next_x, next_y))
+        return components
 
 
 def matches_pixel_grid(path: Path, grid_size: int) -> bool:
@@ -241,7 +342,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
             slice_sprite_sheet.run(
                 [
                     "--pet-id",
-                    "wave_naru",
+                    "sample_pet",
                     "--sheet-type",
                     "growth",
                     "--input",
@@ -251,7 +352,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
                 ]
             )
 
-            growth_dir = root / "assets" / "pets" / "wave_naru" / "growth"
+            growth_dir = root / "assets" / "pets" / "sample_pet" / "growth"
             self.assertTrue((growth_dir / "baby.png").exists())
             self.assertTrue((growth_dir / "grown.png").exists())
             self.assertTrue((growth_dir / "evolved.png").exists())
@@ -263,7 +364,7 @@ class SliceSpriteSheetTest(unittest.TestCase):
             make_sheet(input_path, rows=2, cols=3)
             args = [
                 "--pet-id",
-                "story_goun",
+                "sample_pet",
                 "--sheet-type",
                 "emotions",
                 "--input",
@@ -424,6 +525,106 @@ class SliceSpriteSheetTest(unittest.TestCase):
             self.assertTrue(matches_pixel_grid(output, 128))
             self.assertLessEqual(opaque_color_count(output), 20)
             self.assertLessEqual(alpha_values(output), {0, 255})
+
+    def test_strict_pixel_art_removes_tiny_distant_cell_fragments(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "action_poses_sheet.png"
+            make_stray_component_sheet(input_path, rows=2, cols=3)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "actions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--strict-pixel-art",
+                    "--pixel-grid-size",
+                    "64",
+                ]
+            )
+
+            output = root / "assets" / "pets" / "roof_mascot" / "actions" / "idle.png"
+            self.assertEqual(alpha_component_count(output), 1)
+            manifest = json.loads(
+                (root / "assets" / "pets" / "roof_mascot" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertTrue(
+                manifest["history"]["actions"]["options"]["removeStrayComponents"]
+            )
+
+    def test_background_only_preserves_source_colors_and_resolution(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_gradient_subject_sheet(input_path, rows=2, cols=3, cell_size=120)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--background-only",
+                ]
+            )
+
+            output = root / "assets" / "pets" / "roof_mascot" / "emotions" / "neutral.png"
+            with Image.open(output) as image:
+                self.assertEqual(image.size, (512, 512))
+            self.assertGreater(opaque_color_count(output), 48)
+
+            manifest = json.loads(
+                (root / "assets" / "pets" / "roof_mascot" / "manifest.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            options = manifest["history"]["emotions"]["options"]
+            self.assertTrue(options["backgroundOnly"])
+            self.assertTrue(options["noQuantize"])
+            self.assertTrue(options["noColorSnap"])
+            self.assertTrue(options["removeStrayComponents"])
+            self.assertTrue(options["protectEnclosedRegions"])
+            self.assertEqual(
+                options["bgThreshold"],
+                slice_sprite_sheet.DEFAULT_BACKGROUND_ONLY_BG_THRESHOLD,
+            )
+            self.assertEqual(options["pixelGridSize"], 0)
+            self.assertFalse(options["rebuildOutline"])
+
+    def test_background_only_protects_light_interior_through_outline_gap(self) -> None:
+        with temporary_project() as tmp:
+            root = Path(tmp)
+            input_path = root / "emotions_sheet.png"
+            make_light_subject_with_outline_gap_sheet(input_path, rows=2, cols=3)
+
+            slice_sprite_sheet.run(
+                [
+                    "--pet-id",
+                    "roof_mascot",
+                    "--sheet-type",
+                    "emotions",
+                    "--input",
+                    str(input_path),
+                    "--root",
+                    str(root),
+                    "--background-only",
+                ]
+            )
+
+            output = root / "assets" / "pets" / "roof_mascot" / "emotions" / "neutral.png"
+            with Image.open(output).convert("RGBA") as image:
+                self.assertGreater(image.getpixel((256, 256))[3], 0)
 
     def test_pixel_grid_size_must_evenly_scale_output(self) -> None:
         with temporary_project() as tmp:

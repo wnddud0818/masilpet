@@ -299,7 +299,7 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    expect(controller.state.activePet?.name, '파도나루');
+    expect(controller.state.activePet?.name, '너울');
     expect(controller.state.statusMessage, contains('불러오지 못했습니다'));
 
     await controller.talkWithActivePet();

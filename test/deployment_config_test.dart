@@ -54,7 +54,7 @@ void main() {
 
     expect(readme, contains('대한민국 전역'));
     expect(readme, contains('전국 POI'));
-    expect(readme, contains('7종 수집'));
+    expect(readme, contains('37종 수집'));
     expect(readme, isNot(contains('첫 출품 지역은 부산')));
     expect(readme, isNot(contains('부산 POI 지도')));
     expect(readme, isNot(contains('부산 탐험 여권')));

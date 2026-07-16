@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 const checkInRadiusMeters = 150.0;
 const dailyCheckInLimit = 20;
+const dailyCareRoutineTarget = 4;
+const dailyCareRewardPoints = 30;
+const dailyFeedCareLimit = 3;
 
 enum PoiCategory {
   nature,
@@ -191,6 +194,98 @@ class GrowthStats {
       affinity: affinity + other.affinity,
     );
   }
+}
+
+class PetCareState {
+  PetCareState({
+    int satiety = 72,
+    int cleanliness = 76,
+    int vitality = 74,
+    required this.updatedAt,
+    DateTime? dailyCountDay,
+    int feedCountToday = 0,
+    int playCountToday = 0,
+    int cleanCountToday = 0,
+  })  : satiety = _boundedCareValue(satiety),
+        cleanliness = _boundedCareValue(cleanliness),
+        vitality = _boundedCareValue(vitality),
+        dailyCountDay = dailyCountDay ?? updatedAt,
+        feedCountToday = math.max(0, feedCountToday),
+        playCountToday = math.max(0, playCountToday),
+        cleanCountToday = math.max(0, cleanCountToday);
+
+  factory PetCareState.initial(DateTime now) {
+    return PetCareState(updatedAt: now, dailyCountDay: now);
+  }
+
+  final int satiety;
+  final int cleanliness;
+  final int vitality;
+  final DateTime updatedAt;
+  final DateTime dailyCountDay;
+  final int feedCountToday;
+  final int playCountToday;
+  final int cleanCountToday;
+
+  double get overallRatio {
+    return (satiety + cleanliness + vitality) / 300;
+  }
+
+  PetCareState copyWith({
+    int? satiety,
+    int? cleanliness,
+    int? vitality,
+    DateTime? updatedAt,
+    DateTime? dailyCountDay,
+    int? feedCountToday,
+    int? playCountToday,
+    int? cleanCountToday,
+  }) {
+    return PetCareState(
+      satiety: satiety ?? this.satiety,
+      cleanliness: cleanliness ?? this.cleanliness,
+      vitality: vitality ?? this.vitality,
+      updatedAt: updatedAt ?? this.updatedAt,
+      dailyCountDay: dailyCountDay ?? this.dailyCountDay,
+      feedCountToday: feedCountToday ?? this.feedCountToday,
+      playCountToday: playCountToday ?? this.playCountToday,
+      cleanCountToday: cleanCountToday ?? this.cleanCountToday,
+    );
+  }
+}
+
+class DailyCareRoutineProgress {
+  const DailyCareRoutineProgress({
+    required this.fed,
+    required this.played,
+    required this.cleaned,
+    required this.talked,
+    required this.checkedIn,
+  });
+
+  final bool fed;
+  final bool played;
+  final bool cleaned;
+  final bool talked;
+  final bool checkedIn;
+
+  int get completedCount {
+    return [fed, played, cleaned, talked, checkedIn]
+        .where((completed) => completed)
+        .length;
+  }
+
+  int get targetCount => dailyCareRoutineTarget;
+
+  int get remainingCount {
+    return (targetCount - completedCount).clamp(0, targetCount).toInt();
+  }
+
+  bool get isComplete => completedCount >= targetCount;
+}
+
+int _boundedCareValue(int value) {
+  return value.clamp(0, 100).toInt();
 }
 
 class PetTemplate {

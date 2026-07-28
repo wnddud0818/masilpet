@@ -1,0 +1,4 @@
+storeFile=C:/secure/masilpet-upload-keystore.jks
+storePassword=change-me
+keyAlias=masilpet-upload
+keyPassword=change-me

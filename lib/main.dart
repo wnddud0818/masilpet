@@ -13,7 +13,7 @@ Future<void> main() async {
 
   var firebaseReady = false;
   var firebaseStartupIssue = FirebaseStartupIssue.none;
-  if (!DefaultFirebaseOptions.hasRequiredWebConfiguration) {
+  if (!DefaultFirebaseOptions.hasRequiredConfiguration) {
     firebaseStartupIssue = FirebaseStartupIssue.missingWebConfiguration;
   } else {
     try {

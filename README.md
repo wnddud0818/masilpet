@@ -1,6 +1,6 @@
 # MasilPet
 
-MasilPet은 사용자가 대한민국 전역을 걸으며 체크인하고, 지역 맥락을 가진 마실펫을 수집·성장시키는 위치 기반 펫 성장 앱입니다. Flutter Web, Firebase Auth/Firestore/Functions, TourAPI 연동 구조를 기준으로 전국 POI 탐험과 37종 수집 루프를 제공합니다.
+MasilPet은 사용자가 대한민국 전역을 걸으며 체크인하고, 지역 맥락을 가진 마실펫을 수집·성장시키는 위치 기반 펫 성장 앱입니다. Flutter Web·Android·iOS, Firebase Auth/Firestore/Functions, TourAPI 연동 구조를 기준으로 전국 POI 탐험과 37종 수집 루프를 제공합니다.
 
 ## 미리보기
 
@@ -59,6 +59,50 @@ flutter run -d chrome `
   --dart-define=FIREBASE_WEB_APP_ID=... `
   --dart-define=FIREBASE_MESSAGING_SENDER_ID=...
 ```
+
+### Android 앱
+
+Android 패키지 ID는 `com.masilpet.app`입니다. Firebase 설정값이 없을 때도 기기 내 진행 모드로 실행되며, 온라인 동기화를 사용하려면 Android 앱을 Firebase 프로젝트에 같은 패키지 ID로 등록한 뒤 설정값을 주입합니다.
+
+```powershell
+flutter run -d <android-device-id> `
+  --dart-define=FIREBASE_ANDROID_API_KEY=... `
+  --dart-define=FIREBASE_ANDROID_APP_ID=... `
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=...
+```
+
+Play Store용 App Bundle:
+
+```powershell
+flutter build appbundle --release `
+  --dart-define=FIREBASE_ANDROID_API_KEY=... `
+  --dart-define=FIREBASE_ANDROID_APP_ID=... `
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=...
+```
+
+실제 배포 전에는 `android/key.properties`에 별도 업로드 키를 연결하고, Play Console에서 앱 서명을 설정해야 합니다.
+
+### iOS 앱
+
+iOS Bundle ID도 `com.masilpet.app`이며 Firebase Apple SDK 요구사항에 맞춰 iOS 15 이상을 지원합니다. Firebase iOS 앱 등록 후 macOS와 Xcode에서 다음과 같이 실행합니다.
+
+```bash
+flutter run -d <ios-device-id> \
+  --dart-define=FIREBASE_IOS_API_KEY=... \
+  --dart-define=FIREBASE_IOS_APP_ID=... \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=...
+```
+
+App Store용 IPA:
+
+```bash
+flutter build ipa --release \
+  --dart-define=FIREBASE_IOS_API_KEY=... \
+  --dart-define=FIREBASE_IOS_APP_ID=... \
+  --dart-define=FIREBASE_MESSAGING_SENDER_ID=...
+```
+
+최종 IPA 생성에는 Apple Developer Team, 배포 인증서, 프로비저닝 프로파일이 필요합니다.
 
 배포용 preflight는 같은 값을 환경 변수에서 읽어 릴리즈 빌드에 주입합니다.
 

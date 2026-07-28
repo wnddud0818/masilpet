@@ -19,6 +19,11 @@ Firebase 로그인, Secret, Firebase Web 빌드 설정까지 함께 확인할 �
 - `firebase login`을 완료한다.
 - `firebase functions:secrets:set TOUR_API_KEY`로 TourAPI 키를 등록한다.
 - `FIREBASE_WEB_API_KEY`, `FIREBASE_WEB_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID` 환경 변수를 설정한다.
+- Android 온라인 빌드는 `FIREBASE_ANDROID_API_KEY`, `FIREBASE_ANDROID_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`를 설정한다.
+- iOS 온라인 빌드는 `FIREBASE_IOS_API_KEY`, `FIREBASE_IOS_APP_ID`, `FIREBASE_MESSAGING_SENDER_ID`를 설정한다.
+- Android Application ID와 iOS Bundle ID가 모두 `com.masilpet.app`인지 확인한다.
+- iOS Deployment Target이 Firebase Apple SDK와 호환되는 15.0 이상인지 확인한다.
+- Android Manifest의 인터넷·정밀/대략 위치 권한과 iOS의 위치 사용 설명 문구를 확인한다.
 - `powershell -ExecutionPolicy Bypass -File tools/release_preflight.ps1 -SkipBuild`로 프로젝트 접근, `TOUR_API_KEY` Secret 접근, Firebase Web 빌드 설정값을 확인한다.
 - Firebase Web 설정값을 일부러 빼고 실행한 로컬 빌드에서는 앱이 `기기 내 진행 (설정 필요)`로 원인을 표시해야 한다.
 - 제출용 빌드 채널을 구분해야 하면 `MASILPET_BUILD_CHANNEL` 환경 변수를 설정한다. 지정하지 않으면 preflight가 `release`로 주입한다.

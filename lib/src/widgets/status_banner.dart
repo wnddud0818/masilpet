@@ -101,6 +101,7 @@ class StatusBanner extends ConsumerWidget {
 
 String _friendlyStatusMessage(String message) {
   if (message.contains('Firebase Web 설정값') ||
+      message.contains('Firebase 앱 설정값') ||
       message.contains('Firebase 연결에 실패')) {
     return '연결이 없어도 이 기기에서 돌봄과 산책을 계속할 수 있어요.';
   }

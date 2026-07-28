@@ -514,7 +514,7 @@ void main() {
     );
   });
 
-  test('runtime exposes Firebase Web configuration diagnostics', () {
+  test('runtime exposes cross-platform Firebase configuration diagnostics', () {
     final firebaseOptions =
         File('lib/firebase_options.dart').readAsStringSync();
     final buildInfoSource =
@@ -527,9 +527,13 @@ void main() {
         File('lib/src/screens/onboarding_screen.dart').readAsStringSync();
     final checklist = File('docs/RELEASE_CHECKLIST.md').readAsStringSync();
 
-    expect(firebaseOptions, contains('hasRequiredWebConfiguration'));
+    expect(firebaseOptions, contains('hasRequiredConfiguration'));
     expect(firebaseOptions, contains('FIREBASE_WEB_API_KEY'));
     expect(firebaseOptions, contains('FIREBASE_WEB_APP_ID'));
+    expect(firebaseOptions, contains('FIREBASE_ANDROID_API_KEY'));
+    expect(firebaseOptions, contains('FIREBASE_ANDROID_APP_ID'));
+    expect(firebaseOptions, contains('FIREBASE_IOS_API_KEY'));
+    expect(firebaseOptions, contains('FIREBASE_IOS_APP_ID'));
     expect(firebaseOptions, contains('FIREBASE_MESSAGING_SENDER_ID'));
     expect(buildInfoSource, contains('MASILPET_APP_VERSION'));
     expect(buildInfoSource, contains('MASILPET_BUILD_CHANNEL'));
@@ -556,6 +560,43 @@ void main() {
     expect(checklist, contains('기기 내 진행 (설정 필요)'));
     expect(checklist, contains('MASILPET_BUILD_CHANNEL'));
     expect(checklist, contains('MASILPET_MAP_TILE_URL_TEMPLATE'));
+  });
+
+  test('native apps share production identity and location permissions', () {
+    final androidBuild =
+        File('android/app/build.gradle.kts').readAsStringSync();
+    final androidManifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    final androidActivity = File(
+      'android/app/src/main/kotlin/com/masilpet/app/MainActivity.kt',
+    ).readAsStringSync();
+    final iosProject =
+        File('ios/Runner.xcodeproj/project.pbxproj').readAsStringSync();
+    final iosPodfile = File('ios/Podfile').readAsStringSync();
+    final iosInfo = File('ios/Runner/Info.plist').readAsStringSync();
+
+    expect(androidBuild, contains('applicationId = "com.masilpet.app"'));
+    expect(androidBuild, contains('namespace = "com.masilpet.app"'));
+    expect(androidManifest, contains('android.permission.INTERNET'));
+    expect(
+      androidManifest,
+      contains('android.permission.ACCESS_COARSE_LOCATION'),
+    );
+    expect(
+      androidManifest,
+      contains('android.permission.ACCESS_FINE_LOCATION'),
+    );
+    expect(androidManifest, contains('android:label="마실펫"'));
+    expect(androidActivity, contains('package com.masilpet.app'));
+    expect(
+      iosProject,
+      contains('PRODUCT_BUNDLE_IDENTIFIER = com.masilpet.app;'),
+    );
+    expect(iosProject, contains('IPHONEOS_DEPLOYMENT_TARGET = 15.0;'));
+    expect(iosPodfile, contains("platform :ios, '15.0'"));
+    expect(iosPodfile, contains('flutter_install_all_ios_pods'));
+    expect(iosInfo, contains('NSLocationWhenInUseUsageDescription'));
+    expect(iosInfo, contains('<string>마실펫</string>'));
   });
 
   test('release preflight script covers local and Firebase gates', () {

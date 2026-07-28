@@ -41,7 +41,7 @@ extension FirebaseStartupIssueLabel on FirebaseStartupIssue {
     return switch (this) {
       FirebaseStartupIssue.none => '온라인 연결 전: 기기 내 진행으로 시작합니다.',
       FirebaseStartupIssue.missingWebConfiguration =>
-        'Firebase Web 설정값이 없어 기기 내 진행으로 시작합니다.',
+        'Firebase 앱 설정값이 없어 기기 내 진행으로 시작합니다.',
       FirebaseStartupIssue.initializationFailed =>
         'Firebase 연결에 실패해 기기 내 진행으로 시작합니다.',
     };

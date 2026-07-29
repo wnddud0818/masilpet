@@ -3,7 +3,7 @@ param(
   [string]$Uid,
   [ValidateSet("seedStarterRegionData", "syncKoreaPois", "syncBusanPois")]
   [string]$FunctionName = "seedStarterRegionData",
-  [string]$ProjectId = "masilpet-6ff8d",
+  [string]$ProjectId = "masilpet-8ef37",
   [string]$Region = "asia-northeast3",
   [string]$DataJson = "{}"
 )

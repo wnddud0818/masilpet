@@ -1,6 +1,15 @@
+import 'dart:convert';
+
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
 
 import '../models.dart';
+
+const masilPetApiBaseUrl = String.fromEnvironment(
+  'MASILPET_API_BASE_URL',
+  defaultValue: 'https://masilpet-api.firstghrn818.workers.dev',
+);
 
 abstract class MasilPetBackend {
   Future<void> ensureUserBootstrap();
@@ -22,6 +31,147 @@ abstract class MasilPetBackend {
     required String petId,
     required String actionType,
   });
+}
+
+MasilPetBackend createMasilPetBackend() {
+  final workerUrl = masilPetApiBaseUrl.trim();
+  if (workerUrl.isNotEmpty) {
+    return CloudflareMasilPetBackend(baseUrl: workerUrl);
+  }
+  return FirebaseMasilPetBackend();
+}
+
+class CloudflareMasilPetBackend implements MasilPetBackend {
+  CloudflareMasilPetBackend({
+    required String baseUrl,
+    FirebaseAuth? auth,
+    http.Client? client,
+    Future<String?> Function()? tokenProvider,
+  })  : _baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
+        _tokenProvider = tokenProvider ??
+            (() async =>
+                (auth ?? FirebaseAuth.instance).currentUser?.getIdToken()),
+        _client = client ?? http.Client();
+
+  final String _baseUrl;
+  final Future<String?> Function() _tokenProvider;
+  final http.Client _client;
+
+  @override
+  Future<void> ensureUserBootstrap() async {
+    await _call('ensureUserBootstrap');
+  }
+
+  @override
+  Future<void> deleteUserProgress() async {
+    await _call('deleteUserProgress');
+  }
+
+  @override
+  Future<List<RemotePoi>> getNearbyPois(Coordinates location) async {
+    final data = await _call('getNearbyPois', {
+      'lat': location.latitude,
+      'lng': location.longitude,
+    });
+    final pois = data['pois'];
+    if (pois is! List) {
+      return const [];
+    }
+    return pois
+        .whereType<Map>()
+        .map((item) => RemotePoi.tryFromMap(_mapFromValue(item)))
+        .whereType<RemotePoi>()
+        .toList();
+  }
+
+  @override
+  Future<RemoteCheckInResult> attemptCheckIn({
+    required String poiId,
+    required Coordinates location,
+  }) async {
+    final data = await _call('attemptCheckIn', {
+      'poiId': poiId,
+      'lat': location.latitude,
+      'lng': location.longitude,
+    });
+    return RemoteCheckInResult.fromMap(data);
+  }
+
+  @override
+  Future<RemoteStepProgressResult> applyStepProgress(int stepDelta) async {
+    final data = await _call('applyStepProgress', {
+      'stepDelta': stepDelta,
+    });
+    return RemoteStepProgressResult.fromMap(data);
+  }
+
+  @override
+  Future<String> hatchEgg(String eggId) async {
+    final data = await _call('hatchEgg', {'eggId': eggId});
+    return data['petId'] as String;
+  }
+
+  @override
+  Future<RemotePetInteractionResult> interactWithPet({
+    required String petId,
+    required String actionType,
+  }) async {
+    final data = await _call('interactWithPet', {
+      'petId': petId,
+      'actionType': actionType,
+    });
+    return RemotePetInteractionResult.fromMap(data);
+  }
+
+  Future<Map<String, dynamic>> _call(
+    String functionName, [
+    Map<String, dynamic> payload = const {},
+  ]) async {
+    final token = await _tokenProvider();
+    if (token == null || token.isEmpty) {
+      throw const MasilPetBackendException(
+        code: 'unauthenticated',
+        message: 'Firebase authentication is required.',
+      );
+    }
+
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$_baseUrl/v1/$functionName'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'data': payload}),
+          )
+          .timeout(const Duration(seconds: 30));
+      final decoded = jsonDecode(response.body);
+      final body = decoded is Map
+          ? Map<String, dynamic>.from(decoded)
+          : const <String, dynamic>{};
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return _mapFromValue(body['data']);
+      }
+
+      final error = _mapFromValue(body['error']);
+      throw MasilPetBackendException(
+        code: _stringFromValue(error['code'], fallback: 'internal'),
+        message: _stringFromValue(error['message']).isEmpty
+            ? null
+            : _stringFromValue(error['message']),
+        details: error['details'],
+      );
+    } on MasilPetBackendException {
+      rethrow;
+    } on Object catch (error) {
+      throw MasilPetBackendException(
+        code: 'unavailable',
+        message: 'MasilPet API request failed.',
+        details: error.toString(),
+      );
+    }
+  }
 }
 
 class FirebaseMasilPetBackend implements MasilPetBackend {

@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Uid,
-  [string]$ProjectId = "masilpet-6ff8d"
+  [string]$ProjectId = "masilpet-8ef37"
 )
 
 $ErrorActionPreference = "Stop"

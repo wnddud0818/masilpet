@@ -5,13 +5,21 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   const DefaultFirebaseOptions._();
 
-  static const _projectId = 'masilpet-6ff8d';
-  static const _storageBucket = 'masilpet-6ff8d.firebasestorage.app';
+  static const _projectId = 'masilpet-8ef37';
+  static const _storageBucket = 'masilpet-8ef37.firebasestorage.app';
 
-  static const _webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY');
-  static const _webAppId = String.fromEnvironment('FIREBASE_WEB_APP_ID');
-  static const _webMessagingSenderId =
-      String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID');
+  static const _webApiKey = String.fromEnvironment(
+    'FIREBASE_WEB_API_KEY',
+    defaultValue: 'AIzaSyDgggG_qeqceObvyjtqljVRimgGdgw4ebE',
+  );
+  static const _webAppId = String.fromEnvironment(
+    'FIREBASE_WEB_APP_ID',
+    defaultValue: '1:278683255101:web:6f0ebab8528a9f85e94554',
+  );
+  static const _webMessagingSenderId = String.fromEnvironment(
+    'FIREBASE_MESSAGING_SENDER_ID',
+    defaultValue: '278683255101',
+  );
   static const _androidApiKey = String.fromEnvironment(
     'FIREBASE_ANDROID_API_KEY',
   );
@@ -68,7 +76,7 @@ class DefaultFirebaseOptions {
     projectId: _projectId,
     authDomain: String.fromEnvironment(
       'FIREBASE_AUTH_DOMAIN',
-      defaultValue: 'masilpet-6ff8d.firebaseapp.com',
+      defaultValue: 'masilpet-8ef37.firebaseapp.com',
     ),
     storageBucket: String.fromEnvironment(
       'FIREBASE_STORAGE_BUCKET',

@@ -17,6 +17,10 @@ functions/.runtimeconfig.json
 service-account*.json
 *-firebase-adminsdk-*.json
 google-application-credentials*.json
+cloudflare-worker/node_modules/
+cloudflare-worker/dist/
+cloudflare-worker/.wrangler/
+cloudflare-worker/.dev.vars*
 
 # Python tooling
 __pycache__/

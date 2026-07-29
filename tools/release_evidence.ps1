@@ -1,5 +1,5 @@
 param(
-  [string]$ProjectId = "masilpet-6ff8d",
+  [string]$ProjectId = "masilpet-8ef37",
   [string]$HostingUrl = "",
   [string]$OutputPath = "build/release-evidence.md",
   [switch]$AllowDirtyWorktree,

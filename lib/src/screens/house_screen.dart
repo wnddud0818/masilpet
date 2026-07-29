@@ -100,7 +100,7 @@ class HouseScreen extends ConsumerWidget {
   }
 }
 
-/// The yard, plus the action bar that slides in when you tap a friend.
+/// The yard, plus the popover that opens when you tap a friend standing in it.
 class _HouseYard extends ConsumerStatefulWidget {
   const _HouseYard({required this.state});
 
@@ -158,7 +158,7 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                 scene: PetPlayFieldScene.neighborhoodYard,
                 spriteScale: 1.16,
                 showVisitors: false,
-                // Tapping the same friend again puts the bar away.
+                // Tapping the same friend again closes the menu.
                 onPetTap: (petId) => setState(
                   () => _menuPetId = _menuPetId == petId ? null : petId,
                 ),
@@ -168,14 +168,20 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                     state.isBusy ? null : () => _fillBowl(controller, state),
                 bowlFilled: (care?.feedCountToday ?? 0) > 0,
               ),
-              // A low bar rather than a panel: the yard stays visible and the
-              // other friends stay tappable while it is open.
-              if (menuPet != null)
+              if (menuPet != null) ...[
+                Positioned.fill(
+                  child: GestureDetector(
+                    onTap: _closeMenu,
+                    child: ColoredBox(
+                      color: MasilPetPalette.ink.withValues(alpha: 0.18),
+                    ),
+                  ),
+                ),
                 Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: _YardPetBar(
+                  left: 10,
+                  right: 10,
+                  bottom: 10,
+                  child: _YardPetMenu(
                     pet: menuPet,
                     care: state.careForPet(menuPet.id),
                     isBusy: state.isBusy,
@@ -187,6 +193,7 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                         _care(() => controller.cleanPet(menuPet!.id)),
                   ),
                 ),
+              ],
             ],
           ),
         );
@@ -226,10 +233,10 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
 }
 
 /// 마당 팝오버: the tapped pet's name, and what you can do for them.
-/// 마당 액션 바: the tapped friend's name and what you can do for them, kept to
-/// one line along the bottom of the yard so the scene stays visible.
-class _YardPetBar extends StatelessWidget {
-  const _YardPetBar({
+/// 마당 메뉴 — the design's popover: the tapped friend's name with a close
+/// link, a dashed rule, then one row of care actions.
+class _YardPetMenu extends StatelessWidget {
+  const _YardPetMenu({
     required this.pet,
     required this.care,
     required this.isBusy,
@@ -253,76 +260,67 @@ class _YardPetBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final feedLeft =
         (dailyFeedCareLimit - (care?.feedCountToday ?? 0)).clamp(0, 9);
+    final actions = <Widget>[
+      _YardMenuAction(label: '상세보기', onTap: onDetail),
+      _YardMenuAction(
+        // Only feeding has a daily cap in the care engine, so only it counts.
+        label: feedLeft > 0 ? '밥 주기 $feedLeft' : '밥 주기 완료',
+        semanticLabel: feedLeft > 0 ? '밥 주기, $feedLeft회 남음' : '오늘 밥은 충분해요',
+        onTap: isBusy || feedLeft == 0 ? null : onFeed,
+      ),
+      _YardMenuAction(label: '놀아주기', onTap: isBusy ? null : onPlay),
+      _YardMenuAction(label: '씻기기', onTap: isBusy ? null : onClean),
+    ];
 
-    return RiseIn(
-      duration: MasilPetMotion.fast,
-      offset: 8,
+    return PopIn(
       child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+        padding: const EdgeInsets.fromLTRB(12, 11, 12, 12),
         decoration: BoxDecoration(
           color: MasilPetPalette.paper,
           border: MasilPetBorders.inkBox,
-          borderRadius: MasilPetRadii.smallBorder,
+          borderRadius: MasilPetRadii.bubbleBorder,
           boxShadow: MasilPetShadows.popover,
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 68),
-              child: Text(
-                pet.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: MasilPetType.rowTitle.copyWith(fontSize: 13),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // Short labels so all four fit one line on a phone; the scroll
-            // view is only a safety net for very narrow yards.
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _YardMenuAction(
-                      label: '상세',
-                      semanticLabel: '상세보기',
-                      onTap: onDetail,
-                    ),
-                    const SizedBox(width: 5),
-                    _YardMenuAction(
-                      label: feedLeft > 0 ? '밥 $feedLeft' : '밥 완료',
-                      semanticLabel:
-                          feedLeft > 0 ? '밥 주기, $feedLeft회 남음' : '오늘 밥은 충분해요',
-                      onTap: isBusy || feedLeft == 0 ? null : onFeed,
-                    ),
-                    const SizedBox(width: 5),
-                    _YardMenuAction(
-                      label: '놀이',
-                      semanticLabel: '놀아주기',
-                      onTap: isBusy ? null : onPlay,
-                    ),
-                    const SizedBox(width: 5),
-                    _YardMenuAction(
-                      label: '목욕',
-                      semanticLabel: '씻기기',
-                      onTap: isBusy ? null : onClean,
-                    ),
-                  ],
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Expanded(
+                  child: Text(
+                    pet.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: onClose,
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                child: Text(
-                  '닫기',
-                  style: MasilPetType.caption.copyWith(fontSize: 11.5),
+                GestureDetector(
+                  onTap: onClose,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(
+                      '닫기',
+                      style: MasilPetType.caption.copyWith(fontSize: 12),
+                    ),
+                  ),
                 ),
-              ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            const DashedRule(),
+            const SizedBox(height: 9),
+            // Equal columns in a single row: the panel stays short, which is
+            // the whole point of putting it at the foot of the yard.
+            Row(
+              children: [
+                for (final (index, action) in actions.indexed) ...[
+                  Expanded(child: action),
+                  if (index != actions.length - 1) const SizedBox(width: 6),
+                ],
+              ],
             ),
           ],
         ),
@@ -356,20 +354,25 @@ class _YardMenuAction extends StatelessWidget {
           borderRadius: MasilPetRadii.tightBorder,
           child: Container(
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+            // Tight sides so the four labels keep their size on small phones.
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 11),
             decoration: BoxDecoration(
               color: MasilPetPalette.canvas,
               border: Border.all(color: MasilPetPalette.outline),
               borderRadius: MasilPetRadii.tightBorder,
             ),
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: MasilPetType.bodySmall.copyWith(
-                fontSize: 12.5,
-                height: 1.2,
-                color: enabled ? MasilPetPalette.ink : MasilPetPalette.disabled,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: MasilPetType.bodySmall.copyWith(
+                  fontSize: 12.5,
+                  height: 1.2,
+                  color:
+                      enabled ? MasilPetPalette.ink : MasilPetPalette.disabled,
+                ),
               ),
             ),
           ),

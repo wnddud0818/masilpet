@@ -1717,21 +1717,21 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
     await _settle(tester);
 
-    expect(find.text('상세'), findsNothing);
+    expect(find.text('상세보기'), findsNothing);
 
     await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${pet.id}')));
     await _settle(tester);
 
     expect(find.text(pet.name), findsWidgets);
-    expect(find.text('상세'), findsOneWidget);
-    expect(find.text('밥 $dailyFeedCareLimit'), findsOneWidget);
-    expect(find.text('놀이'), findsOneWidget);
-    expect(find.text('목욕'), findsOneWidget);
+    expect(find.text('상세보기'), findsOneWidget);
+    expect(find.text('밥 주기 $dailyFeedCareLimit'), findsOneWidget);
+    expect(find.text('놀아주기'), findsWidgets);
+    expect(find.text('씻기기'), findsWidgets);
 
     await tester.tap(find.text('닫기'));
     await _settle(tester);
 
-    expect(find.text('상세'), findsNothing);
+    expect(find.text('상세보기'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -1759,14 +1759,14 @@ void main() {
     await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${other.id}')));
     await _settle(tester);
 
-    await tester.tap(find.text('밥 $dailyFeedCareLimit'));
+    await tester.tap(find.text('밥 주기 $dailyFeedCareLimit'));
     await _settle(tester);
 
     // The tapped pet ate, not the current companion.
     expect(controller.state.careForPet(other.id)!.feedCountToday, 1);
     expect(controller.state.careForPet(active.id)?.feedCountToday ?? 0, 0);
     expect(controller.state.activePetId, active.id);
-    expect(find.text('상세'), findsNothing);
+    expect(find.text('상세보기'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -1781,7 +1781,7 @@ void main() {
 
     await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${pet.id}')));
     await _settle(tester);
-    await tester.tap(find.text('상세'));
+    await tester.tap(find.text('상세보기'));
     await _settle(tester);
 
     expect(find.byType(PetDetailSheet), findsOneWidget);

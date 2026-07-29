@@ -1598,6 +1598,57 @@ class _RiseInState extends State<RiseIn> with SingleTickerProviderStateMixin {
   }
 }
 
+/// `@keyframes popIn` — a panel springing open.
+class PopIn extends StatefulWidget {
+  const PopIn({
+    super.key,
+    required this.child,
+    this.duration = const Duration(milliseconds: 180),
+  });
+
+  final Widget child;
+  final Duration duration;
+
+  @override
+  State<PopIn> createState() => _PopInState();
+}
+
+class _PopInState extends State<PopIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(duration: widget.duration, vsync: this)
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        // 0 → .6, .7 → 1.06, 1 → 1
+        final scale = t < 0.7
+            ? ui.lerpDouble(0.6, 1.06, t / 0.7)!
+            : ui.lerpDouble(1.06, 1.0, (t - 0.7) / 0.3)!;
+        return Opacity(
+          opacity: (t / 0.7).clamp(0.0, 1.0),
+          child: Transform.scale(scale: scale, child: child),
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
 /// `@keyframes shake` — an egg that is ready to hatch.
 class ShakeLoop extends StatefulWidget {
   const ShakeLoop({

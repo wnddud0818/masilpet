@@ -21,8 +21,7 @@ final masilPetControllerProvider =
   return MasilPetController(
     firebaseReady: ref.watch(firebaseReadyProvider),
     firebaseStartupIssue: ref.watch(firebaseStartupIssueProvider),
-    backend:
-        ref.watch(firebaseReadyProvider) ? FirebaseMasilPetBackend() : null,
+    backend: ref.watch(firebaseReadyProvider) ? createMasilPetBackend() : null,
     userRepository:
         ref.watch(firebaseReadyProvider) ? FirestoreUserRepository() : null,
     localProgressRepository: const SharedPreferencesLocalProgressRepository(),

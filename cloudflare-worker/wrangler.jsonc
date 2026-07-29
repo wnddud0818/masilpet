@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "masilpet-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-29",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "define": {
+    "__dirname": "\"/\"",
+    "__filename": "\"/index.js\""
+  },
+  "alias": {
+    "firebase-admin/firestore": "./src/firebase-admin-firestore-worker.ts"
+  },
+  "vars": {
+    "CLOUDFLARE_WORKER": "true",
+    "FIREBASE_PROJECT_ID": "masilpet-8ef37",
+    "ALLOWED_ORIGINS": "http://127.0.0.1:7357,http://localhost:7357,https://masilpet-8ef37.web.app,https://masilpet-8ef37.firebaseapp.com"
+  }
+}

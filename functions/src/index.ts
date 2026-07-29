@@ -1,13 +1,35 @@
-import {initializeApp} from 'firebase-admin/app';
-import {FieldValue, Timestamp, getFirestore} from 'firebase-admin/firestore';
+import {cert, getApps, initializeApp} from 'firebase-admin/app';
+import {
+  FieldValue,
+  Timestamp,
+  getFirestore,
+  initializeFirestore,
+} from 'firebase-admin/firestore';
 import type {DocumentReference, Transaction, WriteBatch} from 'firebase-admin/firestore';
 import {HttpsError, onCall} from 'firebase-functions/v2/https';
 import {logger} from 'firebase-functions';
 import {defineSecret} from 'firebase-functions/params';
 
-initializeApp();
-
-const db = getFirestore();
+const firebaseClientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID?.trim();
+const externalFirebaseCredentials =
+  firebaseClientEmail && firebasePrivateKey && firebaseProjectId
+    ? cert({
+      clientEmail: firebaseClientEmail,
+      privateKey: firebasePrivateKey,
+      projectId: firebaseProjectId,
+    })
+    : undefined;
+const adminApp = getApps()[0] ?? initializeApp({
+  ...(externalFirebaseCredentials
+    ? {credential: externalFirebaseCredentials}
+    : {}),
+  ...(firebaseProjectId ? {projectId: firebaseProjectId} : {}),
+});
+const db = process.env.CLOUDFLARE_WORKER === 'true'
+  ? initializeFirestore(adminApp, {preferRest: true})
+  : getFirestore(adminApp);
 const functionRegion = 'asia-northeast3';
 const checkInRadiusMeters = 150;
 const maxDailyCheckIns = 20;

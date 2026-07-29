@@ -26,8 +26,8 @@ Future<void> main() async {
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
       );
-      // User progress writes are handled by callable Functions, so the client
-      // only needs Firebase initialization and authentication here.
+      // User progress writes are handled by the authenticated backend, so the
+      // client only needs Firebase initialization and authentication here.
       firebaseReady = true;
     } on Object {
       firebaseStartupIssue = FirebaseStartupIssue.initializationFailed;

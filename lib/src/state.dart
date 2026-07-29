@@ -89,7 +89,7 @@ class MasilPetState {
     FirebaseStartupIssue firebaseStartupIssue = FirebaseStartupIssue.none,
   }) {
     final now = DateTime.now();
-    final starterTemplate = starterPetTemplates.first;
+    final starterTemplate = starterCompanionTemplate();
     return MasilPetState(
       firebaseReady: firebaseReady,
       firebaseStartupIssue: firebaseStartupIssue,
@@ -99,7 +99,7 @@ class MasilPetState {
       templates: starterPetTemplates,
       pets: [
         Pet(
-          id: 'pet-starter-wave-naru',
+          id: starterCompanionPetId,
           templateId: starterTemplate.id,
           name: starterTemplate.name,
           stage: PetStage.baby,
@@ -124,14 +124,14 @@ class MasilPetState {
       ],
       checkIns: const [],
       careByPetId: {
-        'pet-starter-wave-naru': PetCareState.initial(now),
+        starterCompanionPetId: PetCareState.initial(now),
       },
       carePoints: 0,
       dailyCareRewardClaimKey: null,
       currentLocation: starterPoiSeed.first.coordinates,
       locationVerified: false,
       locationVerifiedAt: null,
-      activePetId: 'pet-starter-wave-naru',
+      activePetId: starterCompanionPetId,
       selectedTab: 1,
       mapCategoryFocus: null,
       statusMessage: firebaseReady
@@ -1396,8 +1396,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _persistLocalProgress();
   }
 
-  Future<void> feedActivePet() async {
-    final activePet = state.activePet;
+  Future<void> feedActivePet() => feedPet(state.activePetId);
+
+  /// Feeds one specific pet. The yard menu can reach any pet standing outside,
+  /// not just the current companion.
+  Future<void> feedPet(String petId) async {
+    final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '먹이를 줄 마실펫이 없습니다.');
       return;
@@ -1473,8 +1477,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _persistLocalProgress();
   }
 
-  void playActivePet() {
-    final activePet = state.activePet;
+  void playActivePet() => playPet(state.activePetId);
+
+  void playPet(String petId) {
+    final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '함께 놀 마실펫이 없습니다.');
       return;
@@ -1501,8 +1507,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _persistLocalProgress();
   }
 
-  void cleanActivePet() {
-    final activePet = state.activePet;
+  void cleanActivePet() => cleanPet(state.activePetId);
+
+  void cleanPet(String petId) {
+    final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '씻겨 줄 마실펫이 없습니다.');
       return;
@@ -1554,6 +1562,15 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
+  }
+
+  Pet? _petById(String petId) {
+    for (final pet in state.pets) {
+      if (pet.id == petId) {
+        return pet;
+      }
+    }
+    return null;
   }
 
   void claimDailyCareReward() {

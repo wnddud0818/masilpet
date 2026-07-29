@@ -21,6 +21,7 @@ import 'package:masilpet/src/theme.dart';
 import 'package:masilpet/src/widgets/metric_grid.dart';
 import 'package:masilpet/src/widgets/paper_kit.dart';
 import 'package:masilpet/src/widgets/paper_shell.dart';
+import 'package:masilpet/src/widgets/pet_detail_sheet.dart';
 import 'package:masilpet/src/widgets/pet_play_field.dart';
 import 'package:masilpet/src/widgets/status_banner.dart';
 
@@ -189,8 +190,8 @@ void main() {
     await _settle(tester);
 
     // Step 1 — meet the companion.
-    expect(find.text('안녕! 나 너울이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
-    await tester.tap(find.text('너울이 만나기'));
+    expect(find.text('안녕! 나 해랑이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
+    await tester.tap(find.text('해랑이 만나기'));
     await _settle(tester);
 
     // Step 2 — learn the loop.
@@ -224,7 +225,7 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
     await _settle(tester);
 
-    final cta = find.text('너울이 만나기');
+    final cta = find.text('해랑이 만나기');
     expect(cta, findsOneWidget);
 
     final ctaBottom = tester.getBottomLeft(cta).dy;
@@ -832,7 +833,7 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
     await _settle(tester);
 
-    expect(find.text('너울'), findsWidgets);
+    expect(find.text('해랑'), findsWidgets);
     expect(find.byType(SpeechBubble), findsOneWidget);
     expect(find.text('쓰다듬기 · 오늘 5번 남음'), findsOneWidget);
     expect(find.text('오늘 해준 것'), findsOneWidget);
@@ -909,7 +910,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet talk action is spent after the daily limit',
+  testWidgets('pet talk action says so once the daily limit is spent',
       (WidgetTester tester) async {
     final controller = _controller()..setTab(1);
     controller.state = controller.state.copyWith(
@@ -921,8 +922,15 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
     await _settle(tester);
 
-    expect(find.text('오늘 대화는 다 했어요'), findsOneWidget);
-    expect(find.text('쓰다듬기 · 오늘 5번 남음'), findsNothing);
+    // The pill keeps the design's label and answers out loud instead of
+    // going grey.
+    final pill = find.text('쓰다듬기 · 오늘 0번 남음');
+    expect(pill, findsOneWidget);
+
+    await tester.tap(pill);
+    await _settle(tester);
+
+    expect(find.text('오늘 대화는 다 했어. 내일 또 얘기하자!'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1275,7 +1283,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('???'), findsNothing);
-    expect(find.text('너울'), findsOneWidget);
+    expect(find.text('해랑'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1286,14 +1294,14 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
     await _settle(tester);
 
-    // 너울 belongs to the nationwide roster, so a regional filter hides it.
+    // 해랑 is a Busan pet, so filtering to another region hides it.
     final seoulPill = find.text('서울');
     expect(seoulPill, findsOneWidget);
 
     await tester.tap(seoulPill);
     await _settle(tester);
 
-    expect(find.text('너울'), findsNothing);
+    expect(find.text('해랑'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -1305,7 +1313,16 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
     await _settle(tester);
 
-    await tester.tap(find.text('너울'));
+    // 해랑 sits well down the 37-cell grid, so scroll it into view first.
+    // The pill rows are scrollables too, hence naming the vertical one.
+    final cell = find.text('해랑');
+    await tester.dragUntilVisible(
+      cell,
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
+    );
+    await _settle(tester);
+    await tester.tap(cell);
     await _settle(tester);
 
     expect(find.text('즐겨 찾는 곳'), findsOneWidget);
@@ -1688,6 +1705,87 @@ void main() {
 
     expect(find.text('오늘의 돌봄'), findsOneWidget);
     expect(find.text('하우스 현황'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house yard opens a care menu for the tapped pet',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    final pet = controller.state.activePet!;
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    expect(find.text('상세'), findsNothing);
+
+    await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${pet.id}')));
+    await _settle(tester);
+
+    expect(find.text(pet.name), findsWidgets);
+    expect(find.text('상세'), findsOneWidget);
+    expect(find.text('밥 $dailyFeedCareLimit'), findsOneWidget);
+    expect(find.text('놀이'), findsOneWidget);
+    expect(find.text('목욕'), findsOneWidget);
+
+    await tester.tap(find.text('닫기'));
+    await _settle(tester);
+
+    expect(find.text('상세'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house yard menu feeds the tapped pet',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    final active = controller.state.activePet!;
+    final other = Pet(
+      id: 'pet-yard-second',
+      templateId: starterPetTemplates[1].id,
+      name: starterPetTemplates[1].name,
+      stage: PetStage.baby,
+      level: 2,
+      stats: const GrowthStats(exp: 40, mood: 10, knowledge: 4, affinity: 6),
+      originRegionId: starterPetTemplates[1].regionId,
+      hatchedAt: DateTime.now(),
+      lastInteractedAt: null,
+    );
+    controller.state = controller.state.copyWith(pets: [active, other]);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${other.id}')));
+    await _settle(tester);
+
+    await tester.tap(find.text('밥 $dailyFeedCareLimit'));
+    await _settle(tester);
+
+    // The tapped pet ate, not the current companion.
+    expect(controller.state.careForPet(other.id)!.feedCountToday, 1);
+    expect(controller.state.careForPet(active.id)?.feedCountToday ?? 0, 0);
+    expect(controller.state.activePetId, active.id);
+    expect(find.text('상세'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house yard menu opens the pet detail sheet',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    final pet = controller.state.activePet!;
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.byKey(ValueKey('pet-play-field-pet-${pet.id}')));
+    await _settle(tester);
+    await tester.tap(find.text('상세'));
+    await _settle(tester);
+
+    expect(find.byType(PetDetailSheet), findsOneWidget);
+    expect(find.text('첫 만남'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

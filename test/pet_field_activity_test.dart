@@ -213,7 +213,7 @@ void main() {
     );
     expect(
       find.bySemanticsLabel(
-        '${state.templates.first.name} 캐릭터',
+        '${state.activePet!.name} 캐릭터',
       ),
       findsOneWidget,
     );
@@ -324,7 +324,7 @@ void main() {
       expect(_assetNames(tester), hasLength(1));
       expect(
         find.bySemanticsLabel(
-          '마실펫 놀이터. 대표 마실펫 너울, 간식을 먹는 중. 함께 있는 마실펫 1마리.',
+          '마실펫 놀이터. 대표 마실펫 해랑, 간식을 먹는 중. 함께 있는 마실펫 1마리.',
         ),
         findsOneWidget,
       );

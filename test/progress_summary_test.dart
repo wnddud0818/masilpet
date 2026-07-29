@@ -300,7 +300,10 @@ void main() {
   test('initial state exposes collection and check-in summaries', () {
     final state = MasilPetState.initial(firebaseReady: false);
 
-    expect(state.discoveredTemplateIds, contains('wave-naru'));
+    expect(
+      state.discoveredTemplateIds,
+      contains(starterCompanionTemplateId),
+    );
     expect(state.dexCompletionRatio, greaterThan(0));
     expect(state.nearestPoi, starterPoiSeed.first);
     expect(state.locationVerified, isFalse);
@@ -366,10 +369,19 @@ void main() {
       () {
     const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
     final state = MasilPetState.initial(firebaseReady: false).copyWith(
-      // Keep this ranking contract focused on the original category-based
-      // collection set. Regional additions may legitimately add another
-      // undiscovered pet to a category the starter pet already represents.
-      templates: starterPetTemplates.take(7).toList(growable: false),
+      // The ranking contract needs exactly one collected category (the
+      // starter companion's) plus two open ones, so the fixture names them
+      // instead of slicing the full roster.
+      templates: [
+        starterCompanionTemplate(),
+        ...starterPetTemplates
+            .where(
+                (template) => template.primaryCategory == PoiCategory.history)
+            .take(1),
+        ...starterPetTemplates
+            .where((template) => template.primaryCategory == PoiCategory.food)
+            .take(1),
+      ],
       currentLocation: currentLocation,
       pois: const [
         Poi(
@@ -718,7 +730,7 @@ void main() {
           reward: GrowthStats(exp: 77, mood: 3, knowledge: 4, affinity: 5),
           eggProgress: 123,
           updatedPet: RemotePetUpdate(
-            id: 'pet-starter-wave-naru',
+            id: starterCompanionPetId,
             stats: GrowthStats(exp: 91, mood: 23, knowledge: 9, affinity: 13),
             level: 3,
             stage: PetStage.grown,

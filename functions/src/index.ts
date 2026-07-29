@@ -36,7 +36,7 @@ const maxDailyCheckIns = 20;
 const maxStepDeltaPerCall = 3000;
 const maxDailyStepDelta = 12000;
 const tourApiKey = defineSecret('TOUR_API_KEY');
-const starterPetId = 'pet-starter-wave-naru';
+const starterPetId = 'pet-starter-busan-paranguri';
 const starterEggId = 'egg-harbor-maru';
 
 type PoiCategory =
@@ -2202,12 +2202,12 @@ function starterEggData(now: Timestamp | FieldValue) {
 
 function starterPetRuntimeDoc(): PetDoc {
   return {
-    templateId: 'wave-naru',
-    name: '너울',
+    templateId: 'busan-paranguri',
+    name: '해랑',
     stage: 'baby',
     level: 1,
     stats: {exp: 20, mood: 20, knowledge: 5, affinity: 8},
-    originRegionId: 'korea',
+    originRegionId: 'busan',
   };
 }
 

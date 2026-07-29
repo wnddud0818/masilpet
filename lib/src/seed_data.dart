@@ -427,6 +427,24 @@ const starterPoiSeed = <Poi>[
   ),
 ];
 
+/// 첫 동행 캐릭터의 펫 문서 id. 서버(`functions/src/index.ts`)의 `starterPetId`와
+/// 반드시 같아야 합니다.
+const starterCompanionPetId = 'pet-starter-busan-paranguri';
+
+/// 첫 동행 캐릭터 템플릿 id — 디자인의 히어로 펫인 해랑(부산 파랑우리)입니다.
+const starterCompanionTemplateId = 'busan-paranguri';
+
+/// 첫 동행 캐릭터 템플릿. 시드에서 사라진 경우에도 앱이 뜨도록 첫 템플릿으로
+/// 되돌립니다.
+PetTemplate starterCompanionTemplate() {
+  for (final template in starterPetTemplates) {
+    if (template.id == starterCompanionTemplateId) {
+      return template;
+    }
+  }
+  return starterPetTemplates.first;
+}
+
 const starterPetTemplates = <PetTemplate>[
   PetTemplate(
     id: 'wave-naru',

@@ -155,6 +155,15 @@ abstract final class MasilPetShadows {
     ),
   ];
 
+  /// Speech bubble sitting on artwork: `3px 3px 0 rgba(60,45,25,.22)`.
+  static const bubbleOnScene = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x383C2D19),
+      blurRadius: 0,
+      offset: Offset(3, 3),
+    ),
+  ];
+
   /// Plain card resting on the page: `0 1px 0 #D7C8AC`.
   static const card = <BoxShadow>[
     BoxShadow(

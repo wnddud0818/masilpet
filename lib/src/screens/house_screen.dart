@@ -11,6 +11,7 @@ import '../theme.dart';
 import '../widgets/metric_grid.dart';
 import '../widgets/paper_kit.dart';
 import '../widgets/paper_shell.dart';
+import '../widgets/pet_detail_sheet.dart';
 import '../widgets/pet_play_field.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/section_header.dart';
@@ -38,12 +39,7 @@ class HouseScreen extends ConsumerWidget {
               const StatusBanner(),
               const SizedBox(height: MasilPetSpacing.xl),
               const SectionEyebrow('마당 · 친구를 누르고, 공과 밥그릇도 건드려보세요'),
-              _HouseYard(
-                state: state,
-                onPetTap: controller.selectPet,
-                onKickBall: state.isBusy ? null : controller.playActivePet,
-                onFillBowl: state.isBusy ? null : controller.feedActivePet,
-              ),
+              _HouseYard(state: state),
               const SizedBox(height: MasilPetSpacing.xl),
               if (justHatched != null) ...[
                 _HatchedCard(
@@ -104,48 +100,281 @@ class HouseScreen extends ConsumerWidget {
   }
 }
 
-class _HouseYard extends StatelessWidget {
-  const _HouseYard({
-    required this.state,
-    required this.onPetTap,
-    required this.onKickBall,
-    required this.onFillBowl,
-  });
+/// The yard, plus the action bar that slides in when you tap a friend.
+class _HouseYard extends ConsumerStatefulWidget {
+  const _HouseYard({required this.state});
 
   static const _wideBreakpoint = 700.0;
 
   final MasilPetState state;
-  final ValueChanged<String> onPetTap;
-  final VoidCallback? onKickBall;
-  final VoidCallback? onFillBowl;
+
+  @override
+  ConsumerState<_HouseYard> createState() => _HouseYardState();
+}
+
+class _HouseYardState extends ConsumerState<_HouseYard> {
+  String? _menuPetId;
+
+  @override
+  void didUpdateWidget(covariant _HouseYard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final menuPetId = _menuPetId;
+    if (menuPetId != null &&
+        !widget.state.pets.any((pet) => pet.id == menuPetId)) {
+      _menuPetId = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final controller = ref.read(masilPetControllerProvider.notifier);
     final care = state.activePetCare;
+
+    Pet? menuPet;
+    for (final pet in state.pets) {
+      if (pet.id == _menuPetId) {
+        menuPet = pet;
+        break;
+      }
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final height = constraints.maxWidth >= _wideBreakpoint ? 400.0 : 320.0;
+        final height =
+            constraints.maxWidth >= _HouseYard._wideBreakpoint ? 400.0 : 320.0;
 
         return PaperCard.frame(
-          child: PetPlayField(
-            templates: state.templates,
-            pets: state.pets,
-            eggs: state.eggs,
-            activePetId: state.activePetId,
-            activity: state.fieldActivity,
-            activityNonce: state.fieldActivityNonce,
-            height: height,
-            scene: PetPlayFieldScene.neighborhoodYard,
-            spriteScale: 1.16,
-            showVisitors: false,
-            onPetTap: onPetTap,
-            onKickBall: onKickBall,
-            onFillBowl: onFillBowl,
-            bowlFilled: (care?.feedCountToday ?? 0) > 0,
+          child: Stack(
+            children: [
+              PetPlayField(
+                templates: state.templates,
+                pets: state.pets,
+                eggs: state.eggs,
+                activePetId: state.activePetId,
+                activity: state.fieldActivity,
+                activityNonce: state.fieldActivityNonce,
+                height: height,
+                scene: PetPlayFieldScene.neighborhoodYard,
+                spriteScale: 1.16,
+                showVisitors: false,
+                // Tapping the same friend again puts the bar away.
+                onPetTap: (petId) => setState(
+                  () => _menuPetId = _menuPetId == petId ? null : petId,
+                ),
+                onKickBall:
+                    state.isBusy ? null : () => _kickBall(controller, state),
+                onFillBowl:
+                    state.isBusy ? null : () => _fillBowl(controller, state),
+                bowlFilled: (care?.feedCountToday ?? 0) > 0,
+              ),
+              // A low bar rather than a panel: the yard stays visible and the
+              // other friends stay tappable while it is open.
+              if (menuPet != null)
+                Positioned(
+                  left: 8,
+                  right: 8,
+                  bottom: 8,
+                  child: _YardPetBar(
+                    pet: menuPet,
+                    care: state.careForPet(menuPet.id),
+                    isBusy: state.isBusy,
+                    onClose: _closeMenu,
+                    onDetail: () => _openDetail(controller, menuPet!),
+                    onFeed: () => _care(() => controller.feedPet(menuPet!.id)),
+                    onPlay: () => _care(() => controller.playPet(menuPet!.id)),
+                    onClean: () =>
+                        _care(() => controller.cleanPet(menuPet!.id)),
+                  ),
+                ),
+            ],
           ),
         );
       },
+    );
+  }
+
+  void _closeMenu() => setState(() => _menuPetId = null);
+
+  /// Care runs on the tapped pet, then the yard goes back to being a yard.
+  void _care(VoidCallback action) {
+    action();
+    _closeMenu();
+  }
+
+  void _openDetail(MasilPetController controller, Pet pet) {
+    _closeMenu();
+    showPetDetailSheet(
+      context: context,
+      pet: pet,
+      template: controller.templateFor(pet.templateId),
+      care: widget.state.careForPet(pet.id),
+      isActive: pet.id == widget.state.activePetId,
+      onSetMain: () => controller.selectPet(pet.id),
+    );
+  }
+
+  void _kickBall(MasilPetController controller, MasilPetState state) {
+    _closeMenu();
+    controller.playPet(state.activePetId);
+  }
+
+  void _fillBowl(MasilPetController controller, MasilPetState state) {
+    _closeMenu();
+    controller.feedPet(state.activePetId);
+  }
+}
+
+/// 마당 팝오버: the tapped pet's name, and what you can do for them.
+/// 마당 액션 바: the tapped friend's name and what you can do for them, kept to
+/// one line along the bottom of the yard so the scene stays visible.
+class _YardPetBar extends StatelessWidget {
+  const _YardPetBar({
+    required this.pet,
+    required this.care,
+    required this.isBusy,
+    required this.onClose,
+    required this.onDetail,
+    required this.onFeed,
+    required this.onPlay,
+    required this.onClean,
+  });
+
+  final Pet pet;
+  final PetCareState? care;
+  final bool isBusy;
+  final VoidCallback onClose;
+  final VoidCallback onDetail;
+  final VoidCallback onFeed;
+  final VoidCallback onPlay;
+  final VoidCallback onClean;
+
+  @override
+  Widget build(BuildContext context) {
+    final feedLeft =
+        (dailyFeedCareLimit - (care?.feedCountToday ?? 0)).clamp(0, 9);
+
+    return RiseIn(
+      duration: MasilPetMotion.fast,
+      offset: 8,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+        decoration: BoxDecoration(
+          color: MasilPetPalette.paper,
+          border: MasilPetBorders.inkBox,
+          borderRadius: MasilPetRadii.smallBorder,
+          boxShadow: MasilPetShadows.popover,
+        ),
+        child: Row(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 68),
+              child: Text(
+                pet.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: MasilPetType.rowTitle.copyWith(fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Short labels so all four fit one line on a phone; the scroll
+            // view is only a safety net for very narrow yards.
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _YardMenuAction(
+                      label: '상세',
+                      semanticLabel: '상세보기',
+                      onTap: onDetail,
+                    ),
+                    const SizedBox(width: 5),
+                    _YardMenuAction(
+                      label: feedLeft > 0 ? '밥 $feedLeft' : '밥 완료',
+                      semanticLabel:
+                          feedLeft > 0 ? '밥 주기, $feedLeft회 남음' : '오늘 밥은 충분해요',
+                      onTap: isBusy || feedLeft == 0 ? null : onFeed,
+                    ),
+                    const SizedBox(width: 5),
+                    _YardMenuAction(
+                      label: '놀이',
+                      semanticLabel: '놀아주기',
+                      onTap: isBusy ? null : onPlay,
+                    ),
+                    const SizedBox(width: 5),
+                    _YardMenuAction(
+                      label: '목욕',
+                      semanticLabel: '씻기기',
+                      onTap: isBusy ? null : onClean,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onClose,
+              behavior: HitTestBehavior.opaque,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                child: Text(
+                  '닫기',
+                  style: MasilPetType.caption.copyWith(fontSize: 11.5),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _YardMenuAction extends StatelessWidget {
+  const _YardMenuAction({
+    required this.label,
+    required this.onTap,
+    this.semanticLabel,
+  });
+
+  final String label;
+  final VoidCallback? onTap;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: semanticLabel ?? label,
+      child: ExcludeSemantics(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: MasilPetRadii.tightBorder,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+            decoration: BoxDecoration(
+              color: MasilPetPalette.canvas,
+              border: Border.all(color: MasilPetPalette.outline),
+              borderRadius: MasilPetRadii.tightBorder,
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MasilPetType.bodySmall.copyWith(
+                fontSize: 12.5,
+                height: 1.2,
+                color: enabled ? MasilPetPalette.ink : MasilPetPalette.disabled,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

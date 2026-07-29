@@ -99,6 +99,7 @@ class SpeechBubble extends StatelessWidget {
     this.textAlign = TextAlign.center,
     this.padding = const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
     this.color = MasilPetPalette.paper,
+    this.shadows = MasilPetShadows.bubble,
   });
 
   final String text;
@@ -107,6 +108,7 @@ class SpeechBubble extends StatelessWidget {
   final TextAlign textAlign;
   final EdgeInsetsGeometry padding;
   final Color color;
+  final List<BoxShadow> shadows;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +118,7 @@ class SpeechBubble extends StatelessWidget {
         color: color,
         border: MasilPetBorders.inkBox,
         borderRadius: MasilPetRadii.bubbleBorder,
-        boxShadow: MasilPetShadows.bubble,
+        boxShadow: shadows,
       ),
       child: Text(
         text,

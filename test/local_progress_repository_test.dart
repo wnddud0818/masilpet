@@ -299,7 +299,7 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    expect(controller.state.activePet?.name, '너울');
+    expect(controller.state.activePet?.name, '해랑');
     expect(controller.state.statusMessage, contains('불러오지 못했습니다'));
 
     await controller.talkWithActivePet();
@@ -412,7 +412,7 @@ void main() {
     expect(repository.snapshot, isNull);
     expect(controller.state.onboardingComplete, isFalse);
     expect(controller.state.todayCheckInCount, 0);
-    expect(controller.state.activePetId, 'pet-starter-wave-naru');
+    expect(controller.state.activePetId, starterCompanionPetId);
     expect(controller.state.statusMessage, contains('기기와 서버 진행도'));
   });
 }

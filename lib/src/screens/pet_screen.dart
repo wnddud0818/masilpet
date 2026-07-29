@@ -9,6 +9,7 @@ import '../state.dart';
 import '../theme.dart';
 import '../widgets/paper_kit.dart';
 import '../widgets/paper_shell.dart';
+import '../widgets/pet_detail_sheet.dart';
 import '../widgets/responsive_sliver_list.dart';
 import '../widgets/section_header.dart';
 
@@ -47,7 +48,6 @@ class PetScreen extends ConsumerWidget {
                   care: care,
                   talksLeft: talksLeft,
                   onTalk: state.isBusy ? null : controller.talkWithActivePet,
-                  onSleep: state.isBusy ? null : controller.sleepActivePet,
                 ),
                 const SizedBox(height: 18),
                 _PetIdentityRow(
@@ -61,6 +61,7 @@ class PetScreen extends ConsumerWidget {
                   onFeed: controller.feedActivePet,
                   onPlay: controller.playActivePet,
                   onClean: controller.cleanActivePet,
+                  onSleep: state.isBusy ? null : controller.sleepActivePet,
                 ),
                 const SizedBox(height: 18),
                 _CarePointsNote(
@@ -99,7 +100,6 @@ class _PetStage extends StatelessWidget {
     required this.care,
     required this.talksLeft,
     required this.onTalk,
-    required this.onSleep,
   });
 
   final MasilPetState state;
@@ -108,7 +108,6 @@ class _PetStage extends StatelessWidget {
   final PetCareState? care;
   final int talksLeft;
   final VoidCallback? onTalk;
-  final VoidCallback? onSleep;
 
   @override
   Widget build(BuildContext context) {
@@ -133,83 +132,108 @@ class _PetStage extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // The low sun hanging in the upper right of the sky band.
-            const Positioned(
-              right: 22,
-              top: 18,
-              child: _StageSun(),
+            // The low sun, at 82% across and 26% down the sky band.
+            Positioned.fill(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const skyBand = 0.62;
+                  return Stack(
+                    children: [
+                      Positioned(
+                        left: constraints.maxWidth * 0.82 - _stageSunRadius,
+                        top: constraints.maxHeight * skyBand * 0.26 -
+                            _stageSunRadius,
+                        child: const _StageSun(),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 26),
-              child: Column(
-                children: [
-                  Semantics(
-                    button: onTalk != null,
-                    label: '${pet.name} 쓰다듬기',
-                    child: GestureDetector(
-                      onTap: onTalk,
-                      child: SizedBox(
-                        height: 186,
-                        child: Stack(
-                          alignment: Alignment.bottomCenter,
-                          children: [
-                            const Positioned(
-                              bottom: 8,
-                              child: GroundShadow(width: 120, height: 15),
-                            ),
-                            BobbingSprite(
-                              period: excited
-                                  ? MasilPetMotion.bobExcited
-                                  : const Duration(milliseconds: 3200),
-                              child: PixelSprite(
-                                asset: PetAssets.emotion(
-                                  template.assetKey,
-                                  emotion,
-                                ),
-                                size: 180,
-                                semanticLabel: pet.name,
-                                fallback: Center(
-                                  child: Text(
-                                    template.initials,
-                                    style: MasilPetType.display.copyWith(
-                                      color: Color(template.colorValue),
+              // The stack hands non-positioned children loose constraints, so
+              // without this the column shrink-wraps and drifts to the left
+              // edge on wide windows.
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  children: [
+                    Semantics(
+                      button: onTalk != null,
+                      label: '${pet.name} 쓰다듬기',
+                      child: GestureDetector(
+                        onTap: onTalk,
+                        child: SizedBox(
+                          height: 186,
+                          child: Stack(
+                            alignment: Alignment.bottomCenter,
+                            children: [
+                              const Positioned(
+                                bottom: 8,
+                                child: GroundShadow(width: 120, height: 15),
+                              ),
+                              BobbingSprite(
+                                period: excited
+                                    ? MasilPetMotion.bobExcited
+                                    : const Duration(milliseconds: 3200),
+                                child: PixelSprite(
+                                  asset: PetAssets.emotion(
+                                    template.assetKey,
+                                    emotion,
+                                  ),
+                                  size: 180,
+                                  semanticLabel: pet.name,
+                                  fallback: Center(
+                                    child: Text(
+                                      template.initials,
+                                      style: MasilPetType.display.copyWith(
+                                        color: Color(template.colorValue),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Semantics(
-                    liveRegion: true,
-                    label: '${pet.name}의 말, $message',
-                    child: ExcludeSemantics(
-                      child: SpeechBubble(text: message, maxWidth: 400),
+                    const SizedBox(height: 10),
+                    Semantics(
+                      liveRegion: true,
+                      label: '${pet.name}의 말, $message',
+                      child: ExcludeSemantics(
+                        child: SpeechBubble(
+                          text: message,
+                          maxWidth: 400,
+                          shadows: MasilPetShadows.bubbleOnScene,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      _PetPillButton(
-                        label: talksLeft > 0
-                            ? '쓰다듬기 · 오늘 $talksLeft번 남음'
-                            : '오늘 대화는 다 했어요',
-                        onTap: talksLeft > 0 ? onTalk : null,
-                      ),
-                      _PetPillButton(
-                        label: '포근하게 재우기',
-                        onTap: onSleep,
-                      ),
-                    ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    // One pill, always labelled with what is left today. Tapping
+                    // it out says so out loud instead of going grey.
+                    _PetPillButton(
+                      label: '쓰다듬기 · 오늘 $talksLeft번 남음',
+                      onTap: onTalk == null
+                          ? null
+                          : () {
+                              if (talksLeft > 0) {
+                                onTalk!();
+                                return;
+                              }
+                              ScaffoldMessenger.of(context)
+                                ..clearSnackBars()
+                                ..showSnackBar(
+                                  const SnackBar(
+                                    content: Text('오늘 대화는 다 했어. 내일 또 얘기하자!'),
+                                  ),
+                                );
+                            },
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -219,6 +243,9 @@ class _PetStage extends StatelessWidget {
   }
 }
 
+/// `radial-gradient(... 0 46px, transparent 47px)`
+const _stageSunRadius = 46.0;
+
 class _StageSun extends StatelessWidget {
   const _StageSun();
 
@@ -226,8 +253,8 @@ class _StageSun extends StatelessWidget {
   Widget build(BuildContext context) {
     return IgnorePointer(
       child: Container(
-        width: 92,
-        height: 92,
+        width: _stageSunRadius * 2,
+        height: _stageSunRadius * 2,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: MasilPetPalette.sun.withValues(alpha: 0.5),
@@ -282,7 +309,7 @@ class _PetIdentityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = _daysTogether(pet);
+    final days = petDaysTogether(pet);
 
     return PaperCard(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
@@ -335,6 +362,7 @@ class _CareActions extends StatelessWidget {
     required this.onFeed,
     required this.onPlay,
     required this.onClean,
+    required this.onSleep,
   });
 
   final PetCareState? care;
@@ -342,6 +370,7 @@ class _CareActions extends StatelessWidget {
   final VoidCallback onFeed;
   final VoidCallback onPlay;
   final VoidCallback onClean;
+  final VoidCallback? onSleep;
 
   @override
   Widget build(BuildContext context) {
@@ -368,7 +397,10 @@ class _CareActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionEyebrow('오늘 해준 것'),
+        SectionEyebrow(
+          '오늘 해준 것',
+          trailing: MonoButton(label: '포근하게 재우기', onPressed: onSleep),
+        ),
         Row(
           children: [
             for (final (index, action) in actions.indexed) ...[
@@ -572,7 +604,7 @@ class _PetVitalsCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'EXP ${pet.stats.exp} / $_expGoal',
+                'EXP ${pet.stats.exp} / $petEvolutionExpGoal',
                 style: MasilPetType.rowTitle.copyWith(fontSize: 15),
               ),
             ],
@@ -727,7 +759,7 @@ class _RosterSection extends ConsumerWidget {
                       care: state.careForPet(pet.id),
                       isActive: pet.id == state.activePetId,
                       onSetMain: () => controller.selectPet(pet.id),
-                      onDetail: () => _openPetSheet(
+                      onDetail: () => showPetDetailSheet(
                         context: context,
                         pet: pet,
                         template: controller.templateFor(pet.templateId),
@@ -892,226 +924,11 @@ class _MainTag extends StatelessWidget {
   }
 }
 
-void _openPetSheet({
-  required BuildContext context,
-  required Pet pet,
-  required PetTemplate template,
-  required PetCareState? care,
-  required bool isActive,
-  required VoidCallback onSetMain,
-}) {
-  showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (context) => _PetDetailSheet(
-      pet: pet,
-      template: template,
-      care: care,
-      isActive: isActive,
-      onSetMain: onSetMain,
-    ),
-  );
-}
-
-class _PetDetailSheet extends StatelessWidget {
-  const _PetDetailSheet({
-    required this.pet,
-    required this.template,
-    required this.care,
-    required this.isActive,
-    required this.onSetMain,
-  });
-
-  final Pet pet;
-  final PetTemplate template;
-  final PetCareState? care;
-  final bool isActive;
-  final VoidCallback onSetMain;
-
-  @override
-  Widget build(BuildContext context) {
-    final care = this.care;
-
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 4, 22, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    PixelSprite(
-                      asset:
-                          PetAssets.growth(template.assetKey, pet.stage.name),
-                      size: 96,
-                      semanticLabel: pet.name,
-                    ),
-                    const SizedBox(width: 18),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${template.rarityLabel} · '
-                            '${regionNameForId(template.regionId)}',
-                            style: MasilPetType.eyebrow.copyWith(
-                              letterSpacing: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            pet.name,
-                            style:
-                                MasilPetType.heroTitle.copyWith(fontSize: 27),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'Lv.${pet.level} · ${pet.stage.label} 단계 · '
-                            '${_daysTogether(pet)}일째',
-                            style:
-                                MasilPetType.caption.copyWith(fontSize: 12.5),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const DashedRule(),
-                const SizedBox(height: 16),
-                if (care != null) ...[
-                  PaperStatBar(
-                    label: '배부름',
-                    valueLabel: '${care.satiety}',
-                    ratio: care.satiety / 100,
-                    color: MasilPetPalette.statSatiety,
-                  ),
-                  const SizedBox(height: 13),
-                  PaperStatBar(
-                    label: '청결',
-                    valueLabel: '${care.cleanliness}',
-                    ratio: care.cleanliness / 100,
-                    color: MasilPetPalette.statClean,
-                  ),
-                  const SizedBox(height: 13),
-                  PaperStatBar(
-                    label: '활력',
-                    valueLabel: '${care.vitality}',
-                    ratio: care.vitality / 100,
-                    color: MasilPetPalette.statVitality,
-                  ),
-                  const SizedBox(height: 13),
-                ],
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '진화까지',
-                        style: MasilPetType.bodySmall.copyWith(
-                          fontSize: 13.5,
-                          height: 1.2,
-                          color: MasilPetPalette.inkSoft,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'EXP ${pet.stats.exp} / $_expGoal',
-                      style: MasilPetType.rowTitle.copyWith(fontSize: 15),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const DashedRule(),
-                const SizedBox(height: 16),
-                Text(template.basePersonality, style: MasilPetType.prose),
-                const SizedBox(height: 16),
-                const DashedRule(),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Text('첫 만남',
-                        style: MasilPetType.caption.copyWith(fontSize: 12.5)),
-                    const Spacer(),
-                    Text(
-                      '${_dateLabel(pet.hatchedAt)} · '
-                      '${regionNameForId(pet.originRegionId)}',
-                      style: MasilPetType.caption.copyWith(
-                        fontSize: 12.5,
-                        color: MasilPetPalette.inkSoft,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: isActive
-                          ? DashedBox(
-                              fill: null,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              child: Text(
-                                '지금 함께 다니는 친구',
-                                textAlign: TextAlign.center,
-                                style: MasilPetType.rowTitle.copyWith(
-                                  fontSize: 15,
-                                  color: MasilPetPalette.mutedWarm,
-                                ),
-                              ),
-                            )
-                          : PaperButton.stamp(
-                              label: '주 캐릭터로 설정',
-                              onPressed: () {
-                                onSetMain();
-                                Navigator.of(context).pop();
-                              },
-                              fontSize: 16,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: MasilPetSpacing.lg,
-                                vertical: 15,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: PaperButton.ghost(
-                        label: '닫기',
-                        onPressed: () => Navigator.of(context).pop(),
-                        fontSize: 16,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// EXP needed for the next stage, mirroring the design's 500-point scale.
-const _expGoal = 500;
-
 int _talksLeftToday(MasilPetState state) {
   final countToday = isSameLocalDay(state.dialogueDay, DateTime.now())
       ? state.dialogueCountToday
       : 0;
   return (5 - countToday).clamp(0, 5).toInt();
-}
-
-int _daysTogether(Pet pet) {
-  final days = DateTime.now().difference(pet.hatchedAt).inDays;
-  return days < 0 ? 0 : days;
 }
 
 /// Sprite emotion follows what the pet is doing, then falls back to how well
@@ -1208,12 +1025,6 @@ String _shortDateLabel(DateTime value) {
   final month = value.month.toString().padLeft(2, '0');
   final day = value.day.toString().padLeft(2, '0');
   return '$month.$day';
-}
-
-String _dateLabel(DateTime value) {
-  final month = value.month.toString().padLeft(2, '0');
-  final day = value.day.toString().padLeft(2, '0');
-  return '${value.year}.$month.$day';
 }
 
 List<_GrowthRequirement> _growthRequirementsFor(Pet pet) {

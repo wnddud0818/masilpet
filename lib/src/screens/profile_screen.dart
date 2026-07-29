@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app_build_info.dart';
 import '../models.dart';
 import '../services.dart';
 import '../services/privacy_navigation.dart';
 import '../state.dart';
-import '../widgets/pet_avatar.dart';
-import '../widgets/reward_chip_row.dart';
+import '../theme.dart';
+import '../widgets/metric_grid.dart';
+import '../widgets/paper_kit.dart';
+import '../widgets/paper_shell.dart';
+import '../widgets/responsive_sliver_list.dart';
 import '../widgets/status_banner.dart';
 
+/// 기록: the walking passport — stamped days, totals, the recent trail, and
+/// the housekeeping that belongs at the back of a notebook.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -19,97 +24,51 @@ class ProfileScreen extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
     final controller = ref.read(masilPetControllerProvider.notifier);
     final onlineActionEnabled = state.firebaseReady && !state.isBusy;
-    const buildInfo = appBuildInfo;
 
     return CustomScrollView(
       slivers: [
-        const SliverAppBar(title: Text('산책 기록')),
         SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: _ProfileAdaptiveSliverList(
-            primaryCount: 11,
-            secondaryStartIndex: 12,
+          padding: kPaperBodyPadding,
+          sliver: ResponsiveSliverList(
             children: [
-              _JourneySnapshotCard(
-                state: state,
-                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
-                onOpenPet: state.isBusy ? null : () => controller.setTab(1),
-              ),
-              const SizedBox(height: 12),
+              _PassportCard(state: state),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _TotalsRow(state: state),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _RecentWalks(state: state),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _TodayReport(state: state),
+              const SizedBox(height: MasilPetSpacing.xl),
               const StatusBanner(),
-              const SizedBox(height: 12),
-              _ExpeditionReportCard(
-                state: state,
-                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
-                onOpenPet: state.isBusy ? null : () => controller.setTab(1),
-                onOpenDex: state.isBusy ? null : () => controller.setTab(3),
-              ),
-              const SizedBox(height: 12),
-              _JourneyBadgeCard(
+              const SizedBox(height: MasilPetSpacing.xl),
+              _GoalList(
                 state: state,
                 onOpenMap: state.isBusy ? null : () => controller.setTab(0),
                 onOpenPet: state.isBusy ? null : () => controller.setTab(1),
                 onOpenHouse: state.isBusy ? null : () => controller.setTab(2),
-                onOpenDex: state.isBusy ? null : () => controller.setTab(3),
               ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _InfoRow(
-                        label: '첫 산책 지역',
-                        value: state.region.name,
-                      ),
-                      _InfoRow(
-                        label: '위치 상태',
-                        value:
-                            state.hasFreshVerifiedLocation ? '확인 완료' : '확인 필요',
-                      ),
-                      _InfoRow(
-                          label: '오늘 체크인',
-                          value: '${state.todayCheckInCount}회'),
-                      _InfoRow(
-                        label: '연속 산책',
-                        value: '${state.currentVisitStreakDays}일',
-                      ),
-                      _InfoRow(label: '보유 마실펫', value: '${state.pets.length}종'),
-                      _InfoRow(label: '보유 알', value: '${state.eggs.length}개'),
-                      _InfoRow(
-                        label: '도감 수집률',
-                        value: '${(state.dexCompletionRatio * 100).round()}%',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _VisitJournalCard(
+              const SizedBox(height: MasilPetSpacing.xl),
+              _LedgerSection(state: state),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _MaintenanceSection(
                 state: state,
-                onOpenMap: state.isBusy ? null : () => controller.setTab(0),
-              ),
-              const SizedBox(height: 12),
-              _ProfileActionsCard(
-                firebaseReady: state.firebaseReady,
-                useDeviceLocation:
+                onUseDeviceLocation:
                     state.isBusy ? null : controller.useDeviceLocation,
-                useStarterLocation:
+                onUseStarterLocation:
                     state.isBusy ? null : controller.useStarterKoreaLocation,
-                ensureRemoteUserBootstrap: onlineActionEnabled
+                onBootstrapRemote: onlineActionEnabled
                     ? controller.ensureRemoteUserBootstrap
                     : null,
-                refreshRemoteProgress: onlineActionEnabled
+                onRefreshRemote: onlineActionEnabled
                     ? () => controller.refreshRemoteProgress()
                     : null,
               ),
-              const SizedBox(height: 16),
-              const _PrivacyCard(),
-              const SizedBox(height: 12),
-              const _DataSourceCard(),
-              const SizedBox(height: 12),
-              _ProgressManagementCard(
+              const SizedBox(height: MasilPetSpacing.xl),
+              const _PrivacySection(),
+              const SizedBox(height: MasilPetSpacing.xl),
+              const _SourcesSection(),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _ResetSection(
                 state: state,
                 onReset: () => _confirmResetProgress(
                   context: context,
@@ -117,11 +76,8 @@ class ProfileScreen extends ConsumerWidget {
                   includeRemote: state.firebaseReady,
                 ),
               ),
-              const SizedBox(height: 12),
-              _TechnicalDetailsCard(
-                state: state,
-                buildInfo: buildInfo,
-              ),
+              const SizedBox(height: MasilPetSpacing.xl),
+              _AppInfoSection(state: state, buildInfo: appBuildInfo),
             ],
           ),
         ),
@@ -137,35 +93,29 @@ class ProfileScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        final scheme = Theme.of(context).colorScheme;
         return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: scheme.error,
-              ),
-              const SizedBox(width: 8),
-              const Expanded(child: Text('진행도 초기화')),
-            ],
-          ),
+          title: Text('진행도 초기화',
+              style: MasilPetType.heroTitle.copyWith(fontSize: 22)),
           content: Text(
             includeRemote
-                ? '기기 내 진행과 온라인 진행도를 초기화합니다. 이 작업은 되돌릴 수 없습니다.'
-                : '기기 내 진행을 초기화합니다. 이 작업은 되돌릴 수 없습니다.',
+                ? '기기 내 진행과 온라인 진행도를 초기화합니다.\n이 작업은 되돌릴 수 없습니다.'
+                : '기기 내 진행을 초기화합니다.\n이 작업은 되돌릴 수 없습니다.',
+            style: MasilPetType.bodySmall.copyWith(height: 1.7),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('취소'),
+              child: Text('취소', style: MasilPetType.bodySmall),
             ),
-            FilledButton(
+            TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.error,
-                foregroundColor: scheme.onError,
+              child: Text(
+                '초기화',
+                style: MasilPetType.rowTitle.copyWith(
+                  fontSize: 15,
+                  color: MasilPetPalette.stamp,
+                ),
               ),
-              child: const Text('초기화'),
             ),
           ],
         );
@@ -178,154 +128,60 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _JourneySnapshotCard extends StatelessWidget {
-  const _JourneySnapshotCard({
-    required this.state,
-    required this.onOpenMap,
-    required this.onOpenPet,
-  });
+/// The passport spread: this month's days, stamped where you walked.
+class _PassportCard extends StatelessWidget {
+  const _PassportCard({required this.state});
 
   final MasilPetState state;
-  final VoidCallback? onOpenMap;
-  final VoidCallback? onOpenPet;
 
   @override
   Widget build(BuildContext context) {
-    final activePet = state.activePet;
-    PetTemplate? activeTemplate;
-    if (activePet != null) {
-      for (final template in state.templates) {
-        if (template.id == activePet.templateId) {
-          activeTemplate = template;
-          break;
-        }
-      }
-    }
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final stampedDays = _stampedDaysThisMonth(state, now);
     final streak = state.currentVisitStreakDays;
-    final headline = streak == 0 ? '오늘, 첫 발자국을 남겨볼까요?' : '$streak일째 함께 걷고 있어요';
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE8F7EF), Color(0xFFFFF3C7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFDCCFB2), width: 1.3),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x145C4A2D),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
+    return PaperCard.stamped(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (activePet != null && activeTemplate != null)
-                PetAvatar(
-                  template: activeTemplate,
-                  size: 72,
-                  stage: activePet.stage.name,
-                  emotion: 'happy',
-                )
-              else
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.76),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.pets_rounded,
-                    color: Color(0xFF287A62),
-                    size: 34,
-                  ),
-                ),
-              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      headline,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
+                    Eyebrow(
+                      'WALKING PASSPORT · '
+                      '${now.year}.${_twoDigits(now.month)}',
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
-                      activePet == null
-                          ? '새 친구와 산책을 시작해 보세요.'
-                          : '${activePet.name}과 만든 작은 기억이 차곡차곡 쌓이는 중이에요.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xFF56635D),
-                          ),
+                      streak == 0 ? '오늘 첫 도장' : '$streak일 연속 산책',
+                      style: MasilPetType.heroTitle.copyWith(
+                        fontSize: 26,
+                        letterSpacing: -0.52,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _SnapshotMetric(
-                icon: Icons.place_rounded,
-                value: '${state.checkIns.length}',
-                label: '남긴 발자국',
-              ),
-              _SnapshotMetric(
-                icon: Icons.local_fire_department_rounded,
-                value: '$streak일',
-                label: '연속 산책',
-              ),
-              _SnapshotMetric(
-                icon: Icons.collections_bookmark_rounded,
-                value: '${(state.dexCompletionRatio * 100).round()}%',
-                label: '친구 도감',
+              const SizedBox(width: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: HandNote(
+                  streak >= 3 ? '잘하고 있어!' : '한 걸음부터',
+                  fontSize: 22,
+                  textAlign: TextAlign.right,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 15),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final mapButton = FilledButton.icon(
-                onPressed: onOpenMap,
-                icon: const Icon(Icons.directions_walk_rounded),
-                label: const Text('산책 이어가기'),
-              );
-              final petButton = OutlinedButton.icon(
-                onPressed: onOpenPet,
-                icon: const Icon(Icons.pets_rounded),
-                label: const Text('친구 만나기'),
-              );
-              if (constraints.maxWidth < 390) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    mapButton,
-                    const SizedBox(height: 8),
-                    petButton,
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  Expanded(child: mapButton),
-                  const SizedBox(width: 8),
-                  Expanded(child: petButton),
-                ],
-              );
-            },
+          const SizedBox(height: MasilPetSpacing.lg),
+          _PassportGrid(
+            daysInMonth: daysInMonth,
+            stampedDays: stampedDays,
           ),
         ],
       ),
@@ -333,74 +189,226 @@ class _JourneySnapshotCard extends StatelessWidget {
   }
 }
 
-class _SnapshotMetric extends StatelessWidget {
-  const _SnapshotMetric({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
+class _PassportGrid extends StatelessWidget {
+  const _PassportGrid({required this.daysInMonth, required this.stampedDays});
 
-  final IconData icon;
-  final String value;
-  final String label;
+  final int daysInMonth;
+  final Set<int> stampedDays;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x66DCCFB2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: const Color(0xFF287A62)),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w900,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const columns = 7;
+        const spacing = 6.0;
+        final cell = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (var day = 1; day <= daysInMonth; day++)
+              SizedBox(
+                width: cell,
+                child: PassportDay(
+                  day: day,
+                  stamped: stampedDays.contains(day),
+                  // A hand-pressed stamp never lands perfectly square.
+                  angleDegrees: (day % 3 - 1) * 4,
                 ),
-          ),
-          const SizedBox(width: 4),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
-        ],
-      ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
-class _TechnicalDetailsCard extends StatelessWidget {
-  const _TechnicalDetailsCard({
-    required this.state,
-    required this.buildInfo,
-  });
+class _TotalsRow extends StatelessWidget {
+  const _TotalsRow({required this.state});
 
   final MasilPetState state;
-  final AppBuildInfo buildInfo;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ExpansionTile(
-        leading: const Icon(Icons.settings_outlined),
-        title: const Text('앱 정보 및 연결'),
-        subtitle: const Text('버전, 저장 방식, 연결 상태를 확인해요'),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        children: [
-          _InfoRow(
-            label: '실행 모드',
-            value: state.firebaseConnectionLabel,
-          ),
-          _InfoRow(label: '앱 버전', value: buildInfo.versionLabel),
-          _InfoRow(label: '빌드 채널', value: buildInfo.channelLabel),
-          _InfoRow(label: '빌드 시각', value: buildInfo.buildTimeLabel),
-          const SizedBox(height: 8),
+    final visitedPlaces =
+        state.checkIns.map((checkIn) => checkIn.poiId).toSet().length;
+    final companion = state.activePet;
+    final companionDays =
+        companion == null ? 0 : _daysSince(companion.hatchedAt);
+
+    return MetricGrid(
+      items: [
+        MetricGridItem(label: '다녀온 산책지', value: '$visitedPlaces곳'),
+        MetricGridItem(label: '누적 체크인', value: '${state.checkIns.length}회'),
+        MetricGridItem(
+          label: companion == null ? '함께한 날' : '${companion.name}와 함께',
+          value: '$companionDays일',
+        ),
+      ],
+    );
+  }
+}
+
+/// The trail of recent visits, hung off a dashed spine.
+class _RecentWalks extends StatelessWidget {
+  const _RecentWalks({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final visits = state.recentCheckIns.take(5).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('최근 산책'),
+        if (visits.isEmpty)
           Text(
-            '계정 연결이 가능한 환경에서는 산책·부화·돌봄 기록을 안전하게 동기화합니다.',
-            style: Theme.of(context).textTheme.bodySmall,
+            '아직 도장이 없어요. 지도에서 첫 산책지를 찍어보세요.',
+            style: MasilPetType.bodySmall,
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.only(left: 7),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const DashedSpine(),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final (index, checkIn) in visits.indexed) ...[
+                          _WalkEntry(
+                            checkIn: checkIn,
+                            placeLabel: _placeLabel(state, checkIn),
+                          ),
+                          if (index != visits.length - 1)
+                            const SizedBox(height: 18),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _WalkEntry extends StatelessWidget {
+  const _WalkEntry({required this.checkIn, required this.placeLabel});
+
+  final CheckIn checkIn;
+  final String placeLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final reward = checkIn.rewardApplied
+        ? checkIn.reward ?? const GrowthEngine().rewardFor(checkIn.category)
+        : null;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: -25,
+          top: 6,
+          child: Container(
+            width: 9,
+            height: 9,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: MasilPetPalette.stamp,
+              border: Border.all(color: MasilPetPalette.canvas, width: 2),
+            ),
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _relativeDayLabel(checkIn.createdAt),
+              style: MasilPetType.microMono.copyWith(
+                fontSize: 10,
+                letterSpacing: 1.2,
+                color: MasilPetPalette.faintWarm,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              placeLabel,
+              style: MasilPetType.rowTitle.copyWith(fontSize: 16.5),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              reward == null
+                  ? '${checkIn.category.label} · ${checkIn.distanceMeters.round()}m'
+                  : reward.summaryLabel,
+              style: MasilPetType.caption,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// 오늘의 리포트 — one paragraph you can copy and send to someone.
+class _TodayReport extends StatelessWidget {
+  const _TodayReport({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final score = _reportScore(state);
+    final companion = state.activePet;
+    final nextEgg = state.nextEgg;
+
+    return DashedBox(
+      fill: MasilPetPalette.subtle,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HandNote('오늘의 리포트'),
+          const SizedBox(height: MasilPetSpacing.sm),
+          Text(
+            state.todayCheckInCount == 0
+                ? '${now.month}월 ${now.day}일, 아직 도장을 찍지 않았어요.\n'
+                    '가까운 산책지 한 곳만 다녀와도 오늘의 기록이 시작돼요.'
+                : '${now.month}월 ${now.day}일, ${state.region.name}에서 '
+                    '${state.todayCheckInCount}곳에 도장을 찍었어요.\n'
+                    '${companion == null ? '마실펫' : petCallName(companion.name)}는 기분이 좋아졌고, '
+                    '${nextEgg == null ? '알은 모두 부화했습니다' : '알은 ${nextEgg.progress} / ${nextEgg.requiredSteps} 걸음까지 왔습니다'}.',
+            style: MasilPetType.prose.copyWith(fontSize: 15),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              MonoChip('등급 ${_reportGrade(score)}'),
+              MonoChip('$score점'),
+              MonoChip('루프 ${_loopProgress(state)}/4'),
+              MonoChip('카테고리 ${state.todayVisitedCategoryCount}/7'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          PaperButton.ghost(
+            label: '리포트 복사하기',
+            onPressed: () => _copyReport(context, state),
+            expand: false,
+            fontSize: 14,
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
           ),
         ],
       ),
@@ -408,237 +416,369 @@ class _TechnicalDetailsCard extends StatelessWidget {
   }
 }
 
-class _JourneyBadgeCard extends StatelessWidget {
-  const _JourneyBadgeCard({
+/// Today's goals as a checklist with progress tracks.
+class _GoalList extends StatelessWidget {
+  const _GoalList({
     required this.state,
     required this.onOpenMap,
     required this.onOpenPet,
     required this.onOpenHouse,
-    required this.onOpenDex,
   });
 
   final MasilPetState state;
   final VoidCallback? onOpenMap;
   final VoidCallback? onOpenPet;
   final VoidCallback? onOpenHouse;
-  final VoidCallback? onOpenDex;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final badges = _journeyBadges(
+    final goals = _journeyGoals(
       state: state,
       onOpenMap: onOpenMap,
       onOpenPet: onOpenPet,
       onOpenHouse: onOpenHouse,
     );
-    final unlocked = badges.where((badge) => badge.unlocked).length;
-    final nextBadge = _nextLockedJourneyBadge(badges);
+    final next = goals.where((goal) => !goal.unlocked).firstOrNull;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.verified_outlined, color: scheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '탐험 배지',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionEyebrow(
+          '수첩 목표 ${goals.where((goal) => goal.unlocked).length} / ${goals.length}',
+        ),
+        PaperCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                next == null
+                    ? '오늘의 목표를 모두 채웠어요. 도감에서 다음 지역을 골라보세요.'
+                    : '다음 목표는 ${next.title}. ${next.body}',
+                style: MasilPetType.prose.copyWith(fontSize: 15),
+              ),
+              const SizedBox(height: MasilPetSpacing.lg),
+              for (final (index, goal) in goals.indexed) ...[
+                PaperStatBar(
+                  label: goal.title,
+                  valueLabel: goal.progressLabel,
+                  ratio: goal.progress,
+                  color: goal.unlocked
+                      ? MasilPetPalette.forest
+                      : MasilPetPalette.statSatiety,
                 ),
-                Text(
-                  '$unlocked/${badges.length}',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
+                if (index != goals.length - 1) const SizedBox(height: 13),
+              ],
+              if (next?.onAction != null) ...[
+                const SizedBox(height: MasilPetSpacing.lg),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: PaperButton.ghost(
+                    label: next!.actionLabel,
+                    onPressed: next.onAction,
+                    expand: false,
+                    fontSize: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _journeyBadgeSummary(state, nextBadge),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth < 560 ? 1 : 2;
-                const spacing = 8.0;
-                final itemWidth =
-                    (constraints.maxWidth - spacing * (columns - 1)) / columns;
-
-                return Wrap(
-                  spacing: spacing,
-                  runSpacing: spacing,
-                  children: [
-                    for (final badge in badges)
-                      SizedBox(
-                        width: itemWidth,
-                        child: _JourneyBadgeTile(badge: badge),
-                      ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            if (nextBadge == null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  onPressed: onOpenDex,
-                  icon: const Icon(Icons.menu_book_outlined),
-                  label: const Text('전국 도감 보기'),
-                ),
-              )
-            else
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: nextBadge.onAction,
-                  icon: Icon(nextBadge.actionIcon),
-                  label: Text(nextBadge.actionLabel),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _JourneyBadge {
-  const _JourneyBadge({
-    required this.icon,
-    required this.title,
-    required this.body,
-    required this.progressLabel,
-    required this.progress,
-    required this.unlocked,
-    required this.color,
-    required this.actionIcon,
-    required this.actionLabel,
-    required this.onAction,
-  });
+/// The facts page: one label, one value, dashed rules between.
+class _LedgerSection extends StatelessWidget {
+  const _LedgerSection({required this.state});
 
-  final IconData icon;
-  final String title;
-  final String body;
-  final String progressLabel;
-  final double progress;
-  final bool unlocked;
-  final Color color;
-  final IconData actionIcon;
-  final String actionLabel;
-  final VoidCallback? onAction;
-}
-
-class _JourneyBadgeTile extends StatelessWidget {
-  const _JourneyBadgeTile({required this.badge});
-
-  final _JourneyBadge badge;
+  final MasilPetState state;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final mutedColor = scheme.onSurfaceVariant;
-    final color = badge.unlocked ? badge.color : mutedColor;
+    final rows = <(String, String)>[
+      ('첫 산책 지역', state.region.name),
+      ('위치 상태', state.hasFreshVerifiedLocation ? '확인 완료' : '확인 필요'),
+      ('오늘 체크인', '${state.todayCheckInCount}회'),
+      ('남은 체크인', '${state.remainingDailyCheckIns}회'),
+      ('연속 산책', '${state.currentVisitStreakDays}일'),
+      ('최장 연속', '${state.longestVisitStreakDays}일'),
+      ('보유 마실펫', '${state.pets.length}종'),
+      ('보유 알', '${state.eggs.length}개'),
+      ('도감 수집률', '${(state.dexCompletionRatio * 100).round()}%'),
+      ('돌봄 포인트', '${state.carePoints} P'),
+    ];
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 118),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: badge.unlocked
-            ? badge.color.withValues(alpha: 0.1)
-            : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: badge.unlocked
-              ? badge.color.withValues(alpha: 0.34)
-              : scheme.outlineVariant,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('수첩 요약'),
+        PaperCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          child: Column(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: badge.unlocked ? 0.14 : 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(badge.icon, size: 18, color: color),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      badge.title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+              for (final (index, row) in rows.indexed) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          row.$1,
+                          style: MasilPetType.bodySmall.copyWith(
+                            fontSize: 13.5,
+                            height: 1.2,
+                            color: MasilPetPalette.inkSoft,
                           ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      badge.body,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                    ),
-                  ],
+                        ),
+                      ),
+                      Text(row.$2, style: MasilPetType.metaMono),
+                    ],
+                  ),
                 ),
+                if (index != rows.length - 1)
+                  const DashedRule(color: MasilPetPalette.hover),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MaintenanceSection extends StatelessWidget {
+  const _MaintenanceSection({
+    required this.state,
+    required this.onUseDeviceLocation,
+    required this.onUseStarterLocation,
+    required this.onBootstrapRemote,
+    required this.onRefreshRemote,
+  });
+
+  final MasilPetState state;
+  final VoidCallback? onUseDeviceLocation;
+  final VoidCallback? onUseStarterLocation;
+  final VoidCallback? onBootstrapRemote;
+  final VoidCallback? onRefreshRemote;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('위치와 동기화'),
+        PaperCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                state.firebaseReady
+                    ? '계정과 연결되어 있어요. 산책·부화·돌봄 기록을 안전하게 맞춥니다.\n'
+                        '위치를 켜기 어려운 날에는 기본 위치로 체험할 수 있어요.'
+                    : '지금은 이 기기에 기록을 저장하고 있어요. 연결되면 자동으로 이어집니다.\n'
+                        '위치를 켜기 어려운 날에는 기본 위치로 체험할 수 있어요.',
+                style: MasilPetType.prose.copyWith(fontSize: 15),
               ),
-              const SizedBox(width: 8),
-              Icon(
-                badge.unlocked
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
-                size: 18,
-                color: color,
+              const SizedBox(height: MasilPetSpacing.lg),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  PaperButton.ghost(
+                    label: '현재 위치 사용',
+                    onPressed: onUseDeviceLocation,
+                    expand: false,
+                    fontSize: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
+                  PaperButton.ghost(
+                    label: '전국 기본 지도 보기',
+                    onPressed: onUseStarterLocation,
+                    expand: false,
+                    fontSize: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
+                  PaperButton.ghost(
+                    label: '계정 연결 확인',
+                    onPressed: onBootstrapRemote,
+                    expand: false,
+                    fontSize: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
+                  PaperButton.ghost(
+                    label: '진행도 다시 불러오기',
+                    onPressed: onRefreshRemote,
+                    expand: false,
+                    fontSize: 14,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
+        ),
+      ],
+    );
+  }
+}
+
+class _PrivacySection extends StatelessWidget {
+  const _PrivacySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('위치·개인정보 보호'),
+        PaperCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    minHeight: 7,
-                    value: badge.progress.clamp(0.0, 1.0),
-                    color: badge.color,
-                    backgroundColor: scheme.surface,
+              Text(
+                '현재 위치는 주변 산책지 조회와 '
+                '${checkInRadiusMeters ~/ 1}m 체크인 판정에만 씁니다. '
+                '체크인은 최근 15분 안에 확인한 위치에서만 가능하고, '
+                '체크인·부화·성장 기록은 Functions를 거쳐 저장합니다.',
+                style: MasilPetType.prose.copyWith(fontSize: 15),
+              ),
+              const SizedBox(height: 12),
+              const DashedRule(),
+              const SizedBox(height: 12),
+              Text(
+                '개인정보 처리방침: /privacy.html',
+                style: MasilPetType.metaMono.copyWith(
+                  color: MasilPetPalette.stamp,
+                ),
+              ),
+              const SizedBox(height: MasilPetSpacing.lg),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: PaperButton.ghost(
+                  label: '개인정보 처리방침 열기',
+                  onPressed: () => _openPrivacyPolicy(context),
+                  expand: false,
+                  fontSize: 14,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 10,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                badge.progressLabel,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openPrivacyPolicy(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final opened = await openPrivacyPolicyPage();
+    if (!opened) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('개인정보 처리방침을 열 수 없습니다.')),
+      );
+    }
+  }
+}
+
+class _SourcesSection extends StatelessWidget {
+  const _SourcesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final sources = <(String, String)>[
+      ('TourAPI 지역 장소', '전국 산책지와 분류를 운영자 동기화로 반영합니다.'),
+      ('OpenStreetMap 지도', '지도 타일과 저작권 고지는 지도 화면에 표시됩니다.'),
+      (
+        '지도 타일 설정',
+        '${mapTileBuildConfig.providerLabel} · '
+            '요청 식별자 ${mapTileBuildConfig.userAgentLabel}',
+      ),
+      ('Firebase Functions 검증', '체크인 거리, 중복 방지, 보상 지급을 서버에서 처리합니다.'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('데이터·지도 출처'),
+        PaperCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          child: Column(
+            children: [
+              for (final (index, source) in sources.indexed) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(source.$1, style: MasilPetType.rowTitle),
+                      const SizedBox(height: 3),
+                      Text(source.$2, style: MasilPetType.caption),
+                    ],
+                  ),
+                ),
+                if (index != sources.length - 1)
+                  const DashedRule(color: MasilPetPalette.hover),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResetSection extends StatelessWidget {
+  const _ResetSection({required this.state, required this.onReset});
+
+  final MasilPetState state;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return DashedBox(
+      color: MasilPetPalette.stampPale,
+      fill: MasilPetPalette.subtle,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Eyebrow('되돌릴 수 없어요'),
+          const SizedBox(height: MasilPetSpacing.sm),
+          Text('진행도 관리', style: MasilPetType.sectionTitle),
+          const SizedBox(height: 6),
+          Text(
+            state.firebaseReady
+                ? '초기화하면 기기 내 진행과 온라인 진행도를 함께 지웁니다.'
+                : '지금은 기기 내 진행만 초기화할 수 있습니다.',
+            style: MasilPetType.bodySmall,
+          ),
+          const SizedBox(height: 14),
+          _DangerButton(
+            label: '진행도 초기화',
+            onPressed: state.isBusy ? null : onReset,
           ),
         ],
       ),
@@ -646,679 +786,279 @@ class _JourneyBadgeTile extends StatelessWidget {
   }
 }
 
-List<_JourneyBadge> _journeyBadges({
+class _DangerButton extends StatelessWidget {
+  const _DangerButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: MasilPetRadii.smallBorder,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: enabled ? MasilPetPalette.stamp : MasilPetPalette.outline,
+            ),
+            borderRadius: MasilPetRadii.smallBorder,
+          ),
+          child: Text(
+            label,
+            style: MasilPetType.button.copyWith(
+              fontSize: 14,
+              color: enabled ? MasilPetPalette.stamp : MasilPetPalette.disabled,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppInfoSection extends StatelessWidget {
+  const _AppInfoSection({required this.state, required this.buildInfo});
+
+  final MasilPetState state;
+  final AppBuildInfo buildInfo;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(String, String)>[
+      ('실행 모드', state.firebaseConnectionLabel),
+      ('앱 버전', buildInfo.versionLabel),
+      ('빌드 채널', buildInfo.channelLabel),
+      ('빌드 시각', buildInfo.buildTimeLabel),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('앱 정보와 연결'),
+        PaperCard(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+          child: Column(
+            children: [
+              for (final (index, row) in rows.indexed) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          row.$1,
+                          style: MasilPetType.bodySmall.copyWith(
+                            fontSize: 13.5,
+                            height: 1.2,
+                            color: MasilPetPalette.inkSoft,
+                          ),
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          row.$2,
+                          textAlign: TextAlign.right,
+                          style: MasilPetType.metaMono,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (index != rows.length - 1)
+                  const DashedRule(color: MasilPetPalette.hover),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ───────────────────────────────────────────────────────────────── plumbing ──
+
+class _JourneyGoal {
+  const _JourneyGoal({
+    required this.title,
+    required this.body,
+    required this.progressLabel,
+    required this.progress,
+    required this.unlocked,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final String title;
+  final String body;
+  final String progressLabel;
+  final double progress;
+  final bool unlocked;
+  final String actionLabel;
+  final VoidCallback? onAction;
+}
+
+List<_JourneyGoal> _journeyGoals({
   required MasilPetState state,
   required VoidCallback? onOpenMap,
   required VoidCallback? onOpenPet,
   required VoidCallback? onOpenHouse,
 }) {
-  final dialogueCountToday = _dialogueCountToday(state);
+  final dialogueToday = _dialogueCountToday(state);
   final nextEgg = state.nextEgg;
   final eggProgress = nextEgg?.progressRatio ?? 0;
-  final hasHatchReady = state.hatchableEggCount > 0 || state.pets.length > 1;
+  final hatchReady = state.hatchableEggCount > 0 || state.pets.length > 1;
   const streakGoalDays = 3;
   final streakDays = state.currentVisitStreakDays;
-  final streakProgress =
-      (streakDays / streakGoalDays).clamp(0.0, 1.0).toDouble();
 
   return [
-    _JourneyBadge(
-      icon: Icons.pets_outlined,
+    _JourneyGoal(
       title: '동행 시작',
       body: state.pets.isEmpty
-          ? '첫 마실펫을 만나면 탐험 동행이 열립니다.'
-          : '${state.activePet?.name ?? '마실펫'}과 함께 출발했습니다.',
-      progressLabel: state.pets.isEmpty ? '0/1' : '1/1',
+          ? '첫 마실펫을 만나면 동행이 시작돼요.'
+          : '${state.activePet?.name ?? '마실펫'}과 함께 출발했어요.',
+      progressLabel: state.pets.isEmpty ? '0 / 1' : '1 / 1',
       progress: state.pets.isEmpty ? 0 : 1,
       unlocked: state.pets.isNotEmpty,
-      color: const Color(0xFF0F766E),
-      actionIcon: Icons.home_outlined,
       actionLabel: '하우스 보기',
       onAction: onOpenHouse,
     ),
-    _JourneyBadge(
-      icon: Icons.my_location,
+    _JourneyGoal(
       title: '위치 인증',
       body: state.hasFreshVerifiedLocation
-          ? '체크인 반경 계산이 준비됐습니다.'
-          : '현재 위치나 기본 체험 위치를 확인하세요.',
-      progressLabel: state.hasFreshVerifiedLocation ? '1/1' : '0/1',
+          ? '체크인 거리 계산이 준비됐어요.'
+          : '현재 위치나 기본 체험 위치를 확인해 주세요.',
+      progressLabel: state.hasFreshVerifiedLocation ? '1 / 1' : '0 / 1',
       progress: state.hasFreshVerifiedLocation ? 1 : 0,
       unlocked: state.hasFreshVerifiedLocation,
-      color: const Color(0xFF2563EB),
-      actionIcon: Icons.map_outlined,
       actionLabel: '위치 확인하러 가기',
       onAction: onOpenMap,
     ),
-    _JourneyBadge(
-      icon: Icons.flag_outlined,
+    _JourneyGoal(
       title: '첫 발자국',
       body: state.todayCheckInCount > 0
-          ? '오늘 첫 장소 방문이 기록됐습니다.'
-          : '150m 안의 장소에 체크인하면 열립니다.',
-      progressLabel: '${state.todayCheckInCount.clamp(0, 1)}/1',
+          ? '오늘 첫 도장이 기록됐어요.'
+          : '${checkInRadiusMeters ~/ 1}m 안의 산책지에 도장을 찍으면 열려요.',
+      progressLabel: '${state.todayCheckInCount.clamp(0, 1)} / 1',
       progress: state.todayCheckInCount > 0 ? 1 : 0,
       unlocked: state.todayCheckInCount > 0,
-      color: const Color(0xFFB45309),
-      actionIcon: Icons.place_outlined,
-      actionLabel: '지도에서 체크인하기',
+      actionLabel: '지도에서 도장 찍기',
       onAction: onOpenMap,
     ),
-    _JourneyBadge(
-      icon: Icons.forum_outlined,
+    _JourneyGoal(
       title: '장소 이야기꾼',
-      body: dialogueCountToday > 0
-          ? '방문한 장소 이야기를 마실펫에게 들려줬습니다.'
-          : '체크인 후 마실펫과 장소 맥락 대화를 나누세요.',
-      progressLabel: '${dialogueCountToday.clamp(0, 1)}/1',
-      progress: dialogueCountToday > 0 ? 1 : 0,
-      unlocked: dialogueCountToday > 0,
-      color: const Color(0xFF7C3AED),
-      actionIcon: Icons.pets_outlined,
+      body: dialogueToday > 0
+          ? '다녀온 곳 이야기를 마실펫에게 들려줬어요.'
+          : '도장을 찍은 뒤 마실펫과 이야기를 나눠보세요.',
+      progressLabel: '${dialogueToday.clamp(0, 1)} / 1',
+      progress: dialogueToday > 0 ? 1 : 0,
+      unlocked: dialogueToday > 0,
       actionLabel: '마실펫과 대화하기',
       onAction: onOpenPet,
     ),
-    _JourneyBadge(
-      icon: Icons.local_fire_department_outlined,
-      title: '연속 탐험',
+    _JourneyGoal(
+      title: '연속 산책',
       body: streakDays >= streakGoalDays
-          ? '$streakDays일째 탐험 리듬을 이어가고 있습니다.'
+          ? '$streakDays일째 리듬을 이어가고 있어요.'
           : streakDays == 0
-              ? '오늘 첫 체크인을 기록하면 연속 탐험이 시작됩니다.'
-              : '$streakDays일째입니다. ${streakGoalDays - streakDays}일 더 이어가면 3일 배지가 열립니다.',
+              ? '오늘 첫 도장을 찍으면 연속 산책이 시작돼요.'
+              : '$streakDays일째예요. ${streakGoalDays - streakDays}일만 더!',
       progressLabel: streakDays >= streakGoalDays
           ? '$streakDays일'
-          : '${streakDays.clamp(0, streakGoalDays)}/$streakGoalDays일',
-      progress: streakProgress,
+          : '${streakDays.clamp(0, streakGoalDays)} / $streakGoalDays일',
+      progress: (streakDays / streakGoalDays).clamp(0.0, 1.0).toDouble(),
       unlocked: streakDays >= streakGoalDays,
-      color: const Color(0xFFEA580C),
-      actionIcon: Icons.map_outlined,
       actionLabel: '지도에서 이어가기',
       onAction: onOpenMap,
     ),
-    _JourneyBadge(
-      icon: Icons.egg_alt_outlined,
+    _JourneyGoal(
       title: '부화 준비',
-      body: hasHatchReady
-          ? '새 마실펫을 맞이할 준비가 됐습니다.'
+      body: hatchReady
+          ? '새 친구를 맞이할 준비가 됐어요.'
           : nextEgg == null
-              ? '체크인 보상으로 알을 발견해 보세요.'
-              : '${(nextEgg.progressRatio * 100).round()}%까지 부화 진행도가 쌓였습니다.',
-      progressLabel: hasHatchReady
-          ? '완료'
-          : nextEgg == null
-              ? '0%'
-              : '${(nextEgg.progressRatio * 100).round()}%',
-      progress: hasHatchReady ? 1 : eggProgress,
-      unlocked: hasHatchReady,
-      color: const Color(0xFFDB2777),
-      actionIcon: Icons.home_outlined,
+              ? '도장 보상으로 알을 만나보세요.'
+              : '${(nextEgg.progressRatio * 100).round()}%까지 걸음이 쌓였어요.',
+      progressLabel: hatchReady ? '완료' : '${(eggProgress * 100).round()}%',
+      progress: hatchReady ? 1 : eggProgress,
+      unlocked: hatchReady,
       actionLabel: nextEgg == null ? '지도에서 알 찾기' : '하우스에서 알 보기',
       onAction: nextEgg == null ? onOpenMap : onOpenHouse,
     ),
   ];
 }
 
-_JourneyBadge? _nextLockedJourneyBadge(List<_JourneyBadge> badges) {
-  for (final badge in badges) {
-    if (!badge.unlocked) {
-      return badge;
+Set<int> _stampedDaysThisMonth(MasilPetState state, DateTime now) {
+  final days = <int>{};
+  for (final checkIn in state.checkIns) {
+    final at = checkIn.createdAt;
+    if (at.year == now.year && at.month == now.month) {
+      days.add(at.day);
     }
   }
-  return null;
+  return days;
 }
 
-String _journeyBadgeSummary(MasilPetState state, _JourneyBadge? nextBadge) {
-  if (nextBadge == null) {
-    return '오늘 핵심 탐험 배지가 모두 열렸습니다. 도감에서 다음 지역 목표를 이어갈 수 있습니다.';
+String _placeLabel(MasilPetState state, CheckIn checkIn) {
+  for (final poi in state.pois) {
+    if (poi.id == checkIn.poiId) {
+      return poi.title;
+    }
   }
-  if (state.todayCheckInCount == 0 && !state.hasFreshVerifiedLocation) {
-    return '짧은 체험 안에서도 위치 확인, 체크인, 교감, 부화 준비까지의 성취가 배지로 쌓입니다.';
-  }
-  return '다음 목표는 ${nextBadge.title}입니다. ${nextBadge.body}';
+  return '${checkIn.category.label} 산책지';
 }
 
-int _dialogueCountToday(MasilPetState state) {
-  return isSameLocalDay(state.dialogueDay, DateTime.now())
-      ? state.dialogueCountToday
-      : 0;
-}
-
-class _ExpeditionReportCard extends StatelessWidget {
-  const _ExpeditionReportCard({
-    required this.state,
-    required this.onOpenMap,
-    required this.onOpenPet,
-    required this.onOpenDex,
-  });
-
-  final MasilPetState state;
-  final VoidCallback? onOpenMap;
-  final VoidCallback? onOpenPet;
-  final VoidCallback? onOpenDex;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final latestCheckIn = _latestTodayCheckIn(state);
-    final poi =
-        latestCheckIn == null ? null : _poiForCheckIn(state, latestCheckIn);
-    final reward = latestCheckIn?.rewardApplied == true
-        ? latestCheckIn?.reward ??
-            const GrowthEngine().rewardFor(latestCheckIn!.category)
-        : null;
-    final activePet = state.activePet;
-    final nextPoi = state.nextRecommendedPoi;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.auto_awesome_outlined,
-                  color: scheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '오늘의 탐험 리포트',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (latestCheckIn == null) ...[
-              Text(
-                '첫 장소를 기록하면 오늘의 방문 장소, 보상, 함께한 마실펫이 한 장의 리포트로 정리됩니다.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      height: 1.4,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: onOpenMap,
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('첫 리포트 만들기'),
-                ),
-              ),
-            ] else ...[
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _ReportStatPill(
-                    icon: Icons.flag_outlined,
-                    label: '오늘 방문',
-                    value: '${state.todayCheckInCount}곳',
-                  ),
-                  _ReportStatPill(
-                    icon: Icons.category_outlined,
-                    label: '카테고리',
-                    value: '${state.todayVisitedCategoryCount}/7',
-                  ),
-                  _ReportStatPill(
-                    icon: Icons.pets_outlined,
-                    label: '함께한 펫',
-                    value: activePet?.name ?? '준비 중',
-                  ),
-                  _ReportStatPill(
-                    icon: Icons.local_fire_department_outlined,
-                    label: '연속 탐험',
-                    value: '${state.currentVisitStreakDays}일',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _ExpeditionScoreCard(
-                state: state,
-                checkIn: latestCheckIn,
-                poi: poi,
-                reward: reward,
-              ),
-              const SizedBox(height: 12),
-              _ReportDetailRow(
-                icon: Icons.place_outlined,
-                title: poi?.title ?? '저장된 방문 장소',
-                body:
-                    '${latestCheckIn.category.label} · ${latestCheckIn.distanceMeters.round()}m',
-              ),
-              if (reward != null) ...[
-                const SizedBox(height: 8),
-                _ReportDetailRow(
-                  icon: Icons.card_giftcard_outlined,
-                  title: '받은 보상',
-                  body: reward.summaryLabel,
-                ),
-              ],
-              if (nextPoi != null) ...[
-                const SizedBox(height: 8),
-                _ReportDetailRow(
-                  icon: Icons.near_me_outlined,
-                  title: '다음 추천',
-                  body:
-                      '${nextPoi.title} · ${nextPoi.category.label} · ${state.currentLocation.distanceTo(nextPoi.coordinates).round()}m',
-                ),
-              ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    onPressed: () {
-                      _copyExpeditionReport(context, state);
-                    },
-                    icon: const Icon(Icons.copy_outlined),
-                    label: const Text('요약 복사'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onOpenPet,
-                    icon: const Icon(Icons.forum_outlined),
-                    label: const Text('마실펫에게 들려주기'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: onOpenDex,
-                    icon: const Icon(Icons.menu_book_outlined),
-                    label: const Text('도감 목표 보기'),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
+Future<void> _copyReport(BuildContext context, MasilPetState state) async {
+  final messenger = ScaffoldMessenger.of(context);
+  try {
+    await Clipboard.setData(ClipboardData(text: _reportText(state)));
+    messenger.showSnackBar(
+      const SnackBar(content: Text('오늘의 리포트를 복사했어요.')),
+    );
+  } catch (_) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('리포트를 복사하지 못했어요.')),
     );
   }
 }
 
-class _ExpeditionScoreCard extends StatelessWidget {
-  const _ExpeditionScoreCard({
-    required this.state,
-    required this.checkIn,
-    required this.poi,
-    required this.reward,
-  });
-
-  final MasilPetState state;
-  final CheckIn checkIn;
-  final Poi? poi;
-  final CheckInReward? reward;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final score = _expeditionReportScore(state);
-    final grade = _expeditionReportGrade(score);
-    final reward = this.reward;
-    final categories = state.todayVisitedCategories.toList()
-      ..sort((left, right) => left.index.compareTo(right.index));
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: scheme.surface.withValues(alpha: 0.8),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.workspace_premium_outlined,
-                  color: scheme.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '오늘의 성과 카드',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      _expeditionReportHeadline(
-                        state: state,
-                        checkIn: checkIn,
-                        poi: poi,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                            height: 1.35,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              _ReportGradeBadge(grade: grade, score: score),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _ReportScoreTile(
-                icon: Icons.route_outlined,
-                label: '성장 루프',
-                value: '${_expeditionLoopProgress(state)}/4',
-              ),
-              _ReportScoreTile(
-                icon: Icons.menu_book_outlined,
-                label: '도감 진척',
-                value:
-                    '${state.discoveredTemplateIds.length}/${state.templates.length}',
-              ),
-              _ReportScoreTile(
-                icon: Icons.forum_outlined,
-                label: '다음 액션',
-                value: _expeditionNextActionLabel(state),
-              ),
-            ],
-          ),
-          if (categories.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final category in categories)
-                  _ReportMemoryChip(
-                    icon: _reportCategoryIcon(category),
-                    label:
-                        '${category.label} 기억 ${_todayCategoryVisitCount(state, category)}회',
-                  ),
-              ],
-            ),
-          ],
-          if (reward != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              '획득 변화 · ${reward.summaryLabel}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportGradeBadge extends StatelessWidget {
-  const _ReportGradeBadge({
-    required this.grade,
-    required this.score,
-  });
-
-  final String grade;
-  final int score;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Container(
-      width: 76,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: scheme.primary,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Text(
-            '$grade등급',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: scheme.onPrimary,
-                  fontWeight: FontWeight.w900,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$score점',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.onPrimary.withValues(alpha: 0.88),
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportScoreTile extends StatelessWidget {
-  const _ReportScoreTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Container(
-      constraints: const BoxConstraints(minWidth: 132),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: scheme.surface.withValues(alpha: 0.78),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: scheme.primary),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportMemoryChip extends StatelessWidget {
-  const _ReportMemoryChip({
-    required this.icon,
-    required this.label,
-  });
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: scheme.primary),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportStatPill extends StatelessWidget {
-  const _ReportStatPill({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      constraints: const BoxConstraints(minWidth: 112),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: scheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.14)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: scheme.primary),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-Future<void> _copyExpeditionReport(
-  BuildContext context,
-  MasilPetState state,
-) async {
-  await Clipboard.setData(
-    ClipboardData(text: _expeditionReportText(state)),
-  );
-  if (!context.mounted) {
-    return;
-  }
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('오늘의 탐험 리포트를 복사했습니다.')),
-  );
-}
-
-String _expeditionReportText(MasilPetState state) {
-  final latestCheckIn = _latestTodayCheckIn(state);
-  if (latestCheckIn == null) {
-    return 'MasilPet 오늘의 탐험 리포트\n아직 오늘의 체크인이 없습니다. 지도에서 첫 장소를 기록해 보세요.';
+String _reportText(MasilPetState state) {
+  final latest = state.todayCheckIns.firstOrNull;
+  if (latest == null) {
+    return 'MasilPet 오늘의 리포트\n아직 오늘의 도장이 없습니다. 지도에서 첫 산책지를 기록해 보세요.';
   }
 
-  final poi = _poiForCheckIn(state, latestCheckIn);
-  final reward = latestCheckIn.rewardApplied
-      ? latestCheckIn.reward ??
-          const GrowthEngine().rewardFor(latestCheckIn.category)
+  final reward = latest.rewardApplied
+      ? latest.reward ?? const GrowthEngine().rewardFor(latest.category)
       : null;
   final activePet = state.activePet;
   final nextPoi = state.nextRecommendedPoi;
   final categories =
       state.todayVisitedCategories.map((category) => category.label).join(', ');
-  final score = _expeditionReportScore(state);
+  final score = _reportScore(state);
 
   return [
-    'MasilPet 오늘의 탐험 리포트',
-    '성과 등급: ${_expeditionReportGrade(score)} · $score점',
-    '성장 루프: ${_expeditionLoopProgress(state)}/4',
-    '오늘의 한 줄: ${_expeditionReportHeadline(state: state, checkIn: latestCheckIn, poi: poi)}',
+    'MasilPet 오늘의 리포트',
+    '성과 등급: ${_reportGrade(score)} · $score점',
+    '성장 루프: ${_loopProgress(state)}/4',
     '방문 ${state.todayCheckInCount}곳 · 카테고리 ${state.todayVisitedCategoryCount}/7',
-    '연속 탐험: ${state.currentVisitStreakDays}일 · 최장 ${state.longestVisitStreakDays}일',
-    '최근 장소: ${poi?.title ?? '저장된 방문 장소'} (${latestCheckIn.category.label}, ${latestCheckIn.distanceMeters.round()}m)',
-    if (categories.isNotEmpty) '기록한 카테고리: $categories',
+    '연속 산책: ${state.currentVisitStreakDays}일 · 최장 ${state.longestVisitStreakDays}일',
+    '최근 장소: ${_placeLabel(state, latest)} '
+        '(${latest.category.label}, ${latest.distanceMeters.round()}m)',
+    if (categories.isNotEmpty) '기록한 분류: $categories',
     if (reward != null) '받은 보상: ${reward.summaryLabel}',
     if (activePet != null) '함께한 마실펫: ${activePet.name} Lv.${activePet.level}',
     if (nextPoi != null)
-      '다음 추천: ${nextPoi.title} (${nextPoi.category.label}, ${state.currentLocation.distanceTo(nextPoi.coordinates).round()}m)',
+      '다음 추천: ${nextPoi.title} (${nextPoi.category.label}, '
+          '${state.currentLocation.distanceTo(nextPoi.coordinates).round()}m)',
   ].join('\n');
 }
 
-int _expeditionReportScore(MasilPetState state) {
+int _reportScore(MasilPetState state) {
   var score = 0;
   if (state.todayCheckInCount > 0) {
     score += 28;
@@ -1341,7 +1081,7 @@ int _expeditionReportScore(MasilPetState state) {
   return score.clamp(0, 100).toInt();
 }
 
-String _expeditionReportGrade(int score) {
+String _reportGrade(int score) {
   if (score >= 90) {
     return 'S';
   }
@@ -1354,7 +1094,7 @@ String _expeditionReportGrade(int score) {
   return 'C';
 }
 
-int _expeditionLoopProgress(MasilPetState state) {
+int _loopProgress(MasilPetState state) {
   var progress = 0;
   if (state.todayCheckInCount > 0) {
     progress++;
@@ -1371,1032 +1111,28 @@ int _expeditionLoopProgress(MasilPetState state) {
   return progress;
 }
 
-String _expeditionNextActionLabel(MasilPetState state) {
-  if (_dialogueCountToday(state) == 0) {
-    return '대화 연결';
-  }
-  if (state.hatchableEggCount > 0) {
-    return '부화 가능';
-  }
-  return '다음 POI';
+int _dialogueCountToday(MasilPetState state) {
+  return isSameLocalDay(state.dialogueDay, DateTime.now())
+      ? state.dialogueCountToday
+      : 0;
 }
 
-String _expeditionReportHeadline({
-  required MasilPetState state,
-  required CheckIn checkIn,
-  required Poi? poi,
-}) {
-  final petName = state.activePet?.name ?? '마실펫';
-  final placeName = poi?.title ?? '저장된 방문 장소';
-  return '$placeName의 ${checkIn.category.label} 기억이 $petName의 성장과 다음 도감 목표로 이어졌습니다.';
+int _daysSince(DateTime value) {
+  final days = DateTime.now().difference(value).inDays;
+  return days < 0 ? 0 : days;
 }
 
-int _todayCategoryVisitCount(MasilPetState state, PoiCategory category) {
-  return state.todayCheckIns
-      .where((checkIn) => checkIn.category == category)
-      .length;
-}
-
-IconData _reportCategoryIcon(PoiCategory category) {
-  return switch (category) {
-    PoiCategory.nature => Icons.park_outlined,
-    PoiCategory.food => Icons.restaurant_outlined,
-    PoiCategory.festival => Icons.celebration_outlined,
-    PoiCategory.culture => Icons.theater_comedy_outlined,
-    PoiCategory.history => Icons.account_balance_outlined,
-    PoiCategory.shopping => Icons.storefront_outlined,
-    PoiCategory.other => Icons.place_outlined,
-  };
-}
-
-CheckIn? _latestTodayCheckIn(MasilPetState state) {
-  final today = [...state.todayCheckIns];
-  if (today.isEmpty) {
-    return null;
-  }
-  today.sort((left, right) => right.createdAt.compareTo(left.createdAt));
-  return today.first;
-}
-
-Poi? _poiForCheckIn(MasilPetState state, CheckIn checkIn) {
-  for (final poi in state.pois) {
-    if (poi.id == checkIn.poiId) {
-      return poi;
-    }
-  }
-  return null;
-}
-
-class _ReportDetailRow extends StatelessWidget {
-  const _ReportDetailRow({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 18, color: scheme.primary),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                body,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      height: 1.35,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileAdaptiveSliverList extends StatelessWidget {
-  const _ProfileAdaptiveSliverList({
-    required this.children,
-    required this.primaryCount,
-    required this.secondaryStartIndex,
-  });
-
-  static const double _wideBreakpoint = 840.0;
-
-  final List<Widget> children;
-  final int primaryCount;
-  final int secondaryStartIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverToBoxAdapter(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1040),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < _wideBreakpoint) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 5,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: children.take(primaryCount).toList(),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 4,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: children.skip(secondaryStartIndex).toList(),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _VisitJournalCard extends StatelessWidget {
-  const _VisitJournalCard({
-    required this.state,
-    required this.onOpenMap,
-  });
-
-  final MasilPetState state;
-  final VoidCallback? onOpenMap;
-
-  @override
-  Widget build(BuildContext context) {
-    final recent = state.recentCheckIns.take(3).toList();
-    final poiById = {for (final poi in state.pois) poi.id: poi};
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.history_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '방문 기록',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-                Text(
-                  '${state.checkIns.length}회',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            if (recent.isEmpty) ...[
-              Text(
-                '아직 기록된 체크인이 없습니다. 지도에서 첫 장소를 방문하면 여기에 여정이 쌓입니다.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: onOpenMap,
-                  icon: const Icon(Icons.map_outlined),
-                  label: const Text('지도에서 체크인하기'),
-                ),
-              ),
-            ] else ...[
-              for (final (index, checkIn) in recent.indexed) ...[
-                _VisitJournalTile(
-                  checkIn: checkIn,
-                  poi: poiById[checkIn.poiId],
-                ),
-                if (index < recent.length - 1)
-                  const Divider(height: 18, thickness: 1),
-              ],
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _VisitJournalTile extends StatelessWidget {
-  const _VisitJournalTile({
-    required this.checkIn,
-    required this.poi,
-  });
-
-  final CheckIn checkIn;
-  final Poi? poi;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final title = poi?.title ?? '저장된 방문 장소';
-    final reward = checkIn.rewardApplied
-        ? checkIn.reward ?? const GrowthEngine().rewardFor(checkIn.category)
-        : null;
-    final description = [
-      _formatVisitTime(checkIn.createdAt),
-      '${checkIn.distanceMeters.round()}m',
-      if (checkIn.rewardApplied) '보상 적용',
-    ].join(' · ');
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color:
-                _journalCategoryColor(checkIn.category).withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            _journalCategoryIcon(checkIn.category),
-            color: _journalCategoryColor(checkIn.category),
-            size: 19,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _JournalCategoryPill(category: checkIn.category),
-                ],
-              ),
-              const SizedBox(height: 3),
-              Text(
-                description,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-              if (reward != null) ...[
-                const SizedBox(height: 8),
-                RewardChipRow(reward: reward),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _JournalCategoryPill extends StatelessWidget {
-  const _JournalCategoryPill({required this.category});
-
-  final PoiCategory category;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = _journalCategoryColor(category);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        category.label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-      ),
-    );
-  }
-}
-
-IconData _journalCategoryIcon(PoiCategory category) {
-  return switch (category) {
-    PoiCategory.nature => Icons.park_outlined,
-    PoiCategory.food => Icons.restaurant_outlined,
-    PoiCategory.festival => Icons.celebration_outlined,
-    PoiCategory.culture => Icons.theater_comedy_outlined,
-    PoiCategory.history => Icons.account_balance_outlined,
-    PoiCategory.shopping => Icons.storefront_outlined,
-    PoiCategory.other => Icons.place_outlined,
-  };
-}
-
-Color _journalCategoryColor(PoiCategory category) {
-  return switch (category) {
-    PoiCategory.nature => const Color(0xFF0F766E),
-    PoiCategory.food => const Color(0xFFF97316),
-    PoiCategory.festival => const Color(0xFFDB2777),
-    PoiCategory.culture => const Color(0xFF2563EB),
-    PoiCategory.history => const Color(0xFF7C3AED),
-    PoiCategory.shopping => const Color(0xFFB45309),
-    PoiCategory.other => const Color(0xFF64748B),
-  };
-}
-
-String _formatVisitTime(DateTime value) {
+String _relativeDayLabel(DateTime value) {
   final now = DateTime.now();
-  final local = value.toLocal();
-  final time = '${_twoDigits(local.hour)}:${_twoDigits(local.minute)}';
-  if (isSameLocalDay(local, now)) {
-    return '오늘 $time';
-  }
-  final yesterday = now.subtract(const Duration(days: 1));
-  if (isSameLocalDay(local, yesterday)) {
-    return '어제 $time';
-  }
-  return '${local.month}월 ${local.day}일 $time';
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(value.year, value.month, value.day);
+  final difference = today.difference(day).inDays;
+  final time = '${_twoDigits(value.hour)}:${_twoDigits(value.minute)}';
+  return switch (difference) {
+    <= 0 => '오늘 · $time',
+    1 => '어제 · $time',
+    _ => '${_twoDigits(value.month)}.${_twoDigits(value.day)} · $time',
+  };
 }
 
 String _twoDigits(int value) => value.toString().padLeft(2, '0');
-
-class _ProfileActionsCard extends StatelessWidget {
-  const _ProfileActionsCard({
-    required this.firebaseReady,
-    required this.useDeviceLocation,
-    required this.useStarterLocation,
-    required this.ensureRemoteUserBootstrap,
-    required this.refreshRemoteProgress,
-  });
-
-  final bool firebaseReady;
-  final VoidCallback? useDeviceLocation;
-  final VoidCallback? useStarterLocation;
-  final VoidCallback? ensureRemoteUserBootstrap;
-  final VoidCallback? refreshRemoteProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '빠른 작업',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: useDeviceLocation,
-                icon: const Icon(Icons.my_location),
-                label: const Text('현재 위치 사용'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final stackButtons = constraints.maxWidth < 360;
-                final starterButton = OutlinedButton.icon(
-                  onPressed: useStarterLocation,
-                  icon: const Icon(Icons.location_city_outlined),
-                  label: Text(
-                    firebaseReady ? '전국 기본 지도 보기' : '기본 위치로 체험',
-                  ),
-                );
-                final refreshButton = OutlinedButton.icon(
-                  onPressed: refreshRemoteProgress,
-                  icon: const Icon(Icons.cloud_sync_outlined),
-                  label: const Text('새로고침'),
-                );
-
-                if (stackButtons) {
-                  return Column(
-                    children: [
-                      SizedBox(width: double.infinity, child: starterButton),
-                      const SizedBox(height: 8),
-                      SizedBox(width: double.infinity, child: refreshButton),
-                    ],
-                  );
-                }
-
-                return Row(
-                  children: [
-                    Expanded(child: starterButton),
-                    const SizedBox(width: 8),
-                    Expanded(child: refreshButton),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: ensureRemoteUserBootstrap,
-                icon: const Icon(Icons.verified_user_outlined),
-                label: const Text('계정 상태 확인'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PrivacyCard extends StatelessWidget {
-  const _PrivacyCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.privacy_tip_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '위치·개인정보 보호',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '현재 위치는 주변 장소 조회와 150m 체크인 판정에 사용됩니다. 체크인은 최근 15분 안에 확인한 위치에서만 가능하며, 체크인·부화·성장 기록은 Functions를 거쳐 저장합니다.',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '개인정보 처리방침: /privacy.html',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () => _openPrivacyPolicy(context),
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('개인정보 처리방침 열기'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openPrivacyPolicy(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final opened = await openPrivacyPolicyPage();
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('개인정보 처리방침을 열 수 없습니다.')),
-      );
-    }
-  }
-}
-
-class _DataSourceCard extends StatelessWidget {
-  const _DataSourceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.dataset_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '데이터·지도 출처',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const _SourceRow(
-              icon: Icons.travel_explore_outlined,
-              title: 'TourAPI 지역 장소',
-              detail: '전국 POI와 카테고리를 운영자 동기화로 반영합니다.',
-            ),
-            const SizedBox(height: 8),
-            const _SourceRow(
-              icon: Icons.map_outlined,
-              title: 'OpenStreetMap 지도',
-              detail: '지도 타일과 저작권 고지는 지도 화면에 표시됩니다.',
-            ),
-            const SizedBox(height: 8),
-            _SourceRow(
-              icon: Icons.layers_outlined,
-              title: '지도 타일 설정',
-              detail:
-                  '${mapTileBuildConfig.providerLabel} · 요청 식별자 ${mapTileBuildConfig.userAgentLabel}',
-            ),
-            const SizedBox(height: 8),
-            const _SourceRow(
-              icon: Icons.verified_user_outlined,
-              title: 'Firebase Functions 검증',
-              detail: '150m 체크인, 중복 방지, 보상 지급을 서버에서 처리합니다.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SourceRow extends StatelessWidget {
-  const _SourceRow({
-    required this.icon,
-    required this.title,
-    required this.detail,
-  });
-
-  final IconData icon;
-  final String title;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: scheme.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: scheme.primary, size: 18),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                detail,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProgressManagementCard extends StatelessWidget {
-  const _ProgressManagementCard({
-    required this.state,
-    required this.onReset,
-  });
-
-  final MasilPetState state;
-  final VoidCallback onReset;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.manage_accounts_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '진행도 관리',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              state.firebaseReady
-                  ? '초기화하면 기기 내 진행과 온라인 진행도를 함께 지웁니다.'
-                  : '현재는 기기 내 진행만 초기화할 수 있습니다.',
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: state.isBusy ? null : onReset,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: scheme.error,
-                  side: BorderSide(
-                    color: scheme.error.withValues(alpha: 0.72),
-                  ),
-                ),
-                icon: const Icon(Icons.delete_forever_outlined),
-                label: const Text('진행도 초기화'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// Kept as a compact internal diagnostics view for maintenance builds.
-// ignore: unused_element
-class _LaunchReadinessCard extends ConsumerWidget {
-  const _LaunchReadinessCard({required this.state});
-
-  final MasilPetState state;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final score = state.launchReadinessScore;
-    final controller = ref.read(masilPetControllerProvider.notifier);
-    final coreLoopCount = _readinessCoreLoopCount(state);
-    final nextAction = _readinessNextAction(state, controller);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.rocket_launch_outlined,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '탐험 준비 상태',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                ),
-                Text(
-                  '$score%',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                minHeight: 8,
-                value: score / 100,
-                backgroundColor: const Color(0xFFE2E8F0),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _ReadinessSummaryLine(
-              icon: Icons.route_outlined,
-              label: '오늘의 탐험 루프',
-              value: '$coreLoopCount/3단계',
-              passed: coreLoopCount == 3,
-            ),
-            const SizedBox(height: 6),
-            _ReadinessSummaryLine(
-              icon: state.firebaseReady
-                  ? Icons.cloud_done_outlined
-                  : Icons.cloud_off_outlined,
-              label: '배포 동기화',
-              value: state.firebaseReady
-                  ? '연결 완료'
-                  : state.firebaseStartupIssue.profileLabel,
-              passed: state.firebaseReady,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _readinessSummaryText(state, coreLoopCount),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF475569),
-                    height: 1.35,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _ReadinessChip(
-                  passed: state.firebaseReady,
-                  label: '온라인 동기화',
-                ),
-                _ReadinessChip(
-                  passed: state.todayCheckInCount > 0,
-                  label: '체크인 기록',
-                ),
-                _ReadinessChip(
-                  passed: state.pets.isNotEmpty,
-                  label: '펫 보유',
-                ),
-                _ReadinessChip(
-                  passed: state.eggs.isNotEmpty || state.pets.length > 1,
-                  label: '부화 루프',
-                ),
-              ],
-            ),
-            if (nextAction != null) ...[
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: state.isBusy ? null : nextAction.onPressed,
-                  icon: Icon(nextAction.icon),
-                  label: Text(nextAction.label),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ReadinessSummaryLine extends StatelessWidget {
-  const _ReadinessSummaryLine({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.passed,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool passed;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = passed ? const Color(0xFF16A34A) : const Color(0xFF64748B);
-    final textTheme = Theme.of(context).textTheme;
-
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 3,
-          child: Text(
-            label,
-            style: textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF334155),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          flex: 4,
-          child: Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: textTheme.labelLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReadinessAction {
-  const _ReadinessAction({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-}
-
-int _readinessCoreLoopCount(MasilPetState state) {
-  var count = 0;
-  if (state.todayCheckInCount > 0) {
-    count++;
-  }
-  if (state.pets.isNotEmpty) {
-    count++;
-  }
-  if (state.eggs.isNotEmpty || state.pets.length > 1) {
-    count++;
-  }
-  return count;
-}
-
-String _readinessSummaryText(MasilPetState state, int coreLoopCount) {
-  if (state.firebaseReady && coreLoopCount == 3) {
-    return '온라인 저장까지 연결되어 오늘의 탐험 기록이 안정적으로 이어집니다.';
-  }
-  if (!state.firebaseReady && coreLoopCount == 3) {
-    return '체크인·펫 보유·부화 루프가 기기 내 진행으로 이어지고 있습니다.';
-  }
-  if (coreLoopCount >= 2) {
-    return '남은 체크포인트를 따라가면 오늘의 탐험 루프를 완성할 수 있습니다.';
-  }
-  return '지도 체크인부터 시작하면 핵심 탐험 루프가 순서대로 열립니다.';
-}
-
-_ReadinessAction? _readinessNextAction(
-  MasilPetState state,
-  MasilPetController controller,
-) {
-  if (state.todayCheckInCount == 0) {
-    return _ReadinessAction(
-      icon: Icons.map_outlined,
-      label: '지도에서 체크인하기',
-      onPressed: () => controller.setTab(0),
-    );
-  }
-
-  if (state.pets.isEmpty) {
-    return _ReadinessAction(
-      icon: Icons.home_outlined,
-      label: '하우스에서 알 보기',
-      onPressed: () => controller.setTab(2),
-    );
-  }
-
-  final hasTalkedToday = _dialogueCountToday(state) > 0;
-  if (!hasTalkedToday) {
-    return _ReadinessAction(
-      icon: Icons.forum_outlined,
-      label: '마실펫 돌보기',
-      onPressed: () => controller.setTab(1),
-    );
-  }
-
-  return null;
-}
-
-class _ReadinessChip extends StatelessWidget {
-  const _ReadinessChip({
-    required this.passed,
-    required this.label,
-  });
-
-  final bool passed;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = passed ? const Color(0xFF16A34A) : const Color(0xFF64748B);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            passed ? Icons.check_circle : Icons.radio_button_unchecked,
-            size: 15,
-            color: color,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              textAlign: TextAlign.end,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

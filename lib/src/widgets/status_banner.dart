@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state.dart';
 import '../theme.dart';
+import 'paper_kit.dart';
 
+/// The margin note that reports what the app is doing — a monospaced tag and
+/// one plain sentence, never an alert box.
 class StatusBanner extends ConsumerWidget {
   const StatusBanner({super.key});
 
@@ -12,12 +15,10 @@ class StatusBanner extends ConsumerWidget {
     final state = ref.watch(masilPetControllerProvider);
     final message = state.statusMessage;
     final displayMessage = _friendlyStatusMessage(message);
-    final scheme = Theme.of(context).colorScheme;
-    final presentation = _StatusBannerPresentation.resolve(
+    final tone = _statusTone(
       message: message,
       isBusy: state.isBusy,
       firebaseReady: state.firebaseReady,
-      scheme: scheme,
     );
 
     return Semantics(
@@ -25,69 +26,28 @@ class StatusBanner extends ConsumerWidget {
       liveRegion: true,
       label: displayMessage,
       child: ExcludeSemantics(
-        child: AnimatedContainer(
-          duration: MasilPetMotion.fast,
-          curve: Curves.easeOutCubic,
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: MasilPetSpacing.md,
-            vertical: 11,
-          ),
-          decoration: BoxDecoration(
-            color: presentation.backgroundColor,
-            borderRadius: MasilPetRadii.panelBorder,
-            border: Border.all(
-              color: presentation.borderColor,
-              width: 1.15,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: presentation.foregroundColor.withValues(alpha: 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
+        child: DashedBox(
+          color: tone.rule,
+          fill: MasilPetPalette.subtle,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: presentation.foregroundColor.withValues(alpha: 0.11),
-                  borderRadius: MasilPetRadii.smallBorder,
-                  border: Border.all(
-                    color: presentation.foregroundColor.withValues(alpha: 0.15),
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  tone.label,
+                  style: MasilPetType.eyebrow.copyWith(color: tone.ink),
                 ),
-                child: state.isBusy
-                    ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          color: presentation.foregroundColor,
-                        ),
-                      )
-                    : Icon(
-                        presentation.icon,
-                        size: 19,
-                        color: presentation.foregroundColor,
-                      ),
               ),
-              const SizedBox(width: MasilPetSpacing.sm),
+              const SizedBox(width: 12),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(
-                    displayMessage,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: presentation.textColor,
-                          fontWeight: FontWeight.w700,
-                          height: 1.35,
-                        ),
+                child: Text(
+                  displayMessage,
+                  style: MasilPetType.bodySmall.copyWith(
+                    fontSize: 13.5,
+                    height: 1.5,
+                    color: MasilPetPalette.inkSoft,
                   ),
                 ),
               ),
@@ -119,142 +79,102 @@ String _friendlyStatusMessage(String message) {
   return message;
 }
 
-enum _StatusTone {
-  progress,
-  success,
-  warning,
-  error,
-  online,
-  offline,
-}
-
-class _StatusBannerPresentation {
-  const _StatusBannerPresentation({
-    required this.icon,
-    required this.backgroundColor,
-    required this.borderColor,
-    required this.foregroundColor,
-    required this.textColor,
+class _StatusTone {
+  const _StatusTone({
+    required this.label,
+    required this.ink,
+    required this.rule,
   });
 
-  final IconData icon;
-  final Color backgroundColor;
-  final Color borderColor;
-  final Color foregroundColor;
-  final Color textColor;
+  final String label;
+  final Color ink;
+  final Color rule;
 
-  static _StatusBannerPresentation resolve({
-    required String message,
-    required bool isBusy,
-    required bool firebaseReady,
-    required ColorScheme scheme,
-  }) {
-    final tone = _toneFor(
-      message: message,
-      isBusy: isBusy,
-      firebaseReady: firebaseReady,
-    );
+  static const progress = _StatusTone(
+    label: '동기화 중',
+    ink: MasilPetPalette.forest,
+    rule: MasilPetPalette.forestPale,
+  );
+  static const success = _StatusTone(
+    label: '완료',
+    ink: MasilPetPalette.forest,
+    rule: MasilPetPalette.forestPale,
+  );
+  static const warning = _StatusTone(
+    label: '확인 필요',
+    ink: MasilPetPalette.statSatiety,
+    rule: MasilPetPalette.sunDeep,
+  );
+  static const error = _StatusTone(
+    label: '실패',
+    ink: MasilPetPalette.stamp,
+    rule: MasilPetPalette.stampPale,
+  );
+  static const online = _StatusTone(
+    label: '연결됨',
+    ink: MasilPetPalette.forest,
+    rule: MasilPetPalette.forestPale,
+  );
+  static const offline = _StatusTone(
+    label: '이 기기에 저장',
+    ink: MasilPetPalette.mutedWarm,
+    rule: MasilPetPalette.outline,
+  );
+}
 
-    return switch (tone) {
-      _StatusTone.progress => const _StatusBannerPresentation(
-          icon: Icons.sync,
-          backgroundColor: MasilPetPalette.mintPale,
-          borderColor: MasilPetPalette.mint,
-          foregroundColor: MasilPetPalette.leaf,
-          textColor: MasilPetPalette.ink,
-        ),
-      _StatusTone.success => const _StatusBannerPresentation(
-          icon: Icons.check_circle_outline,
-          backgroundColor: MasilPetPalette.mintPale,
-          borderColor: MasilPetPalette.mint,
-          foregroundColor: MasilPetPalette.success,
-          textColor: MasilPetPalette.ink,
-        ),
-      _StatusTone.warning => const _StatusBannerPresentation(
-          icon: Icons.info_outline,
-          backgroundColor: MasilPetPalette.sunPale,
-          borderColor: MasilPetPalette.sun,
-          foregroundColor: MasilPetPalette.warning,
-          textColor: Color(0xFF654719),
-        ),
-      _StatusTone.error => const _StatusBannerPresentation(
-          icon: Icons.error_outline,
-          backgroundColor: Color(0xFFFDE7E4),
-          borderColor: Color(0xFFF2B5AD),
-          foregroundColor: MasilPetPalette.danger,
-          textColor: Color(0xFF6D2525),
-        ),
-      _StatusTone.online => const _StatusBannerPresentation(
-          icon: Icons.cloud_done,
-          backgroundColor: MasilPetPalette.mintPale,
-          borderColor: MasilPetPalette.mint,
-          foregroundColor: MasilPetPalette.leaf,
-          textColor: MasilPetPalette.ink,
-        ),
-      _StatusTone.offline => _StatusBannerPresentation(
-          icon: Icons.offline_bolt,
-          backgroundColor: MasilPetPalette.paper,
-          borderColor: scheme.outlineVariant,
-          foregroundColor: scheme.primary,
-          textColor: MasilPetPalette.mutedInk,
-        ),
-    };
+_StatusTone _statusTone({
+  required String message,
+  required bool isBusy,
+  required bool firebaseReady,
+}) {
+  if (isBusy) {
+    return _StatusTone.progress;
   }
 
-  static _StatusTone _toneFor({
-    required String message,
-    required bool isBusy,
-    required bool firebaseReady,
-  }) {
-    if (isBusy) {
-      return _StatusTone.progress;
-    }
-
-    if (_containsAny(message, const [
-      '실패',
-      '못했습니다',
-      '거부',
-      '꺼져',
-      '허용해야',
-      '만족하지 못했습니다',
-      '가져오지 못했습니다',
-    ])) {
-      return _StatusTone.error;
-    }
-
-    if (message.contains('기기 내 진행으로 시작')) {
-      return _StatusTone.offline;
-    }
-
-    if (_containsAny(message, const [
-      '완료',
-      '반영했습니다',
-      '준비되었습니다',
-      '불러왔습니다',
-      '변경했습니다',
-      '초기화했습니다',
-      '시작합니다',
-    ])) {
-      return _StatusTone.success;
-    }
-
-    if (_containsAny(message, const [
-      '다시 확인',
-      '150m 안',
-      '이미',
-      '모두 사용',
-      '필요합니다',
-      '아직',
-      '잠시 후',
-      '연결 후',
-    ])) {
-      return _StatusTone.warning;
-    }
-
-    return firebaseReady ? _StatusTone.online : _StatusTone.offline;
+  if (_containsAny(message, const [
+    '실패',
+    '못했습니다',
+    '거부',
+    '꺼져',
+    '허용해야',
+    '만족하지 못했습니다',
+    '가져오지 못했습니다',
+  ])) {
+    return _StatusTone.error;
   }
 
-  static bool _containsAny(String message, List<String> needles) {
-    return needles.any(message.contains);
+  if (message.contains('기기 내 진행으로 시작')) {
+    return _StatusTone.offline;
   }
+
+  if (_containsAny(message, const [
+    '완료',
+    '반영했습니다',
+    '준비되었습니다',
+    '불러왔습니다',
+    '변경했습니다',
+    '초기화했습니다',
+    '시작합니다',
+  ])) {
+    return _StatusTone.success;
+  }
+
+  if (_containsAny(message, const [
+    '다시 확인',
+    '150m 안',
+    '이미',
+    '모두 사용',
+    '필요합니다',
+    '아직',
+    '잠시 후',
+    '연결 후',
+  ])) {
+    return _StatusTone.warning;
+  }
+
+  return firebaseReady ? _StatusTone.online : _StatusTone.offline;
+}
+
+bool _containsAny(String message, List<String> needles) {
+  return needles.any(message.contains);
 }

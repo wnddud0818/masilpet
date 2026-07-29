@@ -1,170 +1,86 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import 'paper_kit.dart';
 
+/// A serif section heading with an optional monospaced counter on the right.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     required this.title,
     this.detail,
-    this.icon,
     super.key,
   });
 
   final String title;
   final String? detail;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tokens = context.masilPetTheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: MasilPetSpacing.md),
-      child: Row(
-        children: [
-          if (icon != null) ...[
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: tokens.mint.withValues(alpha: 0.72),
-                borderRadius: MasilPetRadii.smallBorder,
-                border: Border.all(
-                  color: scheme.primary.withValues(alpha: 0.16),
-                ),
-              ),
-              child: Icon(icon, size: 18, color: scheme.primary),
+    final detail = this.detail;
+    return SectionTitleRow(
+      title: title,
+      trailing: detail == null
+          ? null
+          : Text(
+              detail,
+              style: MasilPetType.metaMono,
             ),
-            const SizedBox(width: MasilPetSpacing.sm),
-          ] else ...[
-            Container(
-              width: 4,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: MasilPetPalette.leaf,
-                borderRadius: MasilPetRadii.pillBorder,
-              ),
-            ),
-            const SizedBox(width: MasilPetSpacing.sm),
-          ],
-          Expanded(
-            child: Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: tokens.ink,
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-          ),
-          if (detail != null) ...[
-            const SizedBox(width: MasilPetSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: MasilPetSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHigh,
-                borderRadius: MasilPetRadii.pillBorder,
-                border: Border.all(color: tokens.outline),
-              ),
-              child: Text(
-                detail!,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: tokens.mutedInk,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
 
+/// The "nothing here yet" note: a dashed callout in the page's own voice.
 class EmptyStateCard extends StatelessWidget {
   const EmptyStateCard({
-    required this.icon,
     required this.title,
     required this.body,
+    this.note,
     this.actionLabel,
-    this.actionIcon,
     this.onAction,
     super.key,
   });
 
-  final IconData icon;
   final String title;
   final String body;
+  final String? note;
   final String? actionLabel;
-  final IconData? actionIcon;
   final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tokens = context.masilPetTheme;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(MasilPetSpacing.lg),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    tokens.mint,
-                    MasilPetPalette.sunPale,
-                  ],
+    final actionLabel = this.actionLabel;
+    final onAction = this.onAction;
+
+    return DashedBox(
+      fill: MasilPetPalette.subtle,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (note != null) ...[
+            HandNote(note!),
+            const SizedBox(height: MasilPetSpacing.xs),
+          ],
+          Text(title, style: MasilPetType.sectionTitle),
+          const SizedBox(height: MasilPetSpacing.xxs),
+          Text(body, style: MasilPetType.bodySmall),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: MasilPetSpacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: PaperButton.ghost(
+                label: actionLabel,
+                onPressed: onAction,
+                expand: false,
+                fontSize: 14,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 10,
                 ),
-                borderRadius: MasilPetRadii.controlBorder,
-                border: Border.all(color: tokens.outline, width: 1.1),
-                boxShadow: MasilPetShadows.soft,
-              ),
-              child: Icon(icon, color: scheme.primary),
-            ),
-            const SizedBox(width: MasilPetSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: tokens.ink,
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  const SizedBox(height: MasilPetSpacing.xxs),
-                  Text(
-                    body,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: tokens.mutedInk,
-                        ),
-                  ),
-                  if (actionLabel != null && onAction != null) ...[
-                    const SizedBox(height: MasilPetSpacing.md),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: onAction,
-                        icon: Icon(actionIcon ?? Icons.arrow_forward),
-                        label: Text(actionLabel!),
-                      ),
-                    ),
-                  ],
-                ],
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

@@ -132,6 +132,32 @@ const supportedKoreaRegions = <Region>[
   ),
 ];
 
+/// The two-letter form used on filter pills and dex cards
+/// ('부산광역시' → '부산', '충청북도' → '충북').
+String shortRegionLabelForId(String regionId) {
+  return switch (regionId) {
+    'korea' => '전국',
+    'seoul' => '서울',
+    'incheon' => '인천',
+    'busan' => '부산',
+    'daegu' => '대구',
+    'gwangju' => '광주',
+    'daejeon' => '대전',
+    'ulsan' => '울산',
+    'sejong' => '세종',
+    'gyeonggi' => '경기',
+    'gangwon' => '강원',
+    'chungbuk' => '충북',
+    'chungnam' => '충남',
+    'gyeongbuk' => '경북',
+    'gyeongnam' => '경남',
+    'jeonbuk' => '전북',
+    'jeonnam' => '전남',
+    'jeju' => '제주',
+    _ => regionNameForId(regionId),
+  };
+}
+
 String regionNameForId(String regionId) {
   if (regionId == koreaRegion.id) {
     return koreaRegion.name;

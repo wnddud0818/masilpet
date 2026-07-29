@@ -33,6 +33,23 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: GowunBatang
+      fonts:
+        - asset: assets/fonts/GowunBatang-Regular.ttf
+        - asset: assets/fonts/GowunBatang-Bold.ttf
+          weight: 700
+    - family: GowunDodum
+      fonts:
+        - asset: assets/fonts/GowunDodum-Regular.ttf
+    - family: NanumPenScript
+      fonts:
+        - asset: assets/fonts/NanumPenScript-Regular.ttf
+    - family: IBMPlexMono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+        - asset: assets/fonts/IBMPlexMono-SemiBold.ttf
+          weight: 600
   assets:
     - assets/pets/autumn_leaf_sprite/actions/
     - assets/pets/autumn_leaf_sprite/emotions/

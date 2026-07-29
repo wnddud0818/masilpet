@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../pet_assets.dart';
+import '../theme.dart';
 
 enum PetPlayFieldScene {
   seasidePark,
@@ -24,6 +25,9 @@ class PetPlayField extends StatefulWidget {
     this.spriteScale = 1.0,
     this.showVisitors = true,
     this.onPetTap,
+    this.onKickBall,
+    this.onFillBowl,
+    this.bowlFilled = false,
     super.key,
   }) : assert(spriteScale > 0);
 
@@ -38,6 +42,15 @@ class PetPlayField extends StatefulWidget {
   final double spriteScale;
   final bool showVisitors;
   final ValueChanged<String>? onPetTap;
+
+  /// Kicking the ball sends everyone running — wire it to play.
+  final VoidCallback? onKickBall;
+
+  /// Filling the bowl is the yard's shortcut to feeding.
+  final VoidCallback? onFillBowl;
+
+  /// Whether the bowl already has food in it today.
+  final bool bowlFilled;
 
   @override
   State<PetPlayField> createState() => _PetPlayFieldState();
@@ -132,13 +145,10 @@ class _PetPlayFieldState extends State<PetPlayField>
       label: _playFieldSemanticsLabel(playmates),
       child: ClipRRect(
         borderRadius: borderRadius,
+        // The frame belongs to the card this field sits in, so the yard itself
+        // draws edge to edge.
         child: DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-            borderRadius: borderRadius,
-          ),
+          decoration: BoxDecoration(borderRadius: borderRadius),
           child: SizedBox(
             height: widget.height,
             width: double.infinity,
@@ -180,6 +190,21 @@ class _PetPlayFieldState extends State<PetPlayField>
                             activeActivity: _displayActivity,
                             spriteScale: widget.spriteScale,
                             onTap: widget.onPetTap,
+                          ),
+                        if (widget.onKickBall != null)
+                          Positioned(
+                            left: constraints.maxWidth * 0.66,
+                            bottom: constraints.maxHeight * 0.16,
+                            child: _YardBall(onKick: widget.onKickBall!),
+                          ),
+                        if (widget.onFillBowl != null)
+                          Positioned(
+                            right: constraints.maxWidth * 0.09,
+                            bottom: constraints.maxHeight * 0.11,
+                            child: _YardBowl(
+                              filled: widget.bowlFilled,
+                              onFill: widget.onFillBowl!,
+                            ),
                           ),
                       ],
                     );
@@ -466,10 +491,12 @@ class _PlayPetState extends State<_PlayPet> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     boxShadow: [
+                      // The soft olive pool a sprite casts on the lawn.
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.13),
-                        blurRadius: 16,
-                        offset: Offset(0, 7 + pose.shadowLift),
+                        color: const Color(0xFF46583C).withValues(alpha: 0.22),
+                        blurRadius: 10,
+                        spreadRadius: -6,
+                        offset: Offset(0, size * 0.42 + pose.shadowLift),
                       ),
                     ],
                   ),
@@ -804,42 +831,54 @@ class _ActivityCue extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bob = math.sin(t * math.pi * 8) * 4;
-    final icon = switch (activity) {
-      PetFieldActivity.eating => Icons.restaurant,
-      PetFieldActivity.greeting => Icons.waving_hand,
-      PetFieldActivity.jumping => Icons.star_rounded,
-      PetFieldActivity.walking => Icons.directions_walk,
-      PetFieldActivity.sleeping => Icons.bedtime,
-      PetFieldActivity.idle => Icons.circle,
+    // The design speaks in glyphs, not icons: ♥ for food, ✦ for play, ○ for a
+    // bath, ♪ for a hello.
+    final glyph = switch (activity) {
+      PetFieldActivity.eating => '♥',
+      PetFieldActivity.greeting => '♪',
+      PetFieldActivity.jumping => '✦',
+      PetFieldActivity.walking => '·',
+      PetFieldActivity.sleeping => 'z',
+      PetFieldActivity.idle => '·',
     };
     final color = switch (activity) {
-      PetFieldActivity.eating => const Color(0xFFF97316),
-      PetFieldActivity.greeting => const Color(0xFF0F766E),
-      PetFieldActivity.jumping => const Color(0xFFF59E0B),
-      PetFieldActivity.walking => const Color(0xFF2563EB),
-      PetFieldActivity.sleeping => const Color(0xFF6366F1),
-      PetFieldActivity.idle => const Color(0xFF64748B),
+      PetFieldActivity.eating => MasilPetPalette.stamp,
+      PetFieldActivity.greeting => MasilPetPalette.forest,
+      PetFieldActivity.jumping => MasilPetPalette.statSatiety,
+      PetFieldActivity.walking => MasilPetPalette.mutedWarm,
+      PetFieldActivity.sleeping => MasilPetPalette.statClean,
+      PetFieldActivity.idle => const Color(0xFF7E9184),
     };
 
     return Positioned(
-      right: -size * 0.02,
-      top: -size * 0.08 + bob,
+      right: -size * 0.04,
+      top: -size * 0.1 + bob,
       child: Container(
         width: size * 0.28,
         height: size * 0.28,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.94),
-          shape: BoxShape.circle,
-          border: Border.all(color: color, width: 2),
-          boxShadow: [
+          color: MasilPetPalette.paper,
+          border: Border.all(color: MasilPetPalette.ink, width: 1.5),
+          borderRadius: MasilPetRadii.smallBorder,
+          boxShadow: const [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Color(0x383C2D19),
+              blurRadius: 0,
+              offset: Offset(2, 2),
             ),
           ],
         ),
-        child: Icon(icon, color: color, size: size * 0.16),
+        // Decorative: the pet's own semantics already describe what it is up to.
+        child: ExcludeSemantics(
+          child: Text(
+            glyph,
+            style: MasilPetType.rowTitle.copyWith(
+              fontSize: size * 0.15,
+              color: color,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -871,22 +910,170 @@ class _PlayEgg extends StatelessWidget {
         child: Container(
           width: size,
           height: size * 1.12,
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(size),
-            border: Border.all(color: const Color(0xFFF59E0B), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.11),
-                blurRadius: 12,
-                offset: const Offset(0, 8),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFF3E6C8), Color(0xFFE2CFA4)],
+            ),
+            border: Border.all(color: const Color(0xFFC2A97B), width: 1.5),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(size),
+              topRight: Radius.circular(size),
+              bottomLeft: Radius.circular(size * 0.9),
+              bottomRight: Radius.circular(size * 0.9),
+            ),
+          ),
+          child: Text(
+            '?',
+            style: MasilPetType.hand.copyWith(
+              fontSize: size * 0.52,
+              color: const Color(0xFFB09A6E),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The ball in the yard. Kicking it is the shortcut to playing with everyone.
+class _YardBall extends StatefulWidget {
+  const _YardBall({required this.onKick});
+
+  final VoidCallback onKick;
+
+  @override
+  State<_YardBall> createState() => _YardBallState();
+}
+
+class _YardBallState extends State<_YardBall>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 620),
+      vsync: this,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _kick() {
+    // `@keyframes ballHop` — two bounces, then rest.
+    _controller
+      ..reset()
+      ..repeat(count: 2);
+    widget.onKick();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '공 차기',
+      child: GestureDetector(
+        onTap: _kick,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final phase = _controller.value;
+            final lift = phase < 0.3
+                ? phase / 0.3 * 26
+                : phase < 0.55
+                    ? (1 - (phase - 0.3) / 0.25) * 26
+                    : phase < 0.78
+                        ? (phase - 0.55) / 0.23 * 10
+                        : (1 - (phase - 0.78) / 0.22) * 10;
+            return Transform.translate(
+              offset: Offset(0, -lift),
+              child: child,
+            );
+          },
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFF1E4C6),
+              border: Border.all(color: MasilPetPalette.ink, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: MasilPetPalette.stamp.withValues(alpha: 0.28),
+                  blurRadius: 0,
+                  spreadRadius: -5,
+                  offset: const Offset(-5, -5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The food bowl. Filling it feeds whoever is out in the yard.
+class _YardBowl extends StatelessWidget {
+  const _YardBowl({required this.filled, required this.onFill});
+
+  final bool filled;
+  final VoidCallback onFill;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: filled ? '밥그릇 · 이미 채웠어요' : '밥그릇 채우기',
+      child: GestureDetector(
+        onTap: onFill,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 40,
+          height: 23,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD8A45A),
+                    border: Border.all(
+                      color: const Color(0xFF8E6224),
+                      width: 1.5,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(2),
+                      topRight: Radius.circular(2),
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 4,
+                right: 4,
+                top: 3,
+                height: 7,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: filled
+                        ? const Color(0xFFA8763A)
+                        : const Color(0x2E785A2D),
+                    borderRadius: MasilPetRadii.pillBorder,
+                  ),
+                ),
               ),
             ],
-          ),
-          child: Icon(
-            Icons.egg_alt,
-            color: const Color(0xFFB45309),
-            size: size * 0.58,
           ),
         ),
       ),
@@ -913,17 +1100,17 @@ class _PlayFieldPainter extends CustomPainter {
   void _paintSeasidePark(Canvas canvas, Size size) {
     final sky = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFFE0F2FE), Color(0xFFF0FDFA)],
+        colors: [Color(0xFFE7EDE2), Color(0xFFEAF1E7)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Offset.zero & size);
     canvas.drawRect(Offset.zero & size, sky);
 
-    final sun = Paint()..color = const Color(0xFFFBBF24);
-    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.18), 30, sun);
+    final sun = Paint()..color = const Color(0xFFF6C85F);
+    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.18), 24, sun);
 
     final sea = Paint()
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.34);
+      ..color = const Color(0xFF60929E).withValues(alpha: 0.24);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(0, size.height * 0.36, size.width, size.height * 0.16),
@@ -933,7 +1120,7 @@ class _PlayFieldPainter extends CustomPainter {
     );
 
     final wavePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.72)
+      ..color = const Color(0xFFFBF6EA).withValues(alpha: 0.72)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     for (var i = 0; i < 4; i++) {
@@ -948,7 +1135,7 @@ class _PlayFieldPainter extends CustomPainter {
 
     final grass = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFFBBF7D0), Color(0xFF4ADE80)],
+        colors: [Color(0xFFD6E2C9), Color(0xFFB9CFA9)],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(
@@ -959,7 +1146,7 @@ class _PlayFieldPainter extends CustomPainter {
       grass,
     );
 
-    final hillPaint = Paint()..color = const Color(0xFF86EFAC);
+    final hillPaint = Paint()..color = const Color(0xFFBCCEB1);
     canvas.drawOval(
       Rect.fromLTWH(-size.width * 0.18, size.height * 0.46, size.width * 0.7,
           size.height * 0.34),
@@ -968,10 +1155,10 @@ class _PlayFieldPainter extends CustomPainter {
     canvas.drawOval(
       Rect.fromLTWH(size.width * 0.42, size.height * 0.43, size.width * 0.78,
           size.height * 0.38),
-      Paint()..color = const Color(0xFF6EE7B7),
+      Paint()..color = const Color(0xFFAAC09E),
     );
 
-    final pathPaint = Paint()..color = const Color(0xFFFDE68A);
+    final pathPaint = Paint()..color = const Color(0xFFE7D6AE);
     final path = Path()
       ..moveTo(size.width * 0.44, size.height)
       ..cubicTo(
@@ -999,308 +1186,295 @@ class _PlayFieldPainter extends CustomPainter {
     _drawFlowers(canvas, size);
   }
 
+  /// 우리 마당 — sky over hills, a paling fence at the horizon, and a lawn of
+  /// dry-brush grass, all in the notebook's parchment palette.
   void _paintNeighborhoodYard(Canvas canvas, Size size) {
-    final sky = Paint()
+    final ground = Paint()
       ..shader = const LinearGradient(
-        colors: [Color(0xFFFFF7ED), Color(0xFFD9F99D), Color(0xFFF8FAFC)],
-        stops: [0, 0.54, 1],
+        colors: [
+          Color(0xFFEAF1E7),
+          Color(0xFFE3EDE0),
+          Color(0xFFD6E2C9),
+          Color(0xFFC6D8B7),
+          Color(0xFFB9CFA9),
+        ],
+        stops: [0, 0.31, 0.32, 0.68, 1],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, sky);
+    canvas.drawRect(Offset.zero & size, ground);
 
-    final sun = Paint()..color = const Color(0xFFFCD34D);
-    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.16), 26, sun);
+    // Low sun with two haloes.
+    final sunCenter = Offset(size.width * 0.9, size.height * 0.12);
+    canvas.drawCircle(
+      sunCenter,
+      30,
+      Paint()..color = const Color(0x33F6C85F),
+    );
+    canvas.drawCircle(
+      sunCenter,
+      25,
+      Paint()..color = const Color(0x55F6C85F),
+    );
+    canvas.drawCircle(sunCenter, 21, Paint()..color = const Color(0xFFF6C85F));
+    canvas.drawCircle(
+      sunCenter,
+      21,
+      Paint()
+        ..color = const Color(0xFFE0AE3E)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
 
-    _drawNeighborhoodHouse(
-      canvas,
+    _drawYardCloud(canvas, size, offset: t, scale: 1);
+    _drawYardCloud(canvas, size, offset: (t * 0.68 + 0.45) % 1, scale: 0.72);
+
+    // Two domes of distant hills.
+    canvas.drawOval(
       Rect.fromLTWH(
-        size.width * 0.08,
+        -size.width * 0.1,
+        size.height * 0.13,
+        size.width * 0.56,
+        size.height * 0.38,
+      ),
+      Paint()..color = const Color(0xFFBCCEB1),
+    );
+    canvas.drawOval(
+      Rect.fromLTWH(
+        size.width * 0.34,
         size.height * 0.17,
-        size.width * 0.35,
-        size.height * 0.29,
+        size.width * 0.48,
+        size.height * 0.3,
       ),
-      isPrimary: true,
-    );
-    _drawNeighborhoodHouse(
-      canvas,
-      Rect.fromLTWH(
-        size.width * 0.58,
-        size.height * 0.2,
-        size.width * 0.3,
-        size.height * 0.24,
-      ),
-      isPrimary: false,
+      Paint()..color = const Color(0xFFAAC09E),
     );
 
-    final wallTop = size.height * 0.41;
-    final wallPaint = Paint()..color = const Color(0xFFF5E6C8);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(-8, wallTop, size.width + 16, size.height * 0.12),
-        const Radius.circular(12),
-      ),
-      wallPaint,
-    );
-    final wallLine = Paint()
-      ..color = const Color(0xFFE0C89D)
-      ..strokeWidth = 2;
-    for (var x = -8.0; x < size.width + 16; x += 44) {
+    // The horizon, ruled in dashes like everything else in the notebook.
+    final horizonPaint = Paint()
+      ..color = const Color(0xFFA2B792)
+      ..strokeWidth = 1;
+    for (var x = 0.0; x < size.width; x += 7) {
       canvas.drawLine(
-          Offset(x, wallTop + 8), Offset(x, wallTop + 34), wallLine);
-    }
-    canvas.drawLine(
-      Offset(0, wallTop + size.height * 0.12),
-      Offset(size.width, wallTop + size.height * 0.12),
-      wallLine,
-    );
-
-    final yard = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFA7F3D0), Color(0xFF34D399)],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(
-        Rect.fromLTWH(0, size.height * 0.5, size.width, size.height * 0.5),
+        Offset(x, size.height * 0.32),
+        Offset(x + 4, size.height * 0.32),
+        horizonPaint,
       );
+    }
+
+    // Paling fence.
+    final palePaint = Paint()..color = const Color(0xFFCDB88E);
+    final paleTop = size.height * 0.29;
+    for (var x = 0.0; x < size.width; x += 27) {
+      canvas.drawRect(Rect.fromLTWH(x, paleTop, 4, 28), palePaint);
+    }
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * 0.5, size.width, size.height * 0.5),
-      yard,
+      Rect.fromLTWH(0, size.height * 0.31, size.width, 2.5),
+      palePaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.345, size.width, 2.5),
+      palePaint,
     );
 
-    final matPaint = Paint()..color = const Color(0xFFFDE68A);
-    final yardPath = Path()
-      ..moveTo(size.width * 0.42, size.height)
-      ..cubicTo(
-        size.width * 0.32,
-        size.height * 0.84,
-        size.width * 0.45,
-        size.height * 0.7,
-        size.width * 0.43,
-        size.height * 0.53,
-      )
-      ..lineTo(size.width * 0.57, size.height * 0.53)
-      ..cubicTo(
-        size.width * 0.61,
-        size.height * 0.7,
-        size.width * 0.72,
-        size.height * 0.84,
-        size.width * 0.62,
-        size.height,
-      )
-      ..close();
-    canvas.drawPath(yardPath, matPaint);
-
-    final stonePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.52)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    for (var i = 0; i < 5; i++) {
-      final y = size.height * (0.58 + i * 0.08);
-      final width = size.width * (0.12 + i * 0.02);
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(size.width * (0.5 + math.sin(i) * 0.03), y),
-          width: width,
-          height: 12,
-        ),
-        stonePaint,
+    // Dry-brush grass.
+    final grassPaint = Paint()
+      ..color = const Color(0x268CA478)
+      ..strokeWidth = 1;
+    for (var x = 0.0; x < size.width; x += 26) {
+      canvas.drawLine(
+        Offset(x, size.height * 0.32),
+        Offset(x, size.height),
+        grassPaint,
       );
     }
 
-    _drawYardPlanter(
+    _drawYardHouse(canvas, size);
+    _drawTree(canvas, size, Offset(size.width * 0.06, size.height * 0.44), 1);
+    _drawTree(
       canvas,
-      Offset(size.width * 0.13, size.height * 0.65),
-      1.0,
+      size,
+      Offset(size.width * 0.92, size.height * 0.46),
+      0.78,
     );
-    _drawYardPlanter(
-      canvas,
-      Offset(size.width * 0.88, size.height * 0.67),
-      0.82,
-    );
+    _drawYardStones(canvas, size);
     _drawYardFlowers(canvas, size);
+    _drawYardButterfly(canvas, size);
   }
 
-  void _drawNeighborhoodHouse(
+  void _drawYardCloud(
     Canvas canvas,
-    Rect body, {
-    required bool isPrimary,
+    Size size, {
+    required double offset,
+    required double scale,
   }) {
-    final wall = Paint()
-      ..color = isPrimary ? const Color(0xFFFFEDD5) : const Color(0xFFE0F2FE);
-    final wallShadow = Paint()
-      ..color = const Color(0xFF334155).withValues(alpha: 0.08);
+    final paint = Paint()..color = const Color(0xFFFCF9F1);
+    final x = -size.width * 0.3 + (size.width * 1.5) * offset;
+    final y = size.height * (scale > 0.9 ? 0.09 : 0.18);
+    final width = 76 * scale;
+    final height = 19 * scale;
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        body.shift(const Offset(0, 5)),
-        const Radius.circular(8),
+        Rect.fromLTWH(x, y, width, height),
+        Radius.circular(height),
       ),
-      wallShadow,
+      paint,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(body, const Radius.circular(8)),
-      wall,
+    canvas.drawOval(
+      Rect.fromLTWH(x + 14 * scale, y - 12 * scale, 34 * scale, 25 * scale),
+      paint,
     );
-
-    final roofHeight = body.height * 0.38;
-    final roof = Path()
-      ..moveTo(body.left - body.width * 0.08, body.top + roofHeight * 0.35)
-      ..quadraticBezierTo(
-        body.center.dx,
-        body.top - roofHeight * 0.55,
-        body.right + body.width * 0.08,
-        body.top + roofHeight * 0.35,
-      )
-      ..lineTo(body.right, body.top + roofHeight)
-      ..lineTo(body.left, body.top + roofHeight)
-      ..close();
-    canvas.drawPath(roof, Paint()..color = const Color(0xFFB45309));
-
-    final tileLine = Paint()
-      ..color = const Color(0xFF7C2D12).withValues(alpha: 0.34)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    for (var i = 0; i < 4; i++) {
-      final y = body.top + roofHeight * (0.42 + i * 0.15);
-      final path = Path()..moveTo(body.left + body.width * 0.05, y);
-      path.quadraticBezierTo(
-          body.center.dx, y - 9, body.right - body.width * 0.05, y);
-      canvas.drawPath(path, tileLine);
-    }
-
-    final door = Rect.fromLTWH(
-      body.left + body.width * 0.42,
-      body.top + body.height * 0.52,
-      body.width * 0.16,
-      body.height * 0.34,
+    canvas.drawOval(
+      Rect.fromLTWH(x + 41 * scale, y - 6 * scale, 23 * scale, 19 * scale),
+      paint,
     );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(door, const Radius.circular(6)),
-      Paint()..color = const Color(0xFF92400E),
-    );
-
-    final windowPaint = Paint()..color = const Color(0xFFBAE6FD);
-    final windowStroke = Paint()
-      ..color = Colors.white.withValues(alpha: 0.82)
-      ..strokeWidth = 2;
-    for (final dx in [0.18, 0.68]) {
-      final window = Rect.fromLTWH(
-        body.left + body.width * dx,
-        body.top + body.height * 0.48,
-        body.width * 0.16,
-        body.height * 0.16,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(window, const Radius.circular(4)),
-        windowPaint,
-      );
-      canvas.drawLine(window.centerLeft, window.centerRight, windowStroke);
-      canvas.drawLine(window.topCenter, window.bottomCenter, windowStroke);
-    }
   }
 
-  void _drawYardPlanter(Canvas canvas, Offset base, double scale) {
-    final planter = Rect.fromCenter(
-      center: base,
-      width: 86 * scale,
-      height: 24 * scale,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(planter, Radius.circular(8 * scale)),
-      Paint()..color = const Color(0xFFB45309),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        planter.deflate(4 * scale),
-        Radius.circular(6 * scale),
-      ),
-      Paint()..color = const Color(0xFF78350F),
+  /// The little house in the corner: red roof, cream walls, one dark door.
+  void _drawYardHouse(Canvas canvas, Size size) {
+    final left = size.width * 0.06;
+    final bottom = size.height * 0.91;
+    const bodyWidth = 54.0;
+    const bodyHeight = 31.0;
+    final bodyTop = bottom - bodyHeight;
+
+    final roof = Path()
+      ..moveTo(left + 32, bodyTop - 21)
+      ..lineTo(left + 64, bodyTop)
+      ..lineTo(left, bodyTop)
+      ..close();
+    canvas.drawPath(roof, Paint()..color = const Color(0xFFB23A2E));
+
+    final body = Rect.fromLTWH(left + 5, bodyTop, bodyWidth, bodyHeight);
+    canvas.drawRect(body, Paint()..color = const Color(0xFFE7D6AE));
+    canvas.drawRect(
+      body,
+      Paint()
+        ..color = const Color(0xFFC2A97B)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
     );
 
-    final leafColors = [
-      const Color(0xFF16A34A),
-      const Color(0xFF22C55E),
-      const Color(0xFF15803D),
+    final door = RRect.fromRectAndCorners(
+      Rect.fromLTWH(left + 23, bottom - 22, 19, 22),
+      topLeft: const Radius.circular(10),
+      topRight: const Radius.circular(10),
+    );
+    canvas.drawRRect(door, Paint()..color = const Color(0xFF6E5B3E));
+  }
+
+  void _drawYardStones(Canvas canvas, Size size) {
+    final stones = <(double, double, double, double, Color)>[
+      (0.44, 0.96, 0.09, 0.05, const Color(0xFFCFC6AE)),
+      (0.53, 0.87, 0.075, 0.04, const Color(0xFFD5CCB5)),
+      (0.45, 0.78, 0.065, 0.034, const Color(0xFFCFC6AE)),
     ];
-    for (var i = 0; i < 7; i++) {
-      final x = planter.left + planter.width * (0.12 + i * 0.13);
-      final y = planter.top - (i.isEven ? 9 : 15) * scale;
+    for (final (x, y, width, height, color) in stones) {
       canvas.drawOval(
         Rect.fromCenter(
-          center: Offset(x, y),
-          width: 18 * scale,
-          height: 28 * scale,
+          center: Offset(size.width * x, size.height * y),
+          width: size.width * width,
+          height: size.height * height,
         ),
-        Paint()..color = leafColors[i % leafColors.length],
+        Paint()..color = color,
       );
     }
+  }
+
+  void _drawYardButterfly(Canvas canvas, Size size) {
+    // `@keyframes flutter` — a slow figure-eight over the lawn.
+    final phase = t * math.pi * 2;
+    final center = Offset(
+      size.width * 0.24 + math.sin(phase) * 34,
+      size.height * 0.46 + math.sin(phase * 2) * 16,
+    );
+    final wing = Paint()..color = const Color(0xFFE8A5B4);
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: 9, height: 7),
+      wing,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: center + const Offset(6, 2),
+        width: 8,
+        height: 6,
+      ),
+      wing,
+    );
   }
 
   void _drawYardFlowers(Canvas canvas, Size size) {
     final stem = Paint()
-      ..color = const Color(0xFF047857)
-      ..strokeWidth = 2;
-    final colors = [
-      const Color(0xFFF43F5E),
-      const Color(0xFFF59E0B),
-      const Color(0xFF38BDF8),
-      const Color(0xFFA855F7),
+      ..color = const Color(0xFF6F8F64)
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    const blooms = <(double, double, Color)>[
+      (0.20, 0.92, Color(0xFFD98BA0)),
+      (0.31, 0.74, Color(0xFFE8C25E)),
+      (0.58, 0.94, Color(0xFFC97FB0)),
+      (0.74, 0.70, Color(0xFFD98BA0)),
+      (0.88, 0.60, Color(0xFFE8C25E)),
+      (0.08, 0.66, Color(0xFFC97FB0)),
     ];
 
-    for (var i = 0; i < 18; i++) {
-      final leftSide = i.isEven;
-      final x = size.width *
-          (leftSide ? 0.04 + (i * 0.031) % 0.22 : 0.74 + (i * 0.027) % 0.22);
-      final y = size.height * (0.73 + (i % 4) * 0.045);
-      canvas.drawLine(Offset(x, y + 8), Offset(x, y - 5), stem);
+    for (final (x, y, color) in blooms) {
+      final base = Offset(size.width * x, size.height * y);
+      canvas.drawLine(base, base.translate(0, -11), stem);
       canvas.drawCircle(
-        Offset(x, y - 8),
-        4,
-        Paint()..color = colors[i % colors.length],
+        base.translate(0, -14),
+        4.5,
+        Paint()..color = color,
       );
     }
   }
 
+  /// A round shrub-tree that leans with the breeze.
   void _drawTree(Canvas canvas, Size size, Offset root, double scale) {
-    final trunk = Paint()..color = const Color(0xFFA16207);
-    final leaves = Paint()..color = const Color(0xFF16A34A);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(root.dx - 5 * scale, root.dy, 10 * scale, 42 * scale),
-        Radius.circular(4 * scale),
+    // `@keyframes sway` — the whole crown tips a couple of degrees.
+    final lean = math.sin(t * math.pi * 2) * 0.03;
+    canvas.save();
+    canvas.translate(root.dx, root.dy + 34 * scale);
+    canvas.rotate(lean);
+    canvas.translate(-root.dx, -(root.dy + 34 * scale));
+
+    canvas.drawRect(
+      Rect.fromLTWH(root.dx - 4 * scale, root.dy, 8 * scale, 34 * scale),
+      Paint()..color = const Color(0xFF8E6C48),
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: root.translate(0, -12 * scale),
+        width: 48 * scale,
+        height: 44 * scale,
       ),
-      trunk,
+      Paint()..color = const Color(0xFF6F9166),
     );
-    canvas.drawCircle(root + Offset(0, -6 * scale), 28 * scale, leaves);
-    canvas.drawCircle(
-      root + Offset(-20 * scale, 4 * scale),
-      20 * scale,
-      Paint()..color = const Color(0xFF22C55E),
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: root.translate(-2 * scale, -30 * scale),
+        width: 35 * scale,
+        height: 33 * scale,
+      ),
+      Paint()..color = const Color(0xFF80A476),
     );
-    canvas.drawCircle(
-      root + Offset(20 * scale, 7 * scale),
-      22 * scale,
-      Paint()..color = const Color(0xFF15803D),
-    );
+    canvas.restore();
   }
 
   void _drawFlowers(Canvas canvas, Size size) {
     final stem = Paint()
-      ..color = const Color(0xFF15803D)
+      ..color = const Color(0xFF6F8F64)
       ..strokeWidth = 2;
-    final colors = [
-      const Color(0xFFF97316),
-      const Color(0xFFEC4899),
-      const Color(0xFF8B5CF6),
-      const Color(0xFFFACC15),
+    const colors = [
+      Color(0xFFD98BA0),
+      Color(0xFFE8C25E),
+      Color(0xFFC97FB0),
     ];
 
-    for (var i = 0; i < 16; i++) {
-      final x = size.width * (0.08 + (i * 0.057) % 0.84);
-      final y = size.height * (0.75 + (i % 3) * 0.055);
+    for (var i = 0; i < 12; i++) {
+      final x = size.width * (0.08 + (i * 0.075) % 0.84);
+      final y = size.height * (0.78 + (i % 3) * 0.05);
       canvas.drawLine(Offset(x, y + 8), Offset(x, y - 5), stem);
       canvas.drawCircle(
-        Offset(x, y - 7),
+        Offset(x, y - 8),
         4,
         Paint()..color = colors[i % colors.length],
       );

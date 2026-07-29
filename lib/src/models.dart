@@ -329,6 +329,20 @@ String rarityDisplayLabel(String rarity) {
   }
 }
 
+/// How a pet is addressed out loud. Korean adds 이 when the name ends in a
+/// consonant (해랑 → 해랑이) and leaves it off when it ends in a vowel (누비).
+String petCallName(String name) {
+  if (name.isEmpty) {
+    return name;
+  }
+  final code = name.codeUnitAt(name.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) {
+    return name;
+  }
+  final hasFinalConsonant = (code - 0xAC00) % 28 != 0;
+  return hasFinalConsonant ? '$name이' : name;
+}
+
 class Pet {
   const Pet({
     required this.id,

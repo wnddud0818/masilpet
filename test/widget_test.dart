@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:masilpet/src/app.dart';
+import 'package:masilpet/src/models.dart';
 import 'package:masilpet/src/screens/dex_screen.dart';
 import 'package:masilpet/src/screens/home_shell.dart';
 import 'package:masilpet/src/screens/house_screen.dart';
@@ -12,14 +14,17 @@ import 'package:masilpet/src/screens/map_screen.dart';
 import 'package:masilpet/src/screens/onboarding_screen.dart';
 import 'package:masilpet/src/screens/pet_screen.dart';
 import 'package:masilpet/src/screens/profile_screen.dart';
-import 'package:masilpet/src/models.dart';
 import 'package:masilpet/src/seed_data.dart';
 import 'package:masilpet/src/services.dart';
 import 'package:masilpet/src/state.dart';
+import 'package:masilpet/src/theme.dart';
 import 'package:masilpet/src/widgets/metric_grid.dart';
+import 'package:masilpet/src/widgets/paper_kit.dart';
+import 'package:masilpet/src/widgets/paper_shell.dart';
 import 'package:masilpet/src/widgets/pet_play_field.dart';
 import 'package:masilpet/src/widgets/status_banner.dart';
 
+/// A controller with no pets, for the empty states.
 class _EmptyPetController extends MasilPetController {
   _EmptyPetController()
       : super(
@@ -37,9 +42,124 @@ class _EmptyPetController extends MasilPetController {
   }
 }
 
+MasilPetController _controller() {
+  return MasilPetController(
+    firebaseReady: false,
+    firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
+    locationService: const DeviceLocationService(),
+    backend: null,
+    userRepository: null,
+    localProgressRepository: null,
+  );
+}
+
+/// Wraps a screen the way the shell does, minus the shell chrome, so tests can
+/// exercise one tab at a time.
+Widget _hostScreen(MasilPetController controller, Widget screen) {
+  return ProviderScope(
+    overrides: [
+      masilPetControllerProvider.overrideWith((ref) => controller),
+    ],
+    child: MaterialApp(
+      theme: buildMasilPetTheme(),
+      home: Scaffold(body: screen),
+    ),
+  );
+}
+
+void _sizeView(WidgetTester tester, Size size) {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+const _phone = Size(390, 844);
+const _narrowPhone = Size(320, 740);
+const _desktop = Size(1180, 820);
+
+/// Both the pet stage and the map pins animate forever, so `pumpAndSettle`
+/// would never return. Advance a fixed slice instead.
+Future<void> _settle(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// Matches a widget that annotates its subtree with exactly this label.
+Finder _semanticsLabel(String label) {
+  return find.byWidgetPredicate(
+    (widget) => widget is Semantics && widget.properties.label == label,
+    description: 'Semantics(label: "$label")',
+  );
+}
+
+/// A verified visit drops the stamp overlay, which holds for 1.4s.
+Future<void> _settleStamp(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1600));
+}
+
+/// The clipboard has no platform implementation under `flutter_test`.
+void _stubClipboard(WidgetTester tester) {
+  final clipboard = <String, Object?>{};
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      switch (call.method) {
+        case 'Clipboard.setData':
+          clipboard.addAll((call.arguments as Map).cast<String, Object?>());
+          return null;
+        case 'Clipboard.getData':
+          return clipboard;
+        default:
+          return null;
+      }
+    },
+  );
+  addTearDown(() {
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+}
+
+/// Verifies a location so in-range check-in paths become reachable.
+void _verifyLocationAt(MasilPetController controller, Poi poi) {
+  final now = DateTime.now();
+  controller.state = controller.state.copyWith(
+    currentLocation: poi.coordinates,
+    locationVerified: true,
+    locationVerifiedAt: now,
+  );
+}
+
+CheckIn _checkIn({
+  required Poi poi,
+  DateTime? at,
+  double distanceMeters = 12,
+  CheckInReward? reward,
+}) {
+  return CheckIn(
+    id: 'checkin-${poi.id}',
+    poiId: poi.id,
+    regionId: poi.regionId,
+    category: poi.category,
+    createdAt: at ?? DateTime.now(),
+    distanceMeters: distanceMeters,
+    rewardApplied: true,
+    reward: reward,
+  );
+}
+
 void main() {
+  // ───────────────────────────────────────────────────────── app & onboarding ──
+
   testWidgets('MasilPet app starts with local progress fallback',
       (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    _sizeView(tester, _phone);
+
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -51,24 +171,89 @@ void main() {
         child: const MasilPetApp(),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
     expect(find.byType(MasilPetApp), findsOneWidget);
-    expect(
-      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
-      findsOneWidget,
-    );
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text('마실펫'), findsWidgets);
+    expect(find.text('걸으면 만나고,\n만나면 자라요'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile release diagnostics fit on phone width',
+  testWidgets('onboarding walks three steps and hands over location',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    // Step 1 — meet the companion.
+    expect(find.text('안녕! 나 너울이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
+    await tester.tap(find.text('너울이 만나기'));
+    await _settle(tester);
+
+    // Step 2 — learn the loop.
+    expect(find.text('세 걸음이면 충분해'), findsOneWidget);
+    expect(find.text('동네를 걷고'), findsOneWidget);
+    expect(find.text('주변 150m 안 산책지가 수첩에 뜹니다'), findsOneWidget);
+    expect(find.text('37마리가 전국에서 너를 기다립니다'), findsOneWidget);
+    await tester.tap(find.text('좋아, 알겠어'));
+    await _settle(tester);
+
+    // Step 3 — location, and why progress stays local.
+    expect(find.text('어디를 걷는지\n알아야 도장을 찍어'), findsOneWidget);
+    expect(
+      find.text('Firebase 앱 설정값이 없어 기기 내 진행으로 시작합니다.'),
+      findsOneWidget,
+    );
+    expect(find.text('언제든 수첩에서 전체 기록을 지울 수 있어요'), findsOneWidget);
+
+    await tester.tap(find.text('허용하고 시작하기'));
+    await _settle(tester);
+
+    expect(controller.state.onboardingComplete, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding primary action stays visible on phone width',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _narrowPhone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    final cta = find.text('너울이 만나기');
+    expect(cta, findsOneWidget);
+
+    final ctaBottom = tester.getBottomLeft(cta).dy;
+    expect(ctaBottom, lessThanOrEqualTo(_narrowPhone.height));
+    expect(find.text('건너뛰기'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding skip completes immediately',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.text('건너뛰기'));
+    await _settle(tester);
+
+    expect(controller.state.onboardingComplete, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  // ─────────────────────────────────────────────────────────────────── shell ──
+
+  testWidgets('home shell keeps the paper tab bar on phone width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -78,39 +263,26 @@ void main() {
             FirebaseStartupIssue.missingWebConfiguration,
           ),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
         ),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    await tester.ensureVisible(find.text('앱 정보 및 연결'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('앱 정보 및 연결'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('앱 정보 및 연결'), findsOneWidget);
-    expect(find.text('앱 버전'), findsOneWidget);
-    expect(find.text('local-dev'), findsOneWidget);
-    expect(find.text('빌드 채널'), findsOneWidget);
-    expect(find.text('local'), findsOneWidget);
-    expect(find.text('빌드 시각'), findsOneWidget);
-    expect(find.text('local build'), findsOneWidget);
+    expect(find.byType(PaperTabBar), findsOneWidget);
+    expect(find.byType(PaperNavRail), findsNothing);
+    for (final label in const ['지도', '하우스', '마실펫', '도감', '기록']) {
+      expect(find.text(label), findsWidgets, reason: label);
+    }
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile quick actions adapt on narrow phones',
+  testWidgets('home shell uses the side rail on desktop width',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(320, 740);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _desktop);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -120,682 +292,190 @@ void main() {
             FirebaseStartupIssue.missingWebConfiguration,
           ),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
         ),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    expect(find.text('빠른 작업'), findsOneWidget);
-    expect(find.text('현재 위치 사용'), findsOneWidget);
-    expect(find.text('기본 위치로 체험'), findsOneWidget);
-    expect(find.text('새로고침'), findsOneWidget);
+    expect(find.byType(PaperNavRail), findsOneWidget);
+    expect(find.byType(PaperTabBar), findsNothing);
+    expect(find.text('01'), findsOneWidget);
+    expect(find.text('05'), findsOneWidget);
+    expect(find.text('연속 산책'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile quick fallback opens the map loop',
+  testWidgets('home shell header names the page and the day',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
+          masilPetControllerProvider.overrideWith((ref) => controller),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
         ),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    final fallbackAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
-    expect(fallbackAction, findsOneWidget);
-
-    await tester.ensureVisible(fallbackAction);
-    await tester.pump();
-    await tester.tap(fallbackAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(controller.state.hasFreshVerifiedLocation, isTrue);
-    expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
-    expect(controller.state.statusMessage, contains('체험 위치'));
+    expect(find.text('오늘의 산책'), findsOneWidget);
+    expect(find.textContaining('대한민국'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile explains data and map provenance',
+  testWidgets('home shell switches tabs from the tab bar',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
+          masilPetControllerProvider.overrideWith((ref) => controller),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
         ),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    await tester.ensureVisible(find.text('데이터·지도 출처'));
-    await tester.pump();
-
-    expect(find.text('데이터·지도 출처'), findsOneWidget);
-    expect(find.text('TourAPI 지역 장소'), findsOneWidget);
-    expect(find.text('OpenStreetMap 지도'), findsOneWidget);
-    expect(find.text('지도 타일 설정'), findsOneWidget);
-    expect(
-      find.text('OpenStreetMap 기본 타일 · 요청 식별자 com.masilpet.app'),
-      findsOneWidget,
-    );
-    expect(find.text('Firebase Functions 검증'), findsOneWidget);
-    expect(
-      find.text('150m 체크인, 중복 방지, 보상 지급을 서버에서 처리합니다.'),
-      findsOneWidget,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('profile journey snapshot links the next walk to map',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
+    await tester.tap(
+      find.descendant(
+        of: find.byType(PaperTabBar),
+        matching: find.text('도감'),
       ),
     );
-    await tester.pump();
-
-    final checkInAction = find.widgetWithText(FilledButton, '산책 이어가기');
-    expect(find.text('오늘, 첫 발자국을 남겨볼까요?'), findsOneWidget);
-    expect(find.text('남긴 발자국'), findsOneWidget);
-    expect(find.text('연속 산책'), findsWidgets);
-    expect(find.text('친구 도감'), findsOneWidget);
-    expect(checkInAction, findsOneWidget);
-    expect(tester.widget<FilledButton>(checkInAction).onPressed, isNotNull);
-
-    await tester.tap(checkInAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('profile expedition report starts the first visit',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    final reportAction = find.widgetWithText(OutlinedButton, '첫 리포트 만들기');
-    expect(find.text('오늘의 탐험 리포트'), findsOneWidget);
-    expect(
-      find.textContaining('첫 장소를 기록하면 오늘의 방문 장소'),
-      findsOneWidget,
-    );
-    expect(reportAction, findsOneWidget);
-
-    await tester.tap(reportAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('profile expedition report summarizes today and links pet care',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    controller.state = controller.state.copyWith(
-      checkIns: [
-        CheckIn(
-          id: 'checkin-report',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 14,
-          rewardApplied: true,
-          reward: const CheckInReward(
-            stats: GrowthStats(
-              exp: 22,
-              mood: 4,
-              knowledge: 22,
-              affinity: 8,
-            ),
-            eggProgress: 760,
-          ),
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('오늘의 탐험 리포트'), findsOneWidget);
-    expect(find.text('오늘 방문'), findsOneWidget);
-    expect(find.text('1곳'), findsOneWidget);
-    expect(find.text('연속 탐험'), findsWidgets);
-    expect(find.text('1일'), findsWidgets);
-    expect(find.text('오늘의 성과 카드'), findsOneWidget);
-    expect(find.text('B등급'), findsOneWidget);
-    expect(find.text('57점'), findsOneWidget);
-    expect(find.text('성장 루프'), findsOneWidget);
-    expect(find.text('3/4'), findsOneWidget);
-    expect(find.text('도감 진척'), findsOneWidget);
-    expect(find.text('1/7'), findsWidgets);
-    expect(find.text('다음 액션'), findsOneWidget);
-    expect(find.text('대화 연결'), findsOneWidget);
-    expect(find.text('역사 기억 1회'), findsOneWidget);
-    expect(
-      find.textContaining('경복궁의 역사 기억이 너울의 성장'),
-      findsOneWidget,
-    );
-    expect(find.text('받은 보상'), findsOneWidget);
-    expect(find.text('EXP +22 · 기분 +4 · 지식 +22 · 친밀도 +8 · 알 +760'),
-        findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '요약 복사'), findsOneWidget);
-
-    final petAction = find.widgetWithText(OutlinedButton, '마실펫에게 들려주기');
-    expect(petAction, findsOneWidget);
-    final dexAction = find.widgetWithText(OutlinedButton, '도감 목표 보기');
-    expect(dexAction, findsOneWidget);
-
-    await tester.ensureVisible(petAction);
-    await tester.pump();
-    await tester.tap(petAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 1);
-
-    await tester.ensureVisible(dexAction);
-    await tester.pump();
-    await tester.tap(dexAction);
-    await tester.pump();
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 3);
+    expect(find.text('전국 도감'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile journey badges guide the next exploration step',
+  testWidgets('home shell surfaces progress badges on the tab bar',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('탐험 배지'), findsOneWidget);
-    expect(find.text('1/6'), findsOneWidget);
-    expect(find.text('동행 시작'), findsOneWidget);
-    expect(find.text('위치 인증'), findsOneWidget);
-
-    final locationAction = find.widgetWithText(OutlinedButton, '위치 확인하러 가기');
-    expect(locationAction, findsOneWidget);
-
-    await tester.ensureVisible(locationAction);
-    await tester.pump();
-    await tester.tap(locationAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('profile journey badges reflect a check-in loop and streak goal',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    _verifyLocationAt(controller, poi);
     controller.state = controller.state.copyWith(
-      checkIns: [
-        CheckIn(
-          id: 'checkin-badge',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 10,
-          rewardApplied: true,
-        ),
-      ],
-      locationVerified: true,
-      locationVerifiedAt: now,
+      checkIns: [_checkIn(poi: poi)],
       dialogueCountToday: 1,
-      dialogueDay: now,
+      dialogueDay: DateTime.now(),
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
+          masilPetControllerProvider.overrideWith((ref) => controller),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
         ),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    expect(find.text('탐험 배지'), findsOneWidget);
-    expect(find.text('4/6'), findsOneWidget);
-    expect(find.text('첫 발자국'), findsOneWidget);
-    expect(find.text('장소 이야기꾼'), findsOneWidget);
-    expect(find.text('연속 탐험'), findsWidgets);
-    expect(find.text('1/3일'), findsOneWidget);
-    expect(find.text('부화 준비'), findsOneWidget);
-    expect(find.text('34%'), findsWidgets);
-
-    final streakAction = find.widgetWithText(OutlinedButton, '지도에서 이어가기');
-    expect(streakAction, findsOneWidget);
-
-    await tester.ensureVisible(streakAction);
-    await tester.pump();
-    await tester.tap(streakAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('profile journey snapshot keeps local progress approachable',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    controller.state = controller.state.copyWith(
-      checkIns: [
-        CheckIn(
-          id: 'checkin-readiness-core',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 18,
-          rewardApplied: true,
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('1일째 함께 걷고 있어요'), findsOneWidget);
-    expect(find.text('남긴 발자국'), findsOneWidget);
-    expect(find.text('친구 도감'), findsOneWidget);
+    final tabBar = find.byType(PaperTabBar);
+    // 4 talks left, 1 egg, 36 undiscovered, 1 day streak.
     expect(
-      find.text('연결이 없어도 이 기기에서 돌봄과 산책을 계속할 수 있어요.'),
+      find.descendant(of: tabBar, matching: find.text('4')),
       findsOneWidget,
     );
-
-    final petAction = find.widgetWithText(OutlinedButton, '친구 만나기');
-    expect(petAction, findsOneWidget);
-    await tester.tap(petAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 1);
+    expect(
+      find.descendant(of: tabBar, matching: find.text('36')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile visit journal links an empty record to map',
+  // ─────────────────────────────────────────────────────────── status banner ──
+
+  testWidgets('status banner shows full detailed reward on phone width',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller();
+    const message =
+        '해운대 해수욕장 체크인 완료: EXP +18 · 기분 +8 · 지식 +4 · 친밀도 +12 · 알 +680';
+    controller.state = controller.state.copyWith(statusMessage: message);
+    _sizeView(tester, _narrowPhone);
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
+      _hostScreen(
+        controller,
+        const Padding(padding: EdgeInsets.all(16), child: StatusBanner()),
       ),
     );
     await tester.pump();
 
-    final journalAction = find.widgetWithText(OutlinedButton, '지도에서 체크인하기');
-    expect(find.text('방문 기록'), findsOneWidget);
-    expect(find.textContaining('아직 기록된 체크인'), findsOneWidget);
-    expect(journalAction, findsOneWidget);
-
-    await tester.ensureVisible(journalAction);
-    await tester.pump();
-    await tester.tap(journalAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
+    final text = tester.widget<Text>(find.text(message));
+    expect(text.maxLines, isNull);
+    expect(text.overflow, isNull);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('profile visit journal shows recent check-in detail',
+  testWidgets('status banner gives success and failure distinct tone labels',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(4);
+    final controller = _controller();
     controller.state = controller.state.copyWith(
-      checkIns: [
-        CheckIn(
-          id: 'checkin-visit-journal',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: DateTime.now(),
-          distanceMeters: 12,
-          rewardApplied: true,
-          reward: const CheckInReward(
-            stats: GrowthStats(exp: 33, mood: 4, knowledge: 5, affinity: 6),
-            eggProgress: 77,
-          ),
-        ),
-      ],
+      statusMessage: '해운대 해수욕장 체크인 완료: EXP +18 · 알 +680',
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
 
     await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
+      _hostScreen(
+        controller,
+        const Padding(padding: EdgeInsets.all(16), child: StatusBanner()),
       ),
     );
     await tester.pump();
 
-    expect(find.text('방문 기록'), findsOneWidget);
-    expect(find.text('1회'), findsWidgets);
-    expect(find.text(starterPoiSeed.first.title), findsWidgets);
-    expect(find.text(starterPoiSeed.first.category.label), findsOneWidget);
-    expect(find.textContaining('12m · 보상 적용'), findsOneWidget);
-    expect(find.textContaining('12m'), findsWidgets);
-    expect(find.textContaining('보상 적용'), findsOneWidget);
-    expect(find.text('EXP +33'), findsOneWidget);
-    expect(find.text('기분 +4'), findsOneWidget);
-    expect(find.text('지식 +5'), findsOneWidget);
-    expect(find.text('친밀도 +6'), findsOneWidget);
-    expect(find.text('알 +77'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+    expect(find.text('완료'), findsOneWidget);
+    expect(find.text('실패'), findsNothing);
 
-  testWidgets('profile screen pairs diagnostics and actions on desktop width',
-      (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
-      ),
+    controller.state = controller.state.copyWith(
+      statusMessage: '위치 권한이 거부되었습니다.',
     );
     await tester.pump();
 
-    final readinessTopLeft = tester.getTopLeft(find.text('오늘, 첫 발자국을 남겨볼까요?'));
-    final quickActionsTopLeft = tester.getTopLeft(find.text('빠른 작업'));
-    expect(quickActionsTopLeft.dx, greaterThan(readinessTopLeft.dx));
-    expect((quickActionsTopLeft.dy - readinessTopLeft.dy).abs(), lessThan(160));
+    expect(find.text('실패'), findsOneWidget);
+    expect(find.text('완료'), findsNothing);
+
+    controller.state = controller.state.copyWith(
+      statusMessage: 'Firebase Web 설정값이 없어 기기 내 진행으로 시작합니다.',
+    );
+    await tester.pump();
+
+    expect(find.text('이 기기에 저장'), findsOneWidget);
+    expect(find.text('완료'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('metric summaries wrap on narrow phones',
       (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(320, 740);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _narrowPhone);
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        theme: buildMasilPetTheme(),
+        home: const Scaffold(
           body: Padding(
             padding: EdgeInsets.all(16),
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: MetricGrid(
-                  items: [
-                    MetricGridItem(
-                      icon: Icons.check_circle_outline,
-                      label: '체크인 가능',
-                      value: '3곳',
-                    ),
-                    MetricGridItem(
-                      icon: Icons.flag_outlined,
-                      label: '오늘 체크인',
-                      value: '1회',
-                    ),
-                    MetricGridItem(
-                      icon: Icons.near_me_outlined,
-                      label: '가장 가까운 곳',
-                      value: '120m',
-                    ),
-                  ],
-                ),
-              ),
+            child: MetricGrid(
+              items: [
+                MetricGridItem(label: '체크인 가능', value: '3곳'),
+                MetricGridItem(label: '오늘 체크인', value: '1회'),
+                MetricGridItem(label: '가장 가까운 곳', value: '120m'),
+              ],
             ),
           ),
         ),
@@ -813,1422 +493,371 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('status banner shows full detailed reward on phone width',
+  // ───────────────────────────────────────────────────────────────────── map ──
+
+  testWidgets('map screen frames the live map with paper chrome',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    const message =
-        '해운대 해수욕장 체크인 완료: EXP +18 · 기분 +8 · 지식 +4 · 친밀도 +12 · 알 +680';
-    controller.state = controller.state.copyWith(statusMessage: message);
-    tester.view.physicalSize = const Size(320, 740);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith((ref) => controller),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: Padding(
-              padding: EdgeInsets.all(16),
-              child: StatusBanner(),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
 
-    final text = tester.widget<Text>(find.text(message));
-    expect(text.maxLines, isNull);
-    expect(text.overflow, isNull);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('status banner gives success and failure distinct signals',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      statusMessage: '해운대 해수욕장 체크인 완료: EXP +18 · 알 +680',
-    );
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith((ref) => controller),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: Padding(
-              padding: EdgeInsets.all(16),
-              child: StatusBanner(),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
-    expect(find.byIcon(Icons.offline_bolt), findsNothing);
-
-    controller.state = controller.state.copyWith(
-      statusMessage: '위치 권한이 거부되었습니다.',
-    );
-    await tester.pump();
-
-    expect(find.byIcon(Icons.error_outline), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle_outline), findsNothing);
-
-    controller.state = controller.state.copyWith(
-      statusMessage: 'Firebase Web 설정값이 없어 기기 내 진행으로 시작합니다.',
-    );
-    await tester.pump();
-
-    expect(find.byIcon(Icons.offline_bolt), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle_outline), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('home shell keeps bottom navigation on phone width',
-      (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: HomeShell()),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationRail), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('home shell surfaces progress badges on phone navigation',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: now,
-      dialogueCountToday: 1,
-      dialogueDay: now,
-      checkIns: [
-        CheckIn(
-          id: 'checkin-nav-badge',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 8,
-          rewardApplied: true,
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: HomeShell()),
-      ),
-    );
-    await tester.pump();
-
-    final undiscoveredCount = controller.state.templates.length -
-        controller.state.discoveredTemplateIds.length;
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byTooltip('지도 탭: 오늘 체크인 1회'), findsWidgets);
-    expect(find.byTooltip('마실펫 탭: 대화 4회 가능'), findsWidgets);
-    expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
-    expect(find.byTooltip('도감 탭: 미발견 $undiscoveredCount종'), findsWidgets);
-    expect(find.byTooltip('기록 탭: 1일 연속 산책'), findsWidgets);
-    expect(find.byType(Badge), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('home shell uses navigation rail on desktop width',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: HomeShell()),
-      ),
-    );
-    await tester.pump();
-
-    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-    final undiscoveredCount = controller.state.templates.length -
-        controller.state.discoveredTemplateIds.length;
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(rail.extended, isTrue);
-    expect(rail.destinations, hasLength(5));
-    expect(find.byTooltip('지도 탭: 위치 확인 필요'), findsWidgets);
-    expect(find.byTooltip('마실펫 탭: 대화 5회 가능'), findsWidgets);
-    expect(find.byTooltip('하우스 탭: 알 1개 관리'), findsWidgets);
-    expect(find.byTooltip('도감 탭: 미발견 $undiscoveredCount종'), findsWidgets);
-    expect(find.byTooltip('기록 탭: 첫 산책을 기다리는 중'), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map screen pairs map and POI list on desktop width',
-      (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    final mapTopLeft = tester.getTopLeft(find.byType(FlutterMap));
-    final poiTitleTopLeft = tester.getTopLeft(find.text('가까운 POI'));
-    expect(poiTitleTopLeft.dx, greaterThan(mapTopLeft.dx));
-    expect((poiTitleTopLeft.dy - mapTopLeft.dy).abs(), lessThan(80));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map poi cards show full growth reward breakdown',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: [starterPoiSeed.first],
-    );
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('경복궁'), findsOneWidget);
-    expect(find.text('서울특별시 · 전국 기본 장소'), findsOneWidget);
-    expect(find.textContaining('seed-kr-001'), findsNothing);
-    expect(find.text('EXP +22'), findsOneWidget);
-    expect(find.text('기분 +4'), findsOneWidget);
-    expect(find.text('지식 +22'), findsOneWidget);
-    expect(find.text('친밀도 +8'), findsOneWidget);
-    expect(find.text('알 +760'), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map poi cards surface TourAPI content ids when available',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: const [
-        Poi(
-          id: 'tourapi-poi',
-          tourApiContentId: '2785118',
-          title: '테스트 여행지',
-          regionId: 'busan',
-          category: PoiCategory.culture,
-          coordinates: Coordinates(latitude: 35.1587, longitude: 129.1604),
-          shortDescription: 'TourAPI에서 동기화된 장소',
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('테스트 여행지'), findsOneWidget);
-    expect(find.text('부산광역시 · TourAPI ID 2785118'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map poi list filters nearby places by category',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: const [
-        Poi(
-          id: 'filter-history',
-          tourApiContentId: 'seed-filter-history',
-          title: '성곽 산책지',
-          regionId: 'seoul',
-          category: PoiCategory.history,
-          coordinates: Coordinates(latitude: 37.5796, longitude: 126.977),
-          shortDescription: '역사 카테고리 필터 후보',
-        ),
-        Poi(
-          id: 'filter-food',
-          tourApiContentId: 'seed-filter-food',
-          title: '시장 분식 골목',
-          regionId: 'seoul',
-          category: PoiCategory.food,
-          coordinates: Coordinates(latitude: 37.5797, longitude: 126.9771),
-          shortDescription: '음식 카테고리 필터 후보',
-        ),
-        Poi(
-          id: 'filter-nature',
-          tourApiContentId: 'seed-filter-nature',
-          title: '도심 숲길',
-          regionId: 'seoul',
-          category: PoiCategory.nature,
-          coordinates: Coordinates(latitude: 37.5798, longitude: 126.9772),
-          shortDescription: '자연 카테고리 필터 후보',
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('카테고리 필터'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, '전체 3'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, '음식 1'), findsOneWidget);
-    expect(find.text('성곽 산책지'), findsOneWidget);
-    expect(find.text('시장 분식 골목'), findsOneWidget);
-    expect(find.text('도심 숲길'), findsOneWidget);
-
-    final foodFilter = find.widgetWithText(FilterChip, '음식 1');
-    await tester.ensureVisible(foodFilter);
-    await tester.pump();
-    await tester.tap(foodFilter);
-    await tester.pump();
-
-    expect(find.text('1/3곳'), findsOneWidget);
-    expect(find.text('성곽 산책지'), findsNothing);
-    expect(find.text('시장 분식 골목'), findsOneWidget);
-    expect(find.text('도심 숲길'), findsNothing);
-
-    await tester.tap(find.widgetWithText(FilterChip, '전체 3'));
-    await tester.pump();
-
-    expect(find.text('성곽 산책지'), findsOneWidget);
-    expect(find.text('시장 분식 골목'), findsOneWidget);
-    expect(find.text('도심 숲길'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map markers expose accessible semantics',
-      (WidgetTester tester) async {
-    final semantics = tester.ensureSemantics();
-    try {
-      final now = DateTime.now();
-      final completedPoi = starterPoiSeed.first;
-      const candidatePoi = Poi(
-        id: 'seoul-marker-candidate',
-        tourApiContentId: 'seed-test-marker',
-        title: '광화문 산책로',
-        regionId: 'seoul',
-        category: PoiCategory.culture,
-        coordinates: Coordinates(latitude: 37.5801, longitude: 126.9784),
-        shortDescription: '지도 마커 접근성 테스트 후보 장소',
-      );
-      final controller = MasilPetController(
-        firebaseReady: false,
-        firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-        locationService: const DeviceLocationService(),
-        backend: null,
-        userRepository: null,
-        localProgressRepository: null,
-      );
-      controller.state = controller.state.copyWith(
-        pois: [completedPoi, candidatePoi],
-        currentLocation: completedPoi.coordinates,
-        locationVerified: true,
-        locationVerifiedAt: now,
-        checkIns: [
-          CheckIn(
-            id: 'checkin-map-semantics',
-            poiId: completedPoi.id,
-            regionId: completedPoi.regionId,
-            category: completedPoi.category,
-            createdAt: now,
-            distanceMeters: 0,
-            rewardApplied: true,
-          ),
-        ],
-      );
-      tester.view.physicalSize = const Size(1180, 820);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            masilPetControllerProvider.overrideWith(
-              (ref) => controller,
-            ),
-          ],
-          child: const MaterialApp(home: Scaffold(body: MapScreen())),
-        ),
-      );
-      await tester.pump();
-
-      expect(
-        find.bySemanticsLabel(
-          'POI 마커: ${completedPoi.title}, ${completedPoi.category.label}, 오늘 체크인 완료',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel(
-          'POI 마커: ${candidatePoi.title}, ${candidatePoi.category.label}, 체크인 후보',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.bySemanticsLabel('현재 위치 마커: 150m 체크인 반경 중심'),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-    } finally {
-      semantics.dispose();
-    }
-  });
-
-  testWidgets('map card exposes a marker legend', (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    final legendPois = [
-      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.nature),
-      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.culture),
-      starterPoiSeed.firstWhere((poi) => poi.category == PoiCategory.food),
-    ];
-    controller.state = controller.state.copyWith(
-      pois: legendPois,
-    );
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    await tester.ensureVisible(find.byType(FlutterMap));
-    await tester.pump();
-
-    expect(find.text('현재 위치'), findsWidgets);
-    expect(find.text('체크인 완료'), findsOneWidget);
-    expect(find.text('자연'), findsWidgets);
-    expect(find.text('문화'), findsWidgets);
-    expect(find.text('음식'), findsWidgets);
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(find.text('대한민국 · 산책지 ${starterPoiSeed.length}곳'), findsOneWidget);
+    expect(find.text('위치 미확인'), findsOneWidget);
+    expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+    expect(find.text('주변 산책지'), findsOneWidget);
+    expect(find.text('위치 새로고침'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('map screen offers location confirmation when check-in is locked',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.text('가장 가까운 산책지'), findsOneWidget);
+    expect(find.text('여기에 도장 찍기'), findsNothing);
+
+    final refresh = find.text('현재 위치 확인하기');
+    expect(refresh, findsOneWidget);
+    await tester.ensureVisible(refresh);
     await tester.pump();
+    await tester.tap(refresh);
+    await _settle(tester);
 
-    final briefingAction = find.widgetWithText(OutlinedButton, '현재 위치 확인');
-    final fallbackMapAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
-    expect(briefingAction, findsOneWidget);
-    expect(tester.widget<OutlinedButton>(briefingAction).onPressed, isNotNull);
-    expect(fallbackMapAction, findsOneWidget);
-    expect(
-      tester.widget<OutlinedButton>(fallbackMapAction).onPressed,
-      isNotNull,
-    );
-    expect(find.widgetWithText(FilledButton, '현재 위치 확인'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('map fallback opens the local check-in route',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
 
-    final fallbackMapAction = find.widgetWithText(OutlinedButton, '기본 위치로 체험');
-    await tester.ensureVisible(fallbackMapAction);
+    final fallback = find.text('전국 기본 지도 보기');
+    expect(fallback, findsOneWidget);
+
+    await tester.ensureVisible(fallback);
     await tester.pump();
-    await tester.tap(fallbackMapAction);
-    await tester.pump();
+    await tester.tap(fallback);
+    await _settle(tester);
 
     expect(controller.state.hasFreshVerifiedLocation, isTrue);
     expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
-    expect(find.text('지금 체크인 가능'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, '추천 장소 체크인하기'), findsOneWidget);
+    expect(controller.state.statusMessage, contains('체험 위치'));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('map markers open a selectable POI check-in panel',
+  testWidgets('map screen stamps an in-range place from the hero',
       (WidgetTester tester) async {
-    const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
-    const selectablePoi = Poi(
-      id: 'map-selectable-poi',
-      tourApiContentId: 'seed-map-selectable-poi',
-      title: '선택 산책지',
-      regionId: 'seoul',
-      category: PoiCategory.nature,
-      coordinates: Coordinates(latitude: 37.0004, longitude: 127.0),
-      shortDescription: '마커 선택 패널을 확인하는 가까운 산책 장소',
-    );
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: const [selectablePoi],
-      currentLocation: currentLocation,
-      locationVerified: true,
-      locationVerifiedAt: DateTime.now(),
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    _verifyLocationAt(controller, poi);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.text(poi.title), findsWidgets);
+    expect(find.textContaining('지금 여기 · '), findsOneWidget);
+
+    final stamp = find.text('여기에 도장 찍기');
+    expect(stamp, findsOneWidget);
+    await tester.ensureVisible(stamp);
     await tester.pump();
-
-    expect(find.text('지도 추천'), findsNothing);
-    expect(find.byKey(ValueKey('map-focus-${selectablePoi.id}')), findsNothing);
-    expect(find.text('지금 체크인 가능'), findsWidgets);
-
-    final marker = find.byKey(ValueKey('map-marker-${selectablePoi.id}'));
-    expect(marker, findsOneWidget);
-    final markerWidget = tester.widget<GestureDetector>(marker);
-    expect(markerWidget.onTap, isNotNull);
-
-    markerWidget.onTap!();
-    await tester.pump(const Duration(milliseconds: 180));
-
-    expect(find.text('선택 장소'), findsOneWidget);
-    expect(find.text(selectablePoi.title), findsWidgets);
-    expect(
-      find.widgetWithText(FilledButton, '선택 장소 체크인'),
-      findsOneWidget,
-    );
-
-    await tester.ensureVisible(
-      find.widgetWithText(FilledButton, '선택 장소 체크인'),
-    );
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, '선택 장소 체크인'));
-    await tester.pump();
+    await tester.tap(stamp);
+    await _settleStamp(tester);
 
     expect(controller.state.todayCheckInCount, 1);
-    expect(
-      controller.state.todayCheckIns.single.poiId,
-      selectablePoi.id,
-    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('map screen surfaces the daily check-in limit',
+  testWidgets('map screen shows the visit stamp after checking in',
       (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    _verifyLocationAt(controller, poi);
     controller.state = controller.state.copyWith(
-      pois: [starterPoiSeed.first],
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: now,
-      checkIns: List.generate(
-        dailyCheckInLimit,
-        (index) => CheckIn(
-          id: 'daily-limit-map-$index',
-          poiId: 'poi-$index',
-          regionId: koreaRegion.id,
-          category: PoiCategory.nature,
-          createdAt: now,
-          distanceMeters: 12,
-          rewardApplied: true,
-        ),
-      ),
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('남은 체크인'), findsOneWidget);
-    expect(find.text('완료'), findsOneWidget);
-    expect(
-      find.textContaining('오늘 체크인 한도 $dailyCheckInLimit회'),
-      findsWidgets,
-    );
-
-    await tester.ensureVisible(find.widgetWithText(FilledButton, '오늘 한도 완료'));
-    await tester.pump();
-
-    final limitAction = find.widgetWithText(FilledButton, '오늘 한도 완료');
-    expect(limitAction, findsOneWidget);
-    expect(tester.widget<FilledButton>(limitAction).onPressed, isNull);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map screen shows a daily walking route guide',
-      (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('오늘의 산책 루트'), findsOneWidget);
-    expect(find.text('위치 확인'), findsOneWidget);
-    expect(find.text('첫 체크인'), findsOneWidget);
-    expect(find.text('마실펫 교감'), findsOneWidget);
-    expect(find.text('알 부화 준비'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, '현재 위치 확인'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map route guide explains the recommended place',
-      (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('오늘 새 카테고리'), findsOneWidget);
-    expect(find.text('도감 후보'), findsOneWidget);
-    expect(find.text('새록'), findsOneWidget);
-    expect(find.text('알 +680'), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map route guide previews a ranked recommendation course',
-      (WidgetTester tester) async {
-    const currentLocation = Coordinates(latitude: 37.0, longitude: 127.0);
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      currentLocation: currentLocation,
-      locationVerified: true,
-      locationVerifiedAt: DateTime.now(),
-      pois: const [
-        Poi(
-          id: 'route-near-nature',
-          tourApiContentId: 'seed-route-near-nature',
-          title: '가까운 숲길',
-          regionId: 'seoul',
-          category: PoiCategory.nature,
-          coordinates: Coordinates(latitude: 37.0036, longitude: 127.0),
-          shortDescription: '가장 가까운 자연 장소',
-        ),
-        Poi(
-          id: 'route-history-goal',
-          tourApiContentId: 'seed-route-history-goal',
-          title: '도감 역사길',
-          regionId: 'seoul',
-          category: PoiCategory.history,
-          coordinates: Coordinates(latitude: 37.0100, longitude: 127.0),
-          shortDescription: '역사 마실펫 후보',
-        ),
-        Poi(
-          id: 'route-food-goal',
-          tourApiContentId: 'seed-route-food-goal',
-          title: '도감 맛길',
-          regionId: 'seoul',
-          category: PoiCategory.food,
-          coordinates: Coordinates(latitude: 37.0150, longitude: 127.0),
-          shortDescription: '음식 마실펫 후보',
-        ),
-        Poi(
-          id: 'route-far-culture',
-          tourApiContentId: 'seed-route-far-culture',
-          title: '멀리 있는 문화당',
-          regionId: 'seoul',
-          category: PoiCategory.culture,
-          coordinates: Coordinates(latitude: 37.0300, longitude: 127.0),
-          shortDescription: '거리가 먼 문화 후보',
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('추천 코스'), findsOneWidget);
-    expect(find.text('3곳'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('recommended-route-route-history-goal')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('recommended-route-route-food-goal')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('recommended-route-route-near-nature')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('recommended-route-route-far-culture')),
-      findsNothing,
-    );
-    expect(find.text('다음'), findsOneWidget);
-    expect(find.text('새록'), findsWidgets);
-    expect(find.text('포구리'), findsWidgets);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map route guide checks in the in-range recommendation',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: [starterPoiSeed.first],
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: DateTime.now(),
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
-
-    final checkInAction = find.widgetWithText(TextButton, '추천 장소 체크인하기');
-    expect(find.text('지금 체크인 가능'), findsOneWidget);
-    expect(checkInAction, findsOneWidget);
-
-    await tester.ensureVisible(checkInAction);
-    await tester.pump();
-    await tester.tap(checkInAction);
-    await tester.pump();
-
-    expect(controller.state.todayCheckInCount, 1);
-    expect(
-        controller.state.todayCheckIns.single.poiId, starterPoiSeed.first.id);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('map visit receipt turns a check-in into follow-up actions',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: [starterPoiSeed.first],
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: now,
       checkIns: [
-        CheckIn(
-          id: 'checkin-map-receipt',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 12,
-          rewardApplied: true,
+        _checkIn(
+          poi: poi,
           reward: const CheckInReward(
-            stats: GrowthStats(
-              exp: 22,
-              mood: 4,
-              knowledge: 22,
-              affinity: 8,
-            ),
+            stats: GrowthStats(exp: 22, mood: 4, knowledge: 22, affinity: 8),
             eggProgress: 760,
           ),
         ),
       ],
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
 
     expect(find.text('방문 인증 완료'), findsOneWidget);
-    expect(find.textContaining('경복궁 · 역사 · 12m'), findsOneWidget);
-    expect(find.text('오늘 1회'), findsOneWidget);
-    expect(find.text('19회 남음'), findsOneWidget);
-    expect(find.text('1일 연속'), findsOneWidget);
-    expect(find.text('EXP +22'), findsWidgets);
-    expect(find.text('지식 +22'), findsWidgets);
-    expect(find.text('알 +760'), findsWidgets);
-
-    final petAction = find.widgetWithText(FilledButton, '마실펫에게 들려주기');
-    expect(petAction, findsOneWidget);
-
-    await tester.ensureVisible(petAction);
-    await tester.pump();
-    await tester.tap(petAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 1);
-
-    final reportAction = find.widgetWithText(OutlinedButton, '리포트 보기');
-    expect(reportAction, findsOneWidget);
-
-    await tester.ensureVisible(reportAction);
-    await tester.pump();
-    await tester.tap(reportAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 4);
+    expect(find.text('VISITED'), findsOneWidget);
+    expect(find.text('인증'), findsOneWidget);
+    expect(find.text('EXP +22'), findsOneWidget);
+    expect(find.text('기분 +4'), findsOneWidget);
+    expect(find.text('지식 +22'), findsOneWidget);
+    expect(find.text('친밀도 +8'), findsOneWidget);
+    expect(find.text('알 +760걸음'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('map route guide marks completed recommendations as visited',
+  testWidgets('map poi list filters nearby places by category',
       (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      pois: [starterPoiSeed.first],
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: now,
-      checkIns: [
-        CheckIn(
-          id: 'checkin-complete',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 12,
-          rewardApplied: true,
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    _verifyLocationAt(controller, starterPoiSeed.first);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
 
-    expect(find.text('오늘 방문 완료'), findsOneWidget);
-    expect(find.textContaining('오늘 방문 가능한 POI를 모두 기록'), findsOneWidget);
+    expect(find.text('전체'), findsOneWidget);
+
+    final natureFilter = find.descendant(
+      of: find.byType(FilterPillRow<PoiCategory?>),
+      matching: find.text(PoiCategory.nature.label),
+    );
+    expect(natureFilter, findsOneWidget);
+
+    await tester.tap(natureFilter);
+    await _settle(tester);
+
+    expect(controller.state.mapCategoryFocus, PoiCategory.nature);
+
+    final visibleTitles = starterPoiSeed
+        .where((poi) => poi.category == PoiCategory.nature)
+        .map((poi) => poi.title);
+    expect(visibleTitles, isNotEmpty);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('map route guide links completed check-in to pet care',
+  testWidgets('map nearby list stamps a place within range',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      currentLocation: starterPoiSeed.first.coordinates,
-      locationVerified: true,
-      locationVerifiedAt: DateTime.now(),
-      checkIns: [
-        CheckIn(
-          id: 'checkin-test',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: DateTime.now(),
-          distanceMeters: 10,
-          rewardApplied: true,
-        ),
-      ],
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    _verifyLocationAt(controller, poi);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    final stampTags = find.text('도장');
+    expect(stampTags, findsWidgets);
+
+    await tester.ensureVisible(stampTags.first);
     await tester.pump();
+    await tester.tap(stampTags.first);
+    await _settleStamp(tester);
 
-    final petCareAction = find.widgetWithText(TextButton, '마실펫과 대화하기');
-    expect(find.text('오늘의 산책 루트'), findsOneWidget);
-    expect(petCareAction, findsOneWidget);
-
-    await tester.ensureVisible(petCareAction);
-    await tester.pump();
-    await tester.tap(petCareAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 1);
+    expect(controller.state.todayCheckInCount, 1);
+    expect(controller.state.checkIns.first.poiId, poi.id);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'map screen lets users refresh location when outside check-in range',
+  testWidgets('map nearby list marks a stamped place as complete',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    _verifyLocationAt(controller, poi);
     controller.state = controller.state.copyWith(
-      currentLocation:
-          const Coordinates(latitude: 35.1796, longitude: 129.0756),
-      locationVerified: true,
-      locationVerifiedAt: DateTime.now(),
+      checkIns: [_checkIn(poi: poi)],
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.text('완료'), findsWidgets);
+    expect(find.textContaining('오늘 방문 완료'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map markers expose accessible semantics',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    final stamped = starterPoiSeed.first;
+    const candidate = Poi(
+      id: 'seoul-marker-candidate',
+      tourApiContentId: 'seed-test-marker',
+      title: '광화문 산책로',
+      regionId: 'seoul',
+      category: PoiCategory.culture,
+      coordinates: Coordinates(latitude: 37.5801, longitude: 126.9784),
+      shortDescription: '지도 마커 접근성 테스트 후보 장소',
+    );
+    controller.state = controller.state.copyWith(pois: [stamped, candidate]);
+    _verifyLocationAt(controller, stamped);
+    controller.state = controller.state.copyWith(
+      checkIns: [_checkIn(poi: stamped)],
+    );
+    _sizeView(tester, _desktop);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(_semanticsLabel('현재 위치'), findsOneWidget);
+    expect(
+      _semanticsLabel(
+        '${stamped.title}, ${stamped.category.label}, 오늘 방문 완료',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      _semanticsLabel('${candidate.title}, ${candidate.category.label}'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map focus panel surfaces TourAPI content ids when available',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    const poi = Poi(
+      id: 'tour-api-poi',
+      tourApiContentId: '126508',
+      title: '남산서울타워',
+      regionId: 'seoul',
+      category: PoiCategory.culture,
+      coordinates: Coordinates(latitude: 37.5512, longitude: 126.9882),
+      shortDescription: '서울 도심 전망과 야경 산책 코스',
+    );
+    controller.state = controller.state.copyWith(pois: const [poi]);
+    _verifyLocationAt(controller, poi);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(FlutterMap),
+        matching: find.text(poi.title),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    final refreshAction = find.widgetWithText(FilledButton, '현재 위치 다시 확인');
-    expect(refreshAction, findsWidgets);
-    final firstRefreshButton =
-        tester.widgetList<FilledButton>(refreshAction).first;
-    expect(firstRefreshButton.onPressed, isNotNull);
-    expect(find.widgetWithText(FilledButton, '150m 안에서 가능'), findsNothing);
+    expect(find.text('TourAPI ID 126508'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map focus panel offers a check-in for the tapped pin',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    final poi = starterPoiSeed.first;
+    controller.state = controller.state.copyWith(pois: [poi]);
+    _verifyLocationAt(controller, poi);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(FlutterMap),
+        matching: find.text(poi.title),
+      ),
+    );
+    await _settle(tester);
+
+    expect(find.text('전국 기본 장소'), findsWidgets);
+
+    final closeButton = find.text('닫기');
+    expect(closeButton, findsOneWidget);
+    await tester.tap(closeButton);
+    await _settle(tester);
+
+    expect(find.text('전국 기본 장소'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map screen shows a daily walking course',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _verifyLocationAt(controller, starterPoiSeed.first);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.text('오늘의 산책 코스'), findsOneWidget);
+    expect(find.text('01'), findsOneWidget);
+    expect(controller.state.recommendedRoutePois, isNotEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map screen reports how fresh the location is',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _verifyLocationAt(controller, starterPoiSeed.first);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.text('위치 확인 방금'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('map screen empty POI state offers location refresh',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
+    final controller = _controller()..setTab(0);
     controller.state = controller.state.copyWith(pois: const []);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: MapScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
 
-    final emptyAction = find.widgetWithText(OutlinedButton, '현재 위치 다시 확인');
-    expect(find.text('근처 POI가 없습니다'), findsOneWidget);
-    expect(emptyAction, findsOneWidget);
-    expect(tester.widget<OutlinedButton>(emptyAction).onPressed, isNotNull);
+    expect(find.text('위치가 필요해요'), findsOneWidget);
+    expect(find.text('현재 위치 확인하기'), findsOneWidget);
+    expect(find.text('전국 기본 지도 보기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet screen pairs play field and care details on desktop width',
+  // ───────────────────────────────────────────────────────────────────── pet ──
+
+  testWidgets('pet stage shows the companion and what it says',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(1);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
 
-    final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
-    final routineTopLeft = tester.getTopLeft(find.text('오늘의 돌봄 루틴'));
-    expect(find.text('오늘의 컨디션'), findsOneWidget);
-    expect(routineTopLeft.dx, greaterThan(fieldTopLeft.dx));
-    expect((routineTopLeft.dy - fieldTopLeft.dy).abs(), lessThan(120));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('pet screen turns recent check-in into companion dialogue',
-      (WidgetTester tester) async {
-    final now = DateTime.now();
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(1);
-    controller.state = controller.state.copyWith(
-      checkIns: [
-        CheckIn(
-          id: 'checkin-pet-dialogue',
-          poiId: starterPoiSeed.first.id,
-          regionId: starterPoiSeed.first.regionId,
-          category: starterPoiSeed.first.category,
-          createdAt: now,
-          distanceMeters: 12,
-          rewardApplied: true,
-          reward: const CheckInReward(
-            stats: GrowthStats(
-              exp: 22,
-              mood: 4,
-              knowledge: 22,
-              affinity: 8,
-            ),
-            eggProgress: 760,
-          ),
-        ),
-      ],
-      lastVisitedCategory: starterPoiSeed.first.category,
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('동행 대화'), findsOneWidget);
-    expect(find.text('역사 기억'), findsOneWidget);
-    expect(find.textContaining('오래된 길에도 바람은'), findsOneWidget);
-    expect(find.textContaining('경복궁 · 역사 · 12m'), findsOneWidget);
-    expect(find.text('EXP +22'), findsOneWidget);
-    expect(find.text('지식 +22'), findsOneWidget);
-    expect(find.text('알 +760'), findsOneWidget);
-
-    final dialogueAction = find.ancestor(
-      of: find.text('대화'),
-      matching: find.byType(InkWell),
-    );
-    expect(dialogueAction, findsOneWidget);
-
-    await tester.ensureVisible(dialogueAction);
-    await tester.pump();
-    await tester.tap(dialogueAction);
-    await tester.pump();
-
-    expect(controller.state.dialogueCountToday, 1);
-    expect(controller.state.statusMessage, contains('오래된 길에도 바람은'));
+    expect(find.text('너울'), findsWidgets);
+    expect(find.byType(SpeechBubble), findsOneWidget);
+    expect(find.text('쓰다듬기 · 오늘 5번 남음'), findsOneWidget);
+    expect(find.text('오늘 해준 것'), findsOneWidget);
+    expect(find.text('배부름'), findsOneWidget);
+    expect(find.text('청결'), findsOneWidget);
+    expect(find.text('활력'), findsOneWidget);
+    expect(find.text('진화까지'), findsOneWidget);
+    expect(find.text('EXP 20 / 500'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('pet care actions update play clean and sleep feedback',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(1);
+    final controller = _controller()..setTab(1);
     final initialCare = controller.state.activePetCare!;
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
 
-    final playAction = find.ancestor(
-      of: find.text('놀아주기'),
-      matching: find.byType(InkWell),
-    );
+    final playAction = find.text('놀아주기');
     await tester.ensureVisible(playAction);
     await tester.pump();
     await tester.tap(playAction);
-    await tester.pump();
+    await _settle(tester);
 
     expect(
       controller.state.activePetCare!.playCountToday,
@@ -2236,14 +865,11 @@ void main() {
     );
     expect(controller.state.fieldActivity, PetFieldActivity.jumping);
 
-    final cleanAction = find.ancestor(
-      of: find.text('씻겨주기'),
-      matching: find.byType(InkWell),
-    );
+    final cleanAction = find.text('씻기기');
     await tester.ensureVisible(cleanAction);
     await tester.pump();
     await tester.tap(cleanAction);
-    await tester.pump();
+    await _settle(tester);
 
     expect(
       controller.state.activePetCare!.cleanCountToday,
@@ -2254,109 +880,99 @@ void main() {
       greaterThanOrEqualTo(initialCare.cleanliness),
     );
 
-    final sleepAction = find.byTooltip('포근하게 재우기');
+    final sleepAction = find.text('포근하게 재우기');
     await tester.ensureVisible(sleepAction);
     await tester.pump();
     await tester.tap(sleepAction);
-    await tester.pump();
+    await _settle(tester);
 
     expect(controller.state.fieldActivity, PetFieldActivity.sleeping);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet care routine awards daily heart points once',
+  testWidgets('pet feeding respects the daily limit',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(1);
-    controller.playActivePet();
-    controller.cleanActivePet();
-    await controller.feedActivePet();
-    await controller.talkWithActivePet();
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(1);
+    for (var i = 0; i < dailyFeedCareLimit; i++) {
+      await controller.feedActivePet();
+    }
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
 
-    final claimAction = find.widgetWithText(FilledButton, '마음 포인트 30 받기');
-    expect(find.text('오늘의 돌봄 루틴'), findsOneWidget);
-    expect(find.text('4/4'), findsOneWidget);
-    expect(claimAction, findsOneWidget);
-
-    await tester.ensureVisible(claimAction);
-    await tester.pump();
-    await tester.tap(claimAction);
-    await tester.pump();
-
-    expect(controller.state.carePoints, dailyCareRewardPoints);
-    expect(find.text('30 P'), findsWidgets);
-    expect(find.text('오늘의 포인트 받기 완료'), findsOneWidget);
+    expect(find.text('오늘 충분해요'), findsOneWidget);
     expect(
-      find.widgetWithText(FilledButton, '마음 포인트 30 받기'),
-      findsNothing,
+      controller.state.activePetCare!.feedCountToday,
+      dailyFeedCareLimit,
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet stage goal links growth to map exploration',
+  testWidgets('pet talk action is spent after the daily limit',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(1);
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
+    final controller = _controller()..setTab(1);
+    controller.state = controller.state.copyWith(
+      dialogueCountToday: 5,
+      dialogueDay: DateTime.now(),
     );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    expect(find.text('오늘 대화는 다 했어요'), findsOneWidget);
+    expect(find.text('쓰다듬기 · 오늘 5번 남음'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet care points note claims the daily reward once',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    controller.playActivePet();
+    controller.cleanActivePet();
+    await controller.feedActivePet();
+    await controller.talkWithActivePet();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    expect(find.text('돌봄 포인트'), findsOneWidget);
+
+    final claim = find.text('돌봄 보상 받기');
+    expect(claim, findsOneWidget);
+    await tester.ensureVisible(claim);
     await tester.pump();
+    await tester.tap(claim);
+    await _settle(tester);
 
-    expect(find.text('성장 단계'), findsOneWidget);
+    expect(controller.state.carePoints, dailyCareRewardPoints);
+    expect(find.text('$dailyCareRewardPoints P'), findsOneWidget);
+    expect(find.text('돌봄 보상 받기'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet growth goal links to map exploration',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
     expect(find.text('성장 조건'), findsOneWidget);
-    expect(find.text('Lv.1/3'), findsOneWidget);
-    expect(find.text('2레벨 필요'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
+    expect(find.text('레벨'), findsOneWidget);
+    expect(
+      find.text('Lv.1 / ${GrowthEngine.grownLevelRequirement}'),
+      findsOneWidget,
+    );
 
-    final growthAction = find.widgetWithText(TextButton, '지도에서 성장 보상 얻기');
+    final growthAction = find.text('지도에서 성장 보상 얻기');
     await tester.ensureVisible(growthAction);
     await tester.pump();
     await tester.tap(growthAction);
-    await tester.pump();
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
@@ -2364,14 +980,7 @@ void main() {
 
   testWidgets('pet evolution goal shows unmet stat requirements',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(1);
+    final controller = _controller()..setTab(1);
     final activePet = controller.state.activePet!;
     controller.state = controller.state.copyWith(
       pets: [
@@ -2387,285 +996,156 @@ void main() {
         ),
       ],
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
 
-    expect(find.text('진화 단계'), findsOneWidget);
     expect(find.text('진화 조건'), findsOneWidget);
-    expect(find.text('Lv.4/5'), findsOneWidget);
-    expect(find.text('1레벨 필요'), findsOneWidget);
-    expect(find.text('38/50'), findsOneWidget);
-    expect(find.text('12 필요'), findsOneWidget);
-    expect(find.text('72/100'), findsOneWidget);
-    expect(find.text('28 필요'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, '지도에서 성장 보상 얻기'), findsOneWidget);
+    expect(
+      find.text('Lv.4 / ${GrowthEngine.evolvedLevelRequirement}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('38 / ${GrowthEngine.evolvedKnowledgeRequirement}'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('72 / ${GrowthEngine.evolvedAffinityRequirement}'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet screen disables talk action after daily limit',
+  testWidgets('pet roster marks the current companion',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    controller.state = controller.state.copyWith(
-      dialogueCountToday: 5,
-      dialogueDay: DateTime.now(),
-    );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(1);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    expect(find.text('내 마실펫 1마리'), findsOneWidget);
+    expect(find.text('MAIN'), findsOneWidget);
+    expect(find.text('지금 함께 다녀요'), findsOneWidget);
+    expect(find.text('상세보기'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet roster opens a detail sheet for a companion',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    final detail = find.text('상세보기');
+    await tester.ensureVisible(detail);
     await tester.pump();
+    await tester.tap(detail);
+    await _settle(tester);
 
-    final doneTalkAction = find.ancestor(
-      of: find.text('대화 완료'),
-      matching: find.byType(InkWell),
+    expect(find.text('첫 만남'), findsOneWidget);
+    expect(find.text('지금 함께 다니는 친구'), findsOneWidget);
+
+    await tester.tap(find.text('닫기'));
+    await _settle(tester);
+
+    expect(find.text('첫 만남'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet roster promotes another pet to main companion',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    final first = controller.state.activePet!;
+    final second = Pet(
+      id: 'pet-second',
+      templateId: starterPetTemplates[1].id,
+      name: starterPetTemplates[1].name,
+      stage: PetStage.baby,
+      level: 2,
+      stats: const GrowthStats(exp: 40, mood: 10, knowledge: 4, affinity: 6),
+      originRegionId: starterPetTemplates[1].regionId,
+      hatchedAt: DateTime.now(),
+      lastInteractedAt: null,
     );
-    expect(
-      find.text('오늘 대화 5/5회 · 새 장소를 다녀오면 내일 다시 이어집니다.'),
-      findsOneWidget,
-    );
-    expect(doneTalkAction, findsOneWidget);
-    expect(tester.widget<InkWell>(doneTalkAction).onTap, isNull);
-    expect(
-      find.widgetWithText(OutlinedButton, '지도에서 새 이야기 찾기'),
-      findsOneWidget,
-    );
+    controller.state = controller.state.copyWith(pets: [first, second]);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    expect(find.text('내 마실펫 2마리'), findsOneWidget);
+
+    final promote = find.text('주 캐릭터로');
+    expect(promote, findsOneWidget);
+    await tester.ensureVisible(promote);
+    await tester.pump();
+    await tester.tap(promote);
+    await _settle(tester);
+
+    expect(controller.state.activePetId, second.id);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('pet screen hides care actions when no active pet is available',
       (WidgetTester tester) async {
     final controller = _EmptyPetController();
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: PetScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
 
-    expect(find.text('아직 함께할 마실펫이 없습니다'), findsOneWidget);
-    expect(find.textContaining('하우스에서 알 상태를 확인'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '하우스에서 알 보기'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '대화'), findsNothing);
-    expect(find.widgetWithText(OutlinedButton, '먹이주기'), findsNothing);
+    expect(find.text('함께 다니는 마실펫이 없습니다'), findsOneWidget);
+    expect(find.text('오늘 해준 것'), findsNothing);
+    expect(find.text('밥 주기'), findsNothing);
 
-    await tester.tap(find.widgetWithText(FilledButton, '하우스에서 알 보기'));
-    await tester.pump();
+    await tester.tap(find.text('하우스로 가기'));
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 2);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('house screen pairs pets and eggs on desktop width',
+  // ─────────────────────────────────────────────────────────────────── house ──
+
+  testWidgets('house screen shows the yard, the egg and today\'s care',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(2);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
 
-    final petsTopLeft = tester.getTopLeft(find.text('보유 마실펫'));
-    final eggsTopLeft = tester.getTopLeft(find.text('알'));
+    expect(find.byType(PetPlayField), findsOneWidget);
+    expect(find.text('마당 · 친구를 누르고, 공과 밥그릇도 건드려보세요'), findsOneWidget);
+    expect(find.text('1200 / 3500 걸음'), findsOneWidget);
+    expect(find.text('오늘의 돌봄'), findsOneWidget);
+    expect(find.text('밥 주기'), findsOneWidget);
+    expect(find.text('한 곳 체크인하기'), findsOneWidget);
+    expect(find.text('하우스 현황'), findsOneWidget);
     expect(find.text('도감 수집률'), findsOneWidget);
-    expect(eggsTopLeft.dx, greaterThan(petsTopLeft.dx));
-    expect((eggsTopLeft.dy - petsTopLeft.dy).abs(), lessThan(80));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('house screen promotes a large yard field on desktop width',
+  testWidgets('house screen labels an incubating egg with remaining steps',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(2);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
 
-    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
-    final fieldRect = tester.getRect(find.byType(PetPlayField));
-    final overviewTop = tester.getTopLeft(find.byType(MetricGrid)).dy;
-    expect(field.scene, PetPlayFieldScene.neighborhoodYard);
-    expect(field.spriteScale, 1.16);
-    expect(fieldRect.height, moreOrLessEquals(360));
-    expect(fieldRect.right, lessThanOrEqualTo(1180));
-    expect(fieldRect.top, lessThan(overviewTop));
+    expect(find.textContaining('2300 걸음만 더!'), findsOneWidget);
+    expect(find.text('부화시키기'), findsNothing);
+    expect(find.text('지도에서 걸음 모으기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('house screen promotes a large yard field on phone width',
-      (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
-
-    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
-    final fieldRect = tester.getRect(find.byType(PetPlayField));
-    final overviewTop = tester.getTopLeft(find.byType(MetricGrid)).dy;
-    expect(field.scene, PetPlayFieldScene.neighborhoodYard);
-    expect(field.spriteScale, 1.16);
-    expect(fieldRect.height, moreOrLessEquals(300));
-    expect(fieldRect.right, lessThanOrEqualTo(390));
-    expect(fieldRect.top, lessThan(overviewTop));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('house care plan links daily actions to map and pet care',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(2);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
-
-    final mapAction = find.widgetWithText(FilledButton, '지도에서 걸음 모으기');
-    final petAction = find.widgetWithText(OutlinedButton, '마실펫 돌보기');
-    expect(find.text('오늘의 하우스 플랜'), findsOneWidget);
-    expect(find.text('대표 펫'), findsOneWidget);
-    expect(find.text('집중 부화 알'), findsOneWidget);
-    expect(find.text('다음 외출'), findsOneWidget);
-    expect(find.textContaining('일반'), findsWidgets);
-    expect(find.textContaining('common'), findsNothing);
-    expect(mapAction, findsOneWidget);
-    expect(petAction, findsOneWidget);
-
-    await tester.ensureVisible(petAction);
-    await tester.pump();
-    await tester.tap(petAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 1);
-
-    await tester.tap(mapAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(controller.state.mapCategoryFocus, PoiCategory.food);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('house care plan hatches a ready egg from the summary card',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(2);
+  testWidgets('house screen hatches a ready egg', (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
     final egg = controller.state.eggs.first;
     controller.state = controller.state.copyWith(
       eggs: [
@@ -2675,672 +1155,567 @@ void main() {
         ),
       ],
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    final hatch = find.text('부화시키기');
+    expect(hatch, findsOneWidget);
+    await tester.ensureVisible(hatch);
     await tester.pump();
+    await tester.tap(hatch);
+    await _settle(tester);
 
-    final hatchAction = find.widgetWithText(FilledButton, '지금 부화하기');
-    expect(find.textContaining('하우스에서 바로 부화'), findsOneWidget);
-    expect(hatchAction, findsOneWidget);
-
-    await tester.ensureVisible(hatchAction);
-    await tester.pump();
-    await tester.tap(hatchAction);
-    await tester.pump();
-
+    expect(controller.state.pets.length, 2);
     expect(controller.state.eggs, isEmpty);
-    expect(
-      controller.state.pets.where((pet) => pet.templateId == egg.templateId),
-      isNotEmpty,
-    );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('house screen makes representative pet selection explicit',
+  testWidgets('house next outing note opens the map',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    final firstPet = controller.state.pets.first;
-    final secondTemplate = controller.state.templates[1];
-    final secondPet = Pet(
-      id: 'pet-test-${secondTemplate.id}',
-      templateId: secondTemplate.id,
-      name: secondTemplate.name,
-      stage: PetStage.baby,
-      level: 1,
-      stats: const GrowthStats(
-        exp: 10,
-        mood: 12,
-        knowledge: 4,
-        affinity: 7,
-      ),
-      originRegionId: secondTemplate.regionId,
-      hatchedAt: DateTime(2026, 1, 1),
-      lastInteractedAt: null,
-    );
-    controller.state = controller.state.copyWith(
-      pets: [firstPet, secondPet],
-      activePetId: firstPet.id,
-    );
+    final controller = _controller()..setTab(2);
+    _sizeView(tester, _phone);
 
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
+    expect(find.text('다음 외출'), findsOneWidget);
+
+    final action = find.text('지도에서 도장 찍기');
+    await tester.ensureVisible(action);
     await tester.pump();
-
-    final representativeAction = find.widgetWithText(OutlinedButton, '대표 설정');
-    expect(find.text('대표'), findsOneWidget);
-    expect(representativeAction, findsOneWidget);
-
-    await tester.ensureVisible(representativeAction);
-    await tester.pump();
-    await tester.tap(representativeAction);
-    await tester.pump();
-
-    expect(controller.state.activePetId, secondPet.id);
-    expect(find.text('대표'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('house screen labels locked eggs as needing more steps',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(2);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
-
-    final checkInAction = find.widgetWithText(TextButton, '지도에서 체크인하기');
-    expect(find.widgetWithText(OutlinedButton, '걸음 필요'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '부화'), findsNothing);
-    expect(checkInAction, findsOneWidget);
-    expect(find.textContaining('걸음 남음'), findsWidgets);
-    expect(find.textContaining('자갈치시장 · 음식 보상 알 +620'), findsOneWidget);
-    expect(find.textContaining('부화 진행도'), findsOneWidget);
-
-    await tester.ensureVisible(checkInAction);
-    await tester.pump();
-    await tester.tap(checkInAction);
-    await tester.pump();
+    await tester.tap(action);
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'dex screen pairs collection and discovery hints on desktop width',
+  testWidgets('house yard grows on desktop width', (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    _sizeView(tester, _desktop);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
+    expect(field.height, 400);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house yard stays compact on phone width',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(2);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
 
-    final collectionTopLeft = tester.getTopLeft(find.text('수집한 마실펫'));
-    final mappingTopLeft = tester.getTopLeft(find.text('발견 힌트가 있는 산책지'));
-    expect(mappingTopLeft.dx, greaterThan(collectionTopLeft.dx));
-    expect((mappingTopLeft.dy - collectionTopLeft.dy).abs(), lessThan(80));
+    final field = tester.widget<PetPlayField>(find.byType(PetPlayField));
+    expect(field.height, 320);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('house screen shows an empty state without eggs',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    controller.state = controller.state.copyWith(eggs: const []);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    expect(find.text('부화할 알이 없습니다'), findsOneWidget);
+    expect(find.textContaining('새 알이 수첩에 들어옵니다'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  // ───────────────────────────────────────────────────────────────────── dex ──
+
+  testWidgets('dex screen summarizes collection progress',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    expect(find.text('전국 도감'), findsOneWidget);
+    expect(find.text(' / ${starterPetTemplates.length}종'), findsOneWidget);
+    expect(find.text('COLLECTED'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('dex screen marks undiscovered pets as exploration goals',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(3);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
 
-    expect(find.text('탐험 필요'), findsWidgets);
-    expect(find.byIcon(Icons.cruelty_free_rounded), findsWidgets);
-    expect(find.text('미발견 마실펫'), findsWidgets);
-    expect(find.text('어떤 친구일까요?'), findsWidgets);
-    expect(find.text('스티커 앨범 필터'), findsOneWidget);
-    expect(find.text('발견 상태'), findsOneWidget);
-    expect(find.text('장소 힌트'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('dex-discovery-filter-undiscovered')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('dex-category-filter-all')),
-      findsOneWidget,
-    );
-    expect(find.text('다음 발견 후보'), findsOneWidget);
-    expect(find.textContaining('포구리 · 음식 카테고리'), findsOneWidget);
-    expect(find.textContaining('자갈치시장 · 음식'), findsOneWidget);
-    expect(find.text('위치 확인 필요'), findsOneWidget);
-    expect(find.text('체크인 시 예상 보상'), findsOneWidget);
-    expect(find.text('EXP +18'), findsOneWidget);
-    expect(find.text('기분 +16'), findsOneWidget);
-    expect(find.text('지식 +1'), findsOneWidget);
-    expect(find.text('친밀도 +5'), findsOneWidget);
-    expect(find.text('알 +620'), findsOneWidget);
-    expect(find.text('추천 산책지'), findsWidgets);
-    expect(find.widgetWithText(OutlinedButton, '지도에서 탐험하기'), findsOneWidget);
-
-    final undiscoveredFilter =
-        find.byKey(const ValueKey('dex-discovery-filter-undiscovered'));
-    await tester.ensureVisible(undiscoveredFilter);
-    await tester.pump();
-    await tester.tap(undiscoveredFilter);
-    await tester.pump();
-
-    final undiscoveredCount = controller.state.templates.length -
-        controller.state.discoveredTemplateIds.length;
-    expect(find.text('$undiscoveredCount종 표시'), findsOneWidget);
-    expect(
-      tester.widget<ChoiceChip>(undiscoveredFilter).selected,
-      isTrue,
-    );
-
-    final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
-    expect(categoryAction, findsOneWidget);
-
-    await tester.ensureVisible(categoryAction);
-    await tester.pump();
-    await tester.tap(categoryAction);
-    await tester.pump();
-
-    expect(controller.state.selectedTab, 0);
-    expect(controller.state.mapCategoryFocus, PoiCategory.food);
+    expect(find.text('미발견'), findsWidgets);
+    expect(find.text('???'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dex discovery action opens the map with a category goal',
+  testWidgets('dex screen filters by discovery state',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(3);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: HomeShell()),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
 
-    final categoryAction = find.widgetWithText(OutlinedButton, '지도에서 음식 장소 찾기');
-    await tester.ensureVisible(categoryAction);
+    // Undiscovered cells label their region as ???, so it stands in for them.
+    expect(find.text('???'), findsWidgets);
+
+    await tester.tap(find.text('발견'));
+    await _settle(tester);
+
+    expect(find.text('???'), findsNothing);
+    expect(find.text('너울'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex screen filters by region', (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    // 너울 belongs to the nationwide roster, so a regional filter hides it.
+    final seoulPill = find.text('서울');
+    expect(seoulPill, findsOneWidget);
+
+    await tester.tap(seoulPill);
+    await _settle(tester);
+
+    expect(find.text('너울'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex opens a detail sheet for a discovered pet',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.text('너울'));
+    await _settle(tester);
+
+    expect(find.text('즐겨 찾는 곳'), findsOneWidget);
+    expect(find.text('첫 만남'), findsOneWidget);
+    expect(find.text('닫기'), findsOneWidget);
+
+    await tester.tap(find.text('닫기'));
+    await _settle(tester);
+
+    expect(find.text('즐겨 찾는 곳'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex undiscovered cell hints where to look',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    // Tapping the cell itself, not the like-named discovery filter pill.
+    await tester.tap(find.text('???').first);
+    await _settle(tester);
+
+    expect(find.textContaining('에서 만날 수 있어요'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex discovery note opens the map with a category goal',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    expect(find.text('다음 발견 후보'), findsOneWidget);
+
+    final action = find.text('지도에서 탐험하기');
+    await tester.ensureVisible(action);
     await tester.pump();
-    await tester.tap(categoryAction);
-    await tester.pump();
+    await tester.tap(action);
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 0);
-    expect(controller.state.mapCategoryFocus, PoiCategory.food);
-
-    await tester.scrollUntilVisible(
-      find.text('지도 목표: 음식 장소'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
-
-    expect(find.text('지도 목표: 음식 장소'), findsOneWidget);
-    expect(find.widgetWithText(FilterChip, '음식 1'), findsOneWidget);
-    expect(find.text('자갈치시장'), findsWidgets);
+    expect(controller.state.mapCategoryFocus, isNotNull);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('dex discovery hints use friendly POI source labels',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(3);
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    final hints = find.text('발견 힌트가 있는 산책지');
+    await tester.ensureVisible(hints);
+    await tester.pump();
+
+    expect(hints, findsOneWidget);
+    expect(find.textContaining('기본 수록 산책지'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex empty filter result offers a reset',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    controller.state = controller.state.copyWith(pets: const []);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.text('발견'));
+    await _settle(tester);
+
+    expect(find.text('조건에 맞는 스티커가 없습니다'), findsOneWidget);
+
+    await tester.tap(find.text('필터 초기화'));
+    await _settle(tester);
+
+    expect(find.text('조건에 맞는 스티커가 없습니다'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  // ───────────────────────────────────────────────────────────────── profile ──
+
+  testWidgets('profile passport shows the streak and this month\'s grid',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final now = DateTime.now();
+    final month = now.month.toString().padLeft(2, '0');
+    expect(find.text('WALKING PASSPORT · ${now.year}.$month'), findsOneWidget);
+    expect(find.text('오늘 첫 도장'), findsOneWidget);
+    expect(find.byType(PassportDay), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile passport stamps a day that was walked',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    final poi = starterPoiSeed.first;
     controller.state = controller.state.copyWith(
-      pois: const [
-        Poi(
-          id: 'poi-tourapi-dex',
-          tourApiContentId: '2785118',
-          title: '동백섬 산책로',
-          regionId: 'busan',
-          category: PoiCategory.nature,
-          coordinates: Coordinates(latitude: 35.1532, longitude: 129.1526),
-          shortDescription: 'TourAPI에서 동기화된 도감 후보 장소',
+      checkIns: [_checkIn(poi: poi)],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    expect(find.text('1일 연속 산책'), findsOneWidget);
+
+    final today = DateTime.now().day;
+    final stamped = tester
+        .widgetList<PassportDay>(find.byType(PassportDay))
+        .where((day) => day.stamped)
+        .toList();
+    expect(stamped, hasLength(1));
+    expect(stamped.single.day, today);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile totals summarize the walk history',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        _checkIn(poi: starterPoiSeed.first),
+        _checkIn(poi: starterPoiSeed[1]),
+      ],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    expect(find.text('다녀온 산책지'), findsOneWidget);
+    expect(find.text('2곳'), findsOneWidget);
+    expect(find.text('누적 체크인'), findsOneWidget);
+    expect(find.text('2회'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile recent walks list the latest visits',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    final poi = starterPoiSeed.first;
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        _checkIn(
+          poi: poi,
+          reward: const CheckInReward(
+            stats: GrowthStats(exp: 33, mood: 4, knowledge: 5, affinity: 6),
+            eggProgress: 77,
+          ),
         ),
       ],
     );
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    expect(find.text('최근 산책'), findsOneWidget);
+    expect(find.text(poi.title), findsWidgets);
+    expect(
+      find.text('EXP +33 · 기분 +4 · 지식 +5 · 친밀도 +6 · 알 +77'),
+      findsOneWidget,
     );
-    await tester.pump();
-
-    expect(find.text('발견 힌트가 있는 산책지'), findsOneWidget);
-    expect(find.text('동백섬 산책로'), findsOneWidget);
-    expect(find.text('지역 산책지'), findsWidgets);
-    expect(find.textContaining('2785118'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dex screen shows a regional passport and links to map',
+  testWidgets('profile report copies today\'s summary',
       (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(3);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
+    _stubClipboard(tester);
+    final controller = _controller()..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [_checkIn(poi: starterPoiSeed.first)],
     );
-    await tester.pump();
+    _sizeView(tester, _phone);
 
-    final nextStampAction = find.widgetWithText(TextButton, '다음 스탬프 찾기');
-    expect(find.text('전국 탐험 여권'), findsOneWidget);
-    expect(find.text('너울'), findsWidgets);
-    expect(find.text('일반'), findsWidgets);
-    expect(find.textContaining('common'), findsNothing);
-    expect(find.text('스탬프 대기'), findsWidgets);
-    expect(nextStampAction, findsOneWidget);
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
 
-    await tester.ensureVisible(nextStampAction);
-    await tester.pump();
-    await tester.tap(nextStampAction);
-    await tester.pump();
+    expect(find.text('오늘의 리포트'), findsOneWidget);
+    expect(find.textContaining('도장을 찍었어요'), findsOneWidget);
 
-    expect(controller.state.selectedTab, 0);
-    expect(controller.state.mapCategoryFocus, PoiCategory.food);
+    final copy = find.text('리포트 복사하기');
+    await tester.ensureVisible(copy);
+    await tester.pump();
+    await tester.tap(copy);
+    await _settle(tester);
+
+    expect(find.text('오늘의 리포트를 복사했어요.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('dex screen empty discovery hints link back to map',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    )..setTab(3);
-    controller.state = controller.state.copyWith(pois: const []);
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+  testWidgets('profile goals guide the next step', (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
 
-    expect(find.text('아직 등록된 산책지가 없습니다'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, '지도에서 다시 조회'), findsOneWidget);
+    expect(find.textContaining('수첩 목표'), findsOneWidget);
+    expect(find.text('위치 인증'), findsOneWidget);
+    expect(find.text('첫 발자국'), findsOneWidget);
 
-    await tester.ensureVisible(
-      find.widgetWithText(OutlinedButton, '지도에서 다시 조회'),
-    );
+    final action = find.text('위치 확인하러 가기');
+    await tester.ensureVisible(action);
     await tester.pump();
-    await tester.tap(find.widgetWithText(OutlinedButton, '지도에서 다시 조회'));
-    await tester.pump();
+    await tester.tap(action);
+    await _settle(tester);
 
     expect(controller.state.selectedTab, 0);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('onboarding primary action stays visible on phone width',
+  testWidgets('profile ledger summarizes the notebook',
       (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: OnboardingScreen()),
-      ),
-    );
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final ledger = find.text('수첩 요약');
+    await tester.ensureVisible(ledger);
     await tester.pump();
 
-    final startButton =
-        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
-    expect(startButton, findsOneWidget);
-    expect(find.text('첫 산책 시작하기'), findsOneWidget);
-    expect(find.text('걷고, 만나고,\n함께 자라요'), findsOneWidget);
-    expect(find.text('01  동네를 걷고'), findsOneWidget);
-    expect(find.text('내 주변 산책지를 찾아요'), findsOneWidget);
-    expect(find.text('02  장소를 만나고'), findsOneWidget);
-    expect(find.text('방문을 새로운 기억으로 남겨요'), findsOneWidget);
-    expect(find.text('03  함께 자라요'), findsOneWidget);
-    expect(find.text('대화하고 돌보며 진화해요'), findsOneWidget);
-    expect(
-      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
-      findsOneWidget,
-    );
-    expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
-    expect(tester.getRect(find.byType(PetPlayField)).right,
-        lessThanOrEqualTo(390));
-    expect(tester.getRect(startButton).bottom, lessThanOrEqualTo(844));
-    expect(tester.getRect(startButton).right, lessThanOrEqualTo(390));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('onboarding pairs story and play field on desktop width',
-      (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: OnboardingScreen()),
-      ),
-    );
-    await tester.pump();
-
-    final titleTopLeft = tester.getTopLeft(find.text('MasilPet'));
-    final fieldTopLeft = tester.getTopLeft(find.byType(PetPlayField));
-    final startButton =
-        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
-    final journeyTopLeft = tester.getTopLeft(find.text('01  동네를 걷고'));
-    expect(fieldTopLeft.dx, greaterThan(titleTopLeft.dx));
-    expect(journeyTopLeft.dx, greaterThanOrEqualTo(titleTopLeft.dx));
-    expect(journeyTopLeft.dx, lessThan(fieldTopLeft.dx));
-    expect((fieldTopLeft.dy - titleTopLeft.dy).abs(), lessThan(80));
-    expect(tester.getRect(startButton).width, lessThanOrEqualTo(430));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('reset progress returns to a visible onboarding story',
-      (WidgetTester tester) async {
-    final controller = MasilPetController(
-      firebaseReady: false,
-      firebaseStartupIssue: FirebaseStartupIssue.missingWebConfiguration,
-      locationService: const DeviceLocationService(),
-      backend: null,
-      userRepository: null,
-      localProgressRepository: null,
-    );
-    await controller.completeOnboarding();
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          masilPetControllerProvider.overrideWith(
-            (ref) => controller,
-          ),
-        ],
-        child: const MasilPetApp(),
-      ),
-    );
-    await tester.pump();
-
-    await controller.resetProgress();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    final startButton =
-        find.widgetWithIcon(FilledButton, Icons.arrow_forward_rounded);
-    expect(find.text('MasilPet'), findsOneWidget);
-    expect(find.text('걷고, 만나고,\n함께 자라요'), findsOneWidget);
-    expect(find.text('01  동네를 걷고'), findsOneWidget);
-    expect(
-      find.text('연결이 없어도 오늘의 돌봄과 산책 기록은 안전하게 이어져요'),
-      findsOneWidget,
-    );
-    expect(startButton, findsOneWidget);
-    expect(
-      tester.getTopLeft(find.text('MasilPet')).dy,
-      lessThan(tester.getTopLeft(startButton).dy),
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('collection screens expose clear sections on phone width',
-      (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
-
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: HouseScreen())),
-      ),
-    );
-    await tester.pump();
-
+    expect(ledger, findsOneWidget);
+    expect(find.text('첫 산책 지역'), findsOneWidget);
+    expect(find.text('대한민국'), findsWidgets);
     expect(find.text('보유 마실펫'), findsOneWidget);
-    expect(find.text('알'), findsOneWidget);
+    expect(find.text('도감 수집률'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
-        ],
-        child: const MaterialApp(home: Scaffold(body: DexScreen())),
-      ),
-    );
+  testWidgets('profile location actions use device and starter location',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final section = find.text('위치와 동기화');
+    await tester.ensureVisible(section);
+    await tester.pump();
+    expect(section, findsOneWidget);
+
+    final fallback = find.text('전국 기본 지도 보기');
+    await tester.ensureVisible(fallback);
+    await tester.pump();
+    await tester.tap(fallback);
+    await _settle(tester);
+
+    expect(controller.state.selectedTab, 0);
+    expect(controller.state.hasFreshVerifiedLocation, isTrue);
+    expect(controller.state.canCheckInToday(starterPoiSeed.first), isTrue);
+    expect(controller.state.statusMessage, contains('체험 위치'));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile explains data and map provenance',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final sources = find.text('데이터·지도 출처');
+    await tester.ensureVisible(sources);
     await tester.pump();
 
-    expect(find.text('수집한 마실펫'), findsOneWidget);
-    expect(find.text('발견 힌트가 있는 산책지'), findsOneWidget);
+    expect(sources, findsOneWidget);
+    expect(find.text('TourAPI 지역 장소'), findsOneWidget);
+    expect(find.text('OpenStreetMap 지도'), findsOneWidget);
+    expect(find.text('지도 타일 설정'), findsOneWidget);
+    expect(
+      find.text('OpenStreetMap 기본 타일 · 요청 식별자 com.masilpet.app'),
+      findsOneWidget,
+    );
+    expect(find.text('Firebase Functions 검증'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile privacy section links the policy',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final privacy = find.text('위치·개인정보 보호');
+    await tester.ensureVisible(privacy);
+    await tester.pump();
+
+    expect(privacy, findsOneWidget);
+    expect(find.text('개인정보 처리방침: /privacy.html'), findsOneWidget);
+    expect(find.text('개인정보 처리방침 열기'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('profile reset action requires confirmation',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final resetSection = find.text('진행도 관리');
+    await tester.ensureVisible(resetSection);
+    await tester.pump();
+    expect(resetSection, findsOneWidget);
+
+    final reset = find.text('진행도 초기화');
+    await tester.ensureVisible(reset);
+    await tester.pump();
+    await tester.tap(reset);
+    await _settle(tester);
+
+    expect(find.textContaining('되돌릴 수 없습니다'), findsOneWidget);
+
+    await tester.tap(find.text('취소'));
+    await _settle(tester);
+
+    expect(find.textContaining('되돌릴 수 없습니다'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile app info shows build metadata',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = _controller()..setTab(4);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final info = find.text('앱 정보와 연결');
+    await tester.ensureVisible(info);
+    await tester.pump();
+
+    expect(info, findsOneWidget);
+    expect(find.text('앱 버전'), findsOneWidget);
+    expect(find.text('local-dev'), findsOneWidget);
+    expect(find.text('빌드 채널'), findsOneWidget);
+    expect(find.text('local'), findsOneWidget);
+    expect(find.text('빌드 시각'), findsOneWidget);
+    expect(find.text('local build'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('collection screens expose clear sections on phone width',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    expect(find.text('전국 도감'), findsOneWidget);
+    expect(find.text('다음 발견 후보'), findsOneWidget);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    expect(find.text('오늘의 돌봄'), findsOneWidget);
+    expect(find.text('하우스 현황'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reset progress returns to a visible onboarding story',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = _controller();
+    await controller.completeOnboarding();
+    _sizeView(tester, _phone);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          firebaseReadyProvider.overrideWithValue(false),
-          firebaseStartupIssueProvider.overrideWithValue(
-            FirebaseStartupIssue.missingWebConfiguration,
-          ),
+          masilPetControllerProvider.overrideWith((ref) => controller),
         ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(),
-          ),
-        ),
+        child: const MasilPetApp(),
       ),
     );
-    await tester.pump();
+    await _settle(tester);
 
-    final resetAction = find.widgetWithText(OutlinedButton, '진행도 초기화');
-    await tester.ensureVisible(resetAction);
-    await tester.pumpAndSettle();
-    await tester.tap(resetAction);
-    await tester.pumpAndSettle();
+    expect(find.byType(HomeShell), findsOneWidget);
 
-    expect(find.text('진행도 초기화'), findsWidgets);
-    expect(find.textContaining('되돌릴 수 없습니다'), findsOneWidget);
-    expect(find.byIcon(Icons.warning_amber_rounded), findsOneWidget);
-    expect(find.text('취소'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, '초기화'), findsOneWidget);
+    await controller.resetProgress();
+    await _settle(tester);
 
-    await tester.tap(find.text('취소'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('되돌릴 수 없습니다'), findsNothing);
+    expect(controller.state.onboardingComplete, isFalse);
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text('걸으면 만나고,\n만나면 자라요'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

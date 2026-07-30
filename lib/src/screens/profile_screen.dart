@@ -98,8 +98,8 @@ class ProfileScreen extends ConsumerWidget {
               style: MasilPetType.heroTitle.copyWith(fontSize: 22)),
           content: Text(
             includeRemote
-                ? '기기 내 진행과 온라인 진행도를 초기화합니다.\n이 작업은 되돌릴 수 없습니다.'
-                : '기기 내 진행을 초기화합니다.\n이 작업은 되돌릴 수 없습니다.',
+                ? '기기 내 진행과 온라인 진행도를 모두 지워요.\n한 번 지우면 다시 되살릴 수 없어요.'
+                : '기기 내 진행을 모두 지워요.\n한 번 지우면 다시 되살릴 수 없어요.',
             style: MasilPetType.bodySmall.copyWith(height: 1.7),
           ),
           actions: [
@@ -242,7 +242,9 @@ class _TotalsRow extends StatelessWidget {
         MetricGridItem(label: '다녀온 산책지', value: '$visitedPlaces곳'),
         MetricGridItem(label: '누적 체크인', value: '${state.checkIns.length}회'),
         MetricGridItem(
-          label: companion == null ? '함께한 날' : '${companion.name}와 함께',
+          label: companion == null
+              ? '함께한 날'
+              : '${companion.name}${particleFor(companion.name, '과', '와')} 함께',
           value: '$companionDays일',
         ),
       ],
@@ -388,7 +390,7 @@ class _TodayReport extends StatelessWidget {
                 : '${now.month}월 ${now.day}일, ${state.region.name}에서 '
                     '${state.todayCheckInCount}곳에 도장을 찍었어요.\n'
                     '${companion == null ? '마실펫' : petCallName(companion.name)}는 기분이 좋아졌고, '
-                    '${nextEgg == null ? '알은 모두 부화했습니다' : '알은 ${nextEgg.progress} / ${nextEgg.requiredSteps} 걸음까지 왔습니다'}.',
+                    '${nextEgg == null ? '알은 모두 부화했어요' : '알은 ${nextEgg.progress} / ${nextEgg.requiredSteps} 걸음까지 왔어요'}.',
             style: MasilPetType.prose.copyWith(fontSize: 15),
           ),
           const SizedBox(height: 14),
@@ -580,9 +582,9 @@ class _MaintenanceSection extends StatelessWidget {
             children: [
               Text(
                 state.firebaseReady
-                    ? '계정과 연결되어 있어요. 산책·부화·돌봄 기록을 안전하게 맞춥니다.\n'
+                    ? '계정과 연결되어 있어요. 산책·부화·돌봄 기록을 안전하게 맞춰요.\n'
                         '위치를 켜기 어려운 날에는 기본 위치로 체험할 수 있어요.'
-                    : '지금은 이 기기에 기록을 저장하고 있어요. 연결되면 자동으로 이어집니다.\n'
+                    : '지금은 이 기기에 기록을 저장하고 있어요. 연결되면 자동으로 이어져요.\n'
                         '위치를 켜기 어려운 날에는 기본 위치로 체험할 수 있어요.',
                 style: MasilPetType.prose.copyWith(fontSize: 15),
               ),
@@ -657,9 +659,9 @@ class _PrivacySection extends StatelessWidget {
             children: [
               Text(
                 '현재 위치는 주변 산책지 조회와 '
-                '${checkInRadiusMeters ~/ 1}m 체크인 판정에만 씁니다. '
+                '${checkInRadiusMeters ~/ 1}m 체크인 판정에만 써요. '
                 '체크인은 최근 15분 안에 확인한 위치에서만 가능하고, '
-                '체크인·부화·성장 기록은 Functions를 거쳐 저장합니다.',
+                '체크인·부화·성장 기록은 Functions를 거쳐 저장해요.',
                 style: MasilPetType.prose.copyWith(fontSize: 15),
               ),
               const SizedBox(height: 12),
@@ -697,7 +699,7 @@ class _PrivacySection extends StatelessWidget {
     final opened = await openPrivacyPolicyPage();
     if (!opened) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('개인정보 처리방침을 열 수 없습니다.')),
+        const SnackBar(content: Text('개인정보 처리방침을 열 수 없어요.')),
       );
     }
   }
@@ -709,14 +711,14 @@ class _SourcesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sources = <(String, String)>[
-      ('TourAPI 지역 장소', '전국 산책지와 분류를 운영자 동기화로 반영합니다.'),
-      ('OpenStreetMap 지도', '지도 타일과 저작권 고지는 지도 화면에 표시됩니다.'),
+      ('TourAPI 지역 장소', '전국 산책지와 분류를 운영자 동기화로 반영해요.'),
+      ('OpenStreetMap 지도', '지도 타일과 저작권 고지는 지도 화면에 표시돼요.'),
       (
         '지도 타일 설정',
         '${mapTileBuildConfig.providerLabel} · '
             '요청 식별자 ${mapTileBuildConfig.userAgentLabel}',
       ),
-      ('Firebase Functions 검증', '체크인 거리, 중복 방지, 보상 지급을 서버에서 처리합니다.'),
+      ('Firebase Functions 검증', '체크인 거리, 중복 방지, 보상 지급을 서버에서 처리해요.'),
     ];
 
     return Column(
@@ -771,8 +773,8 @@ class _ResetSection extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             state.firebaseReady
-                ? '초기화하면 기기 내 진행과 온라인 진행도를 함께 지웁니다.'
-                : '지금은 기기 내 진행만 초기화할 수 있습니다.',
+                ? '초기화하면 기기 내 진행과 온라인 진행도를 함께 지워요.'
+                : '지금은 기기 내 진행만 초기화할 수 있어요.',
             style: MasilPetType.bodySmall,
           ),
           const SizedBox(height: 14),
@@ -1029,7 +1031,7 @@ Future<void> _copyReport(BuildContext context, MasilPetState state) async {
 String _reportText(MasilPetState state) {
   final latest = state.todayCheckIns.firstOrNull;
   if (latest == null) {
-    return 'MasilPet 오늘의 리포트\n아직 오늘의 도장이 없습니다. 지도에서 첫 산책지를 기록해 보세요.';
+    return 'MasilPet 오늘의 리포트\n아직 오늘의 도장이 없어요. 지도에서 첫 산책지를 기록해 보세요.';
   }
 
   final reward = latest.rewardApplied

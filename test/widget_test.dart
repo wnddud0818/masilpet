@@ -197,15 +197,15 @@ void main() {
     // Step 2 — learn the loop.
     expect(find.text('세 걸음이면 충분해'), findsOneWidget);
     expect(find.text('동네를 걷고'), findsOneWidget);
-    expect(find.text('주변 150m 안 산책지가 수첩에 뜹니다'), findsOneWidget);
-    expect(find.text('37마리가 전국에서 너를 기다립니다'), findsOneWidget);
+    expect(find.text('주변 150m 안 산책지가 수첩에 떠요'), findsOneWidget);
+    expect(find.text('37마리가 전국에서 너를 기다려요'), findsOneWidget);
     await tester.tap(find.text('좋아, 알겠어'));
     await _settle(tester);
 
     // Step 3 — location, and why progress stays local.
     expect(find.text('어디를 걷는지\n알아야 도장을 찍어'), findsOneWidget);
     expect(
-      find.text('Firebase 앱 설정값이 없어 기기 내 진행으로 시작합니다.'),
+      find.text('Firebase 앱 설정값이 없어 기기 내 진행으로 시작해요.'),
       findsOneWidget,
     );
     expect(find.text('언제든 수첩에서 전체 기록을 지울 수 있어요'), findsOneWidget);
@@ -444,7 +444,7 @@ void main() {
     expect(find.text('실패'), findsNothing);
 
     controller.state = controller.state.copyWith(
-      statusMessage: '위치 권한이 거부되었습니다.',
+      statusMessage: '위치 권한이 거부됐어요.',
     );
     await tester.pump();
 
@@ -452,7 +452,7 @@ void main() {
     expect(find.text('완료'), findsNothing);
 
     controller.state = controller.state.copyWith(
-      statusMessage: 'Firebase Web 설정값이 없어 기기 내 진행으로 시작합니다.',
+      statusMessage: 'Firebase Web 설정값이 없어 기기 내 진행으로 시작해요.',
     );
     await tester.pump();
 
@@ -1106,7 +1106,7 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
     await _settle(tester);
 
-    expect(find.text('함께 다니는 마실펫이 없습니다'), findsOneWidget);
+    expect(find.text('함께 다니는 마실펫이 없어요'), findsOneWidget);
     expect(find.text('오늘 해준 것'), findsNothing);
     expect(find.text('밥 주기'), findsNothing);
 
@@ -1234,8 +1234,8 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
     await _settle(tester);
 
-    expect(find.text('부화할 알이 없습니다'), findsOneWidget);
-    expect(find.textContaining('새 알이 수첩에 들어옵니다'), findsOneWidget);
+    expect(find.text('부화할 알이 없어요'), findsOneWidget);
+    expect(find.textContaining('새 알이 수첩에 들어와요'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -1402,12 +1402,12 @@ void main() {
     await tester.tap(find.text('발견'));
     await _settle(tester);
 
-    expect(find.text('조건에 맞는 스티커가 없습니다'), findsOneWidget);
+    expect(find.text('조건에 맞는 스티커가 없어요'), findsOneWidget);
 
     await tester.tap(find.text('필터 초기화'));
     await _settle(tester);
 
-    expect(find.text('조건에 맞는 스티커가 없습니다'), findsNothing);
+    expect(find.text('조건에 맞는 스티커가 없어요'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -1657,12 +1657,12 @@ void main() {
     await tester.tap(reset);
     await _settle(tester);
 
-    expect(find.textContaining('되돌릴 수 없습니다'), findsOneWidget);
+    expect(find.textContaining('다시 되살릴 수 없어요'), findsOneWidget);
 
     await tester.tap(find.text('취소'));
     await _settle(tester);
 
-    expect(find.textContaining('되돌릴 수 없습니다'), findsNothing);
+    expect(find.textContaining('다시 되살릴 수 없어요'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -92,9 +92,10 @@ powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
 ### 진행도가 저장되지 않을 때
 
 1. Firestore rules가 클라이언트 쓰기를 막는 것은 정상이다.
-2. `attemptCheckIn`, `applyStepProgress`, `interactWithPet`는 사용자 문서가 아직 없으면 스타터 사용자 상태를 같은 트랜잭션 안에서 보정해야 한다.
-3. `ensureUserBootstrap`, `attemptCheckIn`, `applyStepProgress`, `hatchEgg`, `interactWithPet` Functions 로그를 확인한다.
-4. 클라이언트는 로컬 저장소에 진행도를 보존하므로, 네트워크 복구 후 `진행도 새로고침`으로 서버 상태를 다시 불러온다.
+2. `attemptCheckIn`, `applyStepProgress`, `interactWithPet`, `setActivePet`은 사용자 문서가 아직 없으면 스타터 사용자 상태를 같은 트랜잭션 안에서 보정해야 한다.
+3. `ensureUserBootstrap`, `attemptCheckIn`, `applyStepProgress`, `hatchEgg`, `interactWithPet`, `setActivePet` Functions 로그를 확인한다.
+4. 대표 마실펫이 체크인 후 예전 펫으로 되돌아가면 `setActivePet` 호출이 실패한 것이다. `users/{uid}.activePetId`가 앱에서 고른 펫과 같은지 확인한다.
+5. 클라이언트는 로컬 저장소에 진행도를 보존하므로, 네트워크 복구 후 `진행도 새로고침`으로 서버 상태를 다시 불러온다.
 
 ## 제출 당일 확인
 

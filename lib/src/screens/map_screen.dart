@@ -782,7 +782,7 @@ class _NoLocationHero extends StatelessWidget {
           Text('어디를 걷는지 알아야\n도장을 찍어요', style: MasilPetType.heroTitle),
           const SizedBox(height: 6),
           Text(
-            '현재 위치를 확인하면 주변 ${checkInRadiusMeters ~/ 1}m 안의 산책지가 수첩에 뜹니다.',
+            '현재 위치를 확인하면 주변 ${checkInRadiusMeters ~/ 1}m 안의 산책지가 수첩에 떠요.',
             style: MasilPetType.bodySmall.copyWith(height: 1.65),
           ),
           const SizedBox(height: MasilPetSpacing.lg),

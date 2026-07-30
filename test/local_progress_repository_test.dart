@@ -112,6 +112,9 @@ class ResetProgressBackend implements MasilPetBackend {
   }) async {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> setActivePet(String petId) async {}
 }
 
 void main() {
@@ -300,12 +303,12 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(controller.state.activePet?.name, '해랑');
-    expect(controller.state.statusMessage, contains('불러오지 못했습니다'));
+    expect(controller.state.statusMessage, contains('불러오지 못했어요'));
 
     await controller.talkWithActivePet();
 
     expect(controller.state.dialogueCountToday, 1);
-    expect(controller.state.statusMessage, isNot(contains('불러오지 못했습니다')));
+    expect(controller.state.statusMessage, isNot(contains('불러오지 못했어요')));
   });
 
   test('controller explains when local progress cannot be saved', () async {
@@ -317,7 +320,7 @@ void main() {
     await controller.completeOnboarding();
 
     expect(controller.state.onboardingComplete, isTrue);
-    expect(controller.state.statusMessage, contains('저장하지 못했습니다'));
+    expect(controller.state.statusMessage, contains('저장하지 못했어요'));
   });
 
   test('controller does not reuse stale verified location from storage',

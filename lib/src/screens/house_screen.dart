@@ -51,8 +51,8 @@ class HouseScreen extends ConsumerWidget {
               if (nextEgg == null)
                 const EmptyStateCard(
                   note: '알이 없어요',
-                  title: '부화할 알이 없습니다',
-                  body: '지도에서 도장을 찍으면 새 알이 수첩에 들어옵니다.',
+                  title: '부화할 알이 없어요',
+                  body: '지도에서 도장을 찍으면 새 알이 수첩에 들어와요.',
                 )
               else
                 _EggHeroCard(

@@ -2169,6 +2169,40 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
   return {reward, updatedPet};
 });
 
+export const setActivePet = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const petId = String(request.data?.petId ?? '');
+  if (!petId) {
+    throw new HttpsError('invalid-argument', 'petId is required.');
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const petRef = userRef.collection('pets').doc(petId);
+
+  await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const petSnap = await transaction.get(petRef);
+    if (!petSnap.exists && petId !== starterPetId) {
+      throw new HttpsError('not-found', 'Pet not found.');
+    }
+    if (!userSnap.exists || !petSnap.exists) {
+      setStarterUser(transaction, userRef, FieldValue.serverTimestamp());
+    }
+
+    // setStarterUser resets activePetId to the starter, so this write comes last.
+    transaction.set(
+      userRef,
+      {
+        activePetId: petId,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      {merge: true},
+    );
+  });
+
+  return {activePetId: petId};
+});
+
 function setStarterUser(
   transaction: Transaction,
   userRef: DocumentReference,

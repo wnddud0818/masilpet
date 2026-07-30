@@ -18,6 +18,7 @@ type CallableName =
   | 'applyStepProgress'
   | 'hatchEgg'
   | 'interactWithPet'
+  | 'setActivePet'
   | 'seedStarterRegionData'
   | 'syncKoreaPois'
   | 'syncBusanPois';
@@ -42,6 +43,7 @@ const callableNames = new Set<CallableName>([
   'applyStepProgress',
   'hatchEgg',
   'interactWithPet',
+  'setActivePet',
   'seedStarterRegionData',
   'syncKoreaPois',
   'syncBusanPois',

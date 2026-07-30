@@ -280,7 +280,7 @@ class StaticDialogueService {
             )
             .toList(growable: false);
     if (fallback.isEmpty) {
-      throw StateError('${template.id} 캐릭터의 기본 대사가 없습니다.');
+      throw StateError('${template.id} 캐릭터의 기본 대사가 없어요.');
     }
     final normalizedSeed = variantSeed < 0 ? -variantSeed : variantSeed;
     return fallback[normalizedSeed % fallback.length];
@@ -338,7 +338,7 @@ class DeviceLocationService {
   Future<Coordinates> readCurrentLocation() async {
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
-      throw const LocationUnavailableException('위치 서비스가 꺼져 있습니다.');
+      throw const LocationUnavailableException('위치 서비스가 꺼져 있어요.');
     }
 
     var permission = await Geolocator.checkPermission();
@@ -347,11 +347,11 @@ class DeviceLocationService {
     }
 
     if (permission == LocationPermission.denied) {
-      throw const LocationUnavailableException('위치 권한이 거부되었습니다.');
+      throw const LocationUnavailableException('위치 권한이 거부됐어요.');
     }
 
     if (permission == LocationPermission.deniedForever) {
-      throw const LocationUnavailableException('앱 설정에서 위치 권한을 허용해야 합니다.');
+      throw const LocationUnavailableException('앱 설정에서 위치 권한을 허용해야 해요.');
     }
 
     final position = await Geolocator.getCurrentPosition();

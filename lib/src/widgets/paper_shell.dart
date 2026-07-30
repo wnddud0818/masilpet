@@ -240,12 +240,16 @@ class _PaperTab extends StatelessWidget {
         borderRadius: MasilPetRadii.tightBorder,
         child: Stack(
           clipBehavior: Clip.none,
+          // Passthrough so the cell fills the Expanded slot; a loose fit would
+          // shrink it to the label width and pin it to the Stack's top-left.
+          fit: StackFit.passthrough,
           children: [
             Container(
               constraints: const BoxConstraints(minHeight: 52),
               padding: const EdgeInsets.fromLTRB(2, 7, 2, 5),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     width: 5,
@@ -272,17 +276,13 @@ class _PaperTab extends StatelessWidget {
                 ],
               ),
             ),
+            // Anchored to the cell's top-right corner so badges line up on one
+            // grid regardless of how wide each label is.
             if (showBadge)
               Positioned(
                 top: 2,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Transform.translate(
-                    offset: const Offset(22, 0),
-                    child: _NavBadge(badge),
-                  ),
-                ),
+                right: 2,
+                child: _NavBadge(badge),
               ),
           ],
         ),

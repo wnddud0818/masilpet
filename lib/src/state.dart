@@ -38,11 +38,11 @@ enum FirebaseStartupIssue {
 extension FirebaseStartupIssueLabel on FirebaseStartupIssue {
   String get fallbackMessage {
     return switch (this) {
-      FirebaseStartupIssue.none => '온라인 연결 전: 기기 내 진행으로 시작합니다.',
+      FirebaseStartupIssue.none => '온라인 연결 전이에요. 기기 내 진행으로 시작해요.',
       FirebaseStartupIssue.missingWebConfiguration =>
-        'Firebase 앱 설정값이 없어 기기 내 진행으로 시작합니다.',
+        'Firebase 앱 설정값이 없어 기기 내 진행으로 시작해요.',
       FirebaseStartupIssue.initializationFailed =>
-        'Firebase 연결에 실패해 기기 내 진행으로 시작합니다.',
+        'Firebase 연결에 실패해 기기 내 진행으로 시작해요.',
     };
   }
 
@@ -629,8 +629,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     } on Object {
       state = state.copyWith(
         statusMessage: state.firebaseReady
-            ? '저장된 진행도를 불러오지 못했습니다. 온라인 동기화를 준비합니다.'
-            : '저장된 진행도를 불러오지 못했습니다. 새 진행으로 시작합니다.',
+            ? '저장된 진행도를 불러오지 못했어요. 온라인 동기화를 준비할게요.'
+            : '저장된 진행도를 불러오지 못했어요. 새 진행으로 시작할게요.',
       );
     }
   }
@@ -680,8 +680,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       dialogueCountToday: dialogueCountToday,
       dialogueDay: dialogueCountToday == 0 ? now : snapshot.dialogueDay,
       statusMessage: state.firebaseReady
-          ? '저장된 진행도를 불러왔습니다. 온라인 동기화를 준비합니다.'
-          : '저장된 진행도를 불러왔습니다.',
+          ? '저장된 진행도를 불러왔어요. 온라인 동기화를 준비할게요.'
+          : '저장된 진행도를 불러왔어요.',
     );
   }
 
@@ -733,7 +733,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     state = state.copyWith(
       isBusy: true,
-      statusMessage: '계정과 진행도를 동기화하는 중입니다.',
+      statusMessage: '계정과 진행도를 동기화하는 중이에요.',
     );
 
     try {
@@ -741,12 +741,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       await refreshRemoteProgress(silent: true);
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '계정과 진행도를 동기화했습니다.',
+        statusMessage: '계정과 진행도를 동기화했어요.',
       );
     } on Object {
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '온라인 동기화에 실패했습니다. 현재 기기의 진행으로 계속합니다.',
+        statusMessage: '온라인 동기화에 실패했어요. 지금은 이 기기의 진행으로 계속할게요.',
       );
     }
   }
@@ -755,14 +755,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     state = state.copyWith(
       onboardingComplete: true,
       selectedTab: 1,
-      statusMessage: '마실펫 탐험을 시작합니다.',
+      statusMessage: '마실펫 탐험을 시작해요.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
     final saved = await _saveLocalProgress();
     if (!saved) {
       state = state.copyWith(
-        statusMessage: '기기 내 진행을 저장하지 못했습니다. 현재 세션에서는 계속 이용할 수 있습니다.',
+        statusMessage: '기기 내 진행을 저장하지 못했어요. 지금 세션에서는 그대로 이용할 수 있어요.',
       );
     }
   }
@@ -781,10 +781,50 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     );
   }
 
-  void selectPet(String petId) {
+  /// Changes the companion that walks with the user. The switch is applied
+  /// locally first so the yard reacts at once, then sent to the server — without
+  /// that call the next check-in would snap the companion back to whoever the
+  /// server still thinks is active.
+  Future<void> selectPet(String petId) async {
+    final previousPetId = state.activePetId;
+    if (petId == previousPetId) {
+      return;
+    }
+    if (_petById(petId) == null) {
+      state = state.copyWith(statusMessage: '대표로 세울 마실펫을 찾을 수 없어요.');
+      return;
+    }
+
+    final backend = _backend;
     state = state.copyWith(
       activePetId: petId,
-      statusMessage: '대표 마실펫을 변경했습니다.',
+      isBusy: backend != null,
+      statusMessage: '대표 마실펫을 바꿨어요.',
+    );
+    _persistLocalProgress();
+
+    if (backend == null) {
+      return;
+    }
+
+    try {
+      await backend.setActivePet(petId);
+      state = state.copyWith(isBusy: false);
+    } on MasilPetBackendException catch (error) {
+      _revertActivePet(previousPetId, _messageForRemoteActivePetFailure(error));
+    } on Object {
+      _revertActivePet(
+        previousPetId,
+        '서버에 대표 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.',
+      );
+    }
+  }
+
+  void _revertActivePet(String previousPetId, String statusMessage) {
+    state = state.copyWith(
+      activePetId: previousPetId,
+      isBusy: false,
+      statusMessage: statusMessage,
     );
     _persistLocalProgress();
   }
@@ -801,8 +841,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       clearLocationVerifiedAt: !enablesLocalCheckIn,
       pois: starterPoiSeed,
       statusMessage: enablesLocalCheckIn
-          ? '전국 기본 체험 위치로 이동했습니다. 추천 장소 체크인을 바로 진행할 수 있습니다.'
-          : '전국 기본 장소 지도로 이동했습니다. 체크인은 현재 위치 확인 후 가능합니다.',
+          ? '전국 기본 체험 위치로 옮겼어요. 추천 장소 체크인을 바로 할 수 있어요.'
+          : '전국 기본 장소 지도로 옮겼어요. 체크인은 현재 위치를 확인한 뒤에 할 수 있어요.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
@@ -813,7 +853,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     state = state.copyWith(
       selectedTab: 0,
       isBusy: true,
-      statusMessage: '현재 위치를 확인하는 중입니다.',
+      statusMessage: '현재 위치를 확인하는 중이에요.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
@@ -828,7 +868,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         pois: remotePois.isEmpty ? state.pois : remotePois,
         isBusy: false,
         statusMessage:
-            remotePois.isEmpty ? '현재 위치를 반영했습니다.' : '현재 위치와 주변 장소를 반영했습니다.',
+            remotePois.isEmpty ? '현재 위치를 반영했어요.' : '현재 위치와 주변 장소를 반영했어요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -836,7 +876,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     } on LocationUnavailableException catch (error) {
       state = state.copyWith(isBusy: false, statusMessage: error.message);
     } on Object {
-      state = state.copyWith(isBusy: false, statusMessage: '위치를 가져오지 못했습니다.');
+      state = state.copyWith(isBusy: false, statusMessage: '위치를 가져오지 못했어요.');
     }
   }
 
@@ -863,30 +903,30 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       category: remote.category,
       coordinates: remote.coordinates,
       shortDescription:
-          '현재 위치에서 ${remote.distanceMeters.round()}m 거리의 ${remote.category.label} 장소입니다.',
+          '현재 위치에서 ${remote.distanceMeters.round()}m 거리에 있는 ${remote.category.label} 장소예요.',
     );
   }
 
   Future<void> ensureRemoteUserBootstrap() async {
     final backend = _backend;
     if (backend == null) {
-      state = state.copyWith(statusMessage: '온라인 연결 후 계정 상태를 확인할 수 있습니다.');
+      state = state.copyWith(statusMessage: '온라인 연결 후에 계정 상태를 확인할 수 있어요.');
       return;
     }
 
     state =
-        state.copyWith(isBusy: true, statusMessage: '서버 사용자 데이터를 확인하는 중입니다.');
+        state.copyWith(isBusy: true, statusMessage: '서버 사용자 데이터를 확인하는 중이에요.');
     try {
       await backend.ensureUserBootstrap();
       await refreshRemoteProgress(silent: true);
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '서버 사용자 데이터가 준비되었습니다.',
+        statusMessage: '서버 사용자 데이터가 준비됐어요.',
       );
     } on Object {
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '서버 사용자 초기화에 실패했습니다.',
+        statusMessage: '서버 사용자 초기화에 실패했어요.',
       );
     }
   }
@@ -895,13 +935,13 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final repository = _userRepository;
     if (repository == null) {
       if (!silent) {
-        state = state.copyWith(statusMessage: '온라인 연결 후 진행도를 불러올 수 있습니다.');
+        state = state.copyWith(statusMessage: '온라인 연결 후에 진행도를 불러올 수 있어요.');
       }
       return;
     }
 
     if (!silent) {
-      state = state.copyWith(isBusy: true, statusMessage: '서버 진행도를 불러오는 중입니다.');
+      state = state.copyWith(isBusy: true, statusMessage: '서버 진행도를 불러오는 중이에요.');
     }
 
     try {
@@ -909,7 +949,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       if (progress == null) {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: silent ? state.statusMessage : '서버 사용자 데이터가 아직 없습니다.',
+          statusMessage: silent ? state.statusMessage : '서버 사용자 데이터가 아직 없어요.',
         );
         return;
       }
@@ -930,13 +970,13 @@ class MasilPetController extends StateNotifier<MasilPetState> {
             ? state.activePetId
             : progress.activePetId,
         isBusy: false,
-        statusMessage: silent ? state.statusMessage : '서버 진행도를 불러왔습니다.',
+        statusMessage: silent ? state.statusMessage : '서버 진행도를 불러왔어요.',
       );
       _persistLocalProgress();
     } on Object {
       state = state.copyWith(
         isBusy: false,
-        statusMessage: silent ? state.statusMessage : '서버 진행도 불러오기에 실패했습니다.',
+        statusMessage: silent ? state.statusMessage : '서버 진행도를 불러오지 못했어요.',
       );
     }
   }
@@ -944,7 +984,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   Future<void> resetProgress() async {
     state = state.copyWith(
       isBusy: true,
-      statusMessage: '진행도를 초기화하는 중입니다.',
+      statusMessage: '진행도를 초기화하는 중이에요.',
     );
 
     var remoteDeleteFailed = false;
@@ -963,8 +1003,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       state = state.copyWith(
         isBusy: false,
         statusMessage: remoteDeleteFailed
-            ? '서버와 기기 내 진행도 초기화에 실패했습니다. 잠시 후 다시 시도하세요.'
-            : '기기 내 진행도 초기화에 실패했습니다. 잠시 후 다시 시도하세요.',
+            ? '서버와 기기 내 진행도를 초기화하지 못했어요. 잠시 후에 다시 시도해 주세요.'
+            : '기기 내 진행도를 초기화하지 못했어요. 잠시 후에 다시 시도해 주세요.',
       );
       return;
     }
@@ -974,10 +1014,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       firebaseStartupIssue: state.firebaseStartupIssue,
     ).copyWith(
       statusMessage: remoteDeleteFailed
-          ? '서버 진행도 삭제에 실패했습니다. 기기 내 진행은 초기화했습니다.'
+          ? '서버 진행도를 지우지 못했어요. 기기 내 진행은 초기화했어요.'
           : _backend == null
-              ? '기기 내 진행을 초기화했습니다.'
-              : '기기와 서버 진행도를 초기화했습니다.',
+              ? '기기 내 진행을 초기화했어요.'
+              : '기기와 서버 진행도를 초기화했어요.',
     );
   }
 
@@ -987,7 +1027,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     if (!state.hasFreshVerifiedLocation) {
       state = state.copyWith(
-        statusMessage: '현재 위치를 다시 확인해야 체크인할 수 있습니다.',
+        statusMessage: '현재 위치를 다시 확인해야 체크인할 수 있어요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -997,7 +1037,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (state.remainingDailyCheckIns == 0) {
       state = state.copyWith(
         statusMessage:
-            '오늘 가능한 체크인 $dailyCheckInLimit회를 모두 사용했습니다. 내일 다시 이어갈 수 있습니다.',
+            '오늘 쓸 수 있는 체크인 $dailyCheckInLimit회를 모두 썼어요. 내일 다시 이어가요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -1007,7 +1047,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (distance > checkInRadiusMeters) {
       state = state.copyWith(
         statusMessage:
-            '${poi.title}까지 ${distance.round()}m 떨어져 있습니다. 150m 안에서 체크인할 수 있습니다.',
+            '${poi.title}까지 ${distance.round()}m 남았어요. 150m 안에서 체크인할 수 있어요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -1019,7 +1059,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           checkIn.poiId == poi.id && isSameLocalDay(checkIn.createdAt, now),
     );
     if (alreadyCheckedIn) {
-      state = state.copyWith(statusMessage: '오늘은 이미 ${poi.title}에 체크인했습니다.');
+      state = state.copyWith(statusMessage: '오늘은 이미 ${poi.title}에 체크인했어요.');
       return;
     }
 
@@ -1027,7 +1067,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (backend != null) {
       state = state.copyWith(
         isBusy: true,
-        statusMessage: '${poi.title} 서버 체크인을 확인하는 중입니다.',
+        statusMessage: '${poi.title} 서버 체크인을 확인하는 중이에요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -1054,7 +1094,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       } on Object {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: '서버 체크인에 실패했습니다. 지역 데이터 준비 후 다시 시도하세요.',
+          statusMessage: '서버 체크인에 실패했어요. 지역 데이터가 준비되면 다시 시도해 주세요.',
         );
         return;
       }
@@ -1076,24 +1116,24 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     Poi poi,
     MasilPetBackendException error,
   ) async {
-    var message = '서버 체크인에 실패했습니다. 잠시 후 다시 시도하세요.';
+    var message = '서버 체크인에 실패했어요. 잠시 후에 다시 시도해 주세요.';
 
     if (error.code == 'already-exists') {
       await refreshRemoteProgress(silent: true);
-      message = '오늘은 이미 ${poi.title}에 체크인했습니다.';
+      message = '오늘은 이미 ${poi.title}에 체크인했어요.';
     } else if (error.code == 'not-found') {
-      message = '지역 장소 데이터가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.';
+      message = '지역 장소 데이터가 아직 준비되지 않았어요. 잠시 후에 다시 시도해 주세요.';
     } else if (error.code == 'unauthenticated') {
-      message = '온라인 인증이 필요합니다. 앱을 새로고침한 뒤 다시 시도하세요.';
+      message = '온라인 인증이 필요해요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     } else if (error.code == 'failed-precondition') {
       final serverDistance = _distanceMetersFromErrorDetails(error.details);
       if (serverDistance != null) {
         message =
-            '서버 기준 ${serverDistance.round()}m 떨어져 있습니다. 150m 안에서 체크인할 수 있습니다.';
+            '서버 기준으로 ${serverDistance.round()}m 남았어요. 150m 안에서 체크인할 수 있어요.';
       } else if ((error.message ?? '').contains('Daily check-in limit')) {
-        message = '오늘 가능한 서버 체크인 횟수를 모두 사용했습니다.';
+        message = '오늘 쓸 수 있는 서버 체크인 횟수를 모두 썼어요.';
       } else {
-        message = '서버 체크인 조건을 만족하지 못했습니다. 위치와 방문 기록을 확인하세요.';
+        message = '서버 체크인 조건을 만족하지 못했어요. 위치와 방문 기록을 확인해 주세요.';
       }
     }
 
@@ -1203,7 +1243,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (backend != null) {
       state = state.copyWith(
         isBusy: true,
-        statusMessage: '$stepDelta 걸음을 서버에 반영하는 중입니다.',
+        statusMessage: '$stepDelta 걸음을 서버에 반영하는 중이에요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -1219,7 +1259,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       } on Object {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: '서버 걸음 수 반영에 실패했습니다. 기기 내 진행 상태는 유지합니다.',
+          statusMessage: '서버에 걸음 수를 반영하지 못했어요. 기기 내 진행 상태는 그대로 남아 있어요.',
         );
         return;
       }
@@ -1228,7 +1268,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (appliedStepDelta <= 0) {
       state = state.copyWith(
         isBusy: false,
-        statusMessage: '오늘 반영할 수 있는 걸음 수를 모두 사용했습니다.',
+        statusMessage: '오늘 반영할 수 있는 걸음 수를 모두 썼어요.',
       );
       return;
     }
@@ -1242,8 +1282,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       eggs: eggs,
       isBusy: false,
       statusMessage: hatchableCount > 0
-          ? '부화 가능한 알이 있습니다.'
-          : '알 부화 진행도에 $appliedStepDelta 걸음을 반영했습니다.',
+          ? '부화할 수 있는 알이 있어요.'
+          : '알 부화 진행도에 $appliedStepDelta 걸음을 반영했어요.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
@@ -1253,7 +1293,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   Future<void> hatchEgg(String eggId) async {
     final egg = state.eggs.where((item) => item.id == eggId).firstOrNull;
     if (egg == null || egg.status != EggStatus.hatchable) {
-      state = state.copyWith(statusMessage: '아직 부화할 수 없는 알입니다.');
+      state = state.copyWith(statusMessage: '아직 부화할 수 없는 알이에요.');
       return;
     }
 
@@ -1264,7 +1304,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     if (backend != null) {
       state = state.copyWith(
-          isBusy: true, statusMessage: '${template.name}의 알을 서버에서 부화하는 중입니다.');
+          isBusy: true, statusMessage: '${template.name}의 알을 서버에서 부화하는 중이에요.');
       try {
         petId = await backend.hatchEgg(eggId);
       } on MasilPetBackendException catch (error) {
@@ -1278,7 +1318,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       } on Object {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: '서버 부화에 실패했습니다. 알 상태를 다시 확인하세요.',
+          statusMessage: '서버 부화에 실패했어요. 알 상태를 다시 확인해 주세요.',
         );
         return;
       }
@@ -1305,7 +1345,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       },
       activePetId: pet.id,
       isBusy: false,
-      statusMessage: '${template.name}이 부화했습니다.',
+      statusMessage:
+          '${template.name}${particleFor(template.name, '이', '가')} 부화했어요.',
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
@@ -1320,14 +1361,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       state = state.copyWith(
         dialogueCountToday: resetCount,
         dialogueDay: now,
-        statusMessage: '오늘의 대화 횟수를 모두 사용했습니다.',
+        statusMessage: '오늘의 대화 횟수를 모두 썼어요.',
       );
       return;
     }
 
     final activePet = state.activePet;
     if (activePet == null) {
-      state = state.copyWith(statusMessage: '대화할 마실펫이 없습니다.');
+      state = state.copyWith(statusMessage: '대화할 마실펫이 없어요.');
       return;
     }
 
@@ -1349,7 +1390,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (backend != null) {
       state = state.copyWith(
         isBusy: true,
-        statusMessage: '${activePet.name}과의 대화를 서버에 반영하는 중입니다.',
+        statusMessage: '${activePet.name}'
+            '${particleFor(activePet.name, '과', '와')}의 대화를 '
+            '서버에 반영하는 중이에요.',
         fieldActivity: PetFieldActivity.greeting,
         bumpFieldActivity: true,
       );
@@ -1367,7 +1410,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       } on Object {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: '서버 대화 반영에 실패했습니다.',
+          statusMessage: '서버에 대화를 반영하지 못했어요.',
         );
         return;
       }
@@ -1403,7 +1446,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   Future<void> feedPet(String petId) async {
     final activePet = _petById(petId);
     if (activePet == null) {
-      state = state.copyWith(statusMessage: '먹이를 줄 마실펫이 없습니다.');
+      state = state.copyWith(statusMessage: '먹이를 줄 마실펫이 없어요.');
       return;
     }
 
@@ -1412,7 +1455,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final currentCare = _careFor(activePet, now);
     if (currentCare.feedCountToday >= dailyFeedCareLimit) {
       state = state.copyWith(
-        statusMessage: '${activePet.name}은 오늘 충분히 배불러요. 내일 또 챙겨주세요.',
+        statusMessage: '${activePet.name}'
+            '${particleFor(activePet.name, '은', '는')} 오늘 충분히 배불러요. '
+            '내일 또 챙겨주세요.',
         fieldActivity: PetFieldActivity.greeting,
         bumpFieldActivity: true,
       );
@@ -1426,7 +1471,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (backend != null) {
       state = state.copyWith(
         isBusy: true,
-        statusMessage: '${activePet.name} 먹이주기를 서버에 반영하는 중입니다.',
+        statusMessage: '${activePet.name} 먹이주기를 서버에 반영하는 중이에요.',
         fieldActivity: PetFieldActivity.eating,
         bumpFieldActivity: true,
       );
@@ -1444,7 +1489,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       } on Object {
         state = state.copyWith(
           isBusy: false,
-          statusMessage: '서버 먹이주기 반영에 실패했습니다.',
+          statusMessage: '서버에 먹이주기를 반영하지 못했어요.',
         );
         return;
       }
@@ -1482,7 +1527,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   void playPet(String petId) {
     final activePet = _petById(petId);
     if (activePet == null) {
-      state = state.copyWith(statusMessage: '함께 놀 마실펫이 없습니다.');
+      state = state.copyWith(statusMessage: '함께 놀 마실펫이 없어요.');
       return;
     }
 
@@ -1512,7 +1557,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   void cleanPet(String petId) {
     final activePet = _petById(petId);
     if (activePet == null) {
-      state = state.copyWith(statusMessage: '씻겨 줄 마실펫이 없습니다.');
+      state = state.copyWith(statusMessage: '씻겨 줄 마실펫이 없어요.');
       return;
     }
 
@@ -1540,7 +1585,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   void sleepActivePet() {
     final activePet = state.activePet;
     if (activePet == null) {
-      state = state.copyWith(statusMessage: '재워 줄 마실펫이 없습니다.');
+      state = state.copyWith(statusMessage: '재워 줄 마실펫이 없어요.');
       return;
     }
 
@@ -1577,7 +1622,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final now = DateTime.now();
     final claimKey = _careEngine.localDayKey(now);
     if (state.dailyCareRewardClaimKey == claimKey) {
-      state = state.copyWith(statusMessage: '오늘의 돌봄 포인트를 이미 받았습니다.');
+      state = state.copyWith(statusMessage: '오늘의 돌봄 포인트는 이미 받았어요.');
       return;
     }
 
@@ -1585,7 +1630,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (!routine.isComplete) {
       state = state.copyWith(
         statusMessage:
-            '오늘의 돌봄 루틴을 ${routine.completedCount}/${routine.targetCount} 완료했습니다.',
+            '오늘의 돌봄 루틴을 ${routine.completedCount}/${routine.targetCount} 완료했어요.',
       );
       return;
     }
@@ -1593,7 +1638,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     state = state.copyWith(
       carePoints: state.carePoints + dailyCareRewardPoints,
       dailyCareRewardClaimKey: claimKey,
-      statusMessage: '오늘의 돌봄 포인트 $dailyCareRewardPoints점을 받았습니다.',
+      statusMessage: '오늘의 돌봄 포인트 $dailyCareRewardPoints점을 받았어요.',
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
@@ -1755,46 +1800,46 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
   String _messageForRemoteStepFailure(MasilPetBackendException error) {
     if (error.code == 'unauthenticated') {
-      return '온라인 인증이 필요합니다. 앱을 새로고침한 뒤 다시 시도하세요.';
+      return '온라인 인증이 필요해요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
     if (error.code == 'invalid-argument') {
       final message = error.message ?? '';
       if (message.contains('or less')) {
-        return '한 번에 반영할 수 있는 걸음 수를 넘었습니다. 잠시 후 다시 시도하세요.';
+        return '한 번에 반영할 수 있는 걸음 수를 넘었어요. 잠시 후에 다시 시도해 주세요.';
       }
-      return '걸음 수가 올바르지 않습니다. 잠시 후 다시 시도하세요.';
+      return '걸음 수가 올바르지 않아요. 잠시 후에 다시 시도해 주세요.';
     }
 
     if (error.code == 'failed-precondition' &&
         (error.message ?? '').contains('Daily step progress limit')) {
-      return '오늘 서버에 반영할 수 있는 걸음 수를 모두 사용했습니다.';
+      return '오늘 서버에 반영할 수 있는 걸음 수를 모두 썼어요.';
     }
 
-    return '서버 걸음 수 반영에 실패했습니다. 잠시 후 다시 시도하세요.';
+    return '서버에 걸음 수를 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.';
   }
 
   String _messageForRemoteHatchFailure(MasilPetBackendException error) {
     if (error.code == 'unauthenticated') {
-      return '온라인 인증이 필요합니다. 앱을 새로고침한 뒤 다시 시도하세요.';
+      return '온라인 인증이 필요해요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
     if (error.code == 'not-found') {
-      return '서버에서 알 정보를 찾을 수 없습니다. 진행도를 새로고침한 뒤 다시 시도하세요.';
+      return '서버에서 알 정보를 찾을 수 없어요. 진행도를 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
     if (error.code == 'failed-precondition') {
       final message = error.message ?? '';
       if (message.contains('not hatchable')) {
-        return '아직 서버 기준으로 부화할 수 없는 알입니다. 걸음 진행도를 확인하세요.';
+        return '서버 기준으로는 아직 부화할 수 없는 알이에요. 걸음 진행도를 확인해 주세요.';
       }
       if (message.contains('Pet template')) {
-        return '펫 도감 데이터가 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요.';
+        return '펫 도감 데이터가 아직 준비되지 않았어요. 잠시 후에 다시 시도해 주세요.';
       }
-      return '서버 부화 조건을 만족하지 못했습니다. 알 상태를 다시 확인하세요.';
+      return '서버 부화 조건을 만족하지 못했어요. 알 상태를 다시 확인해 주세요.';
     }
 
-    return '서버 부화에 실패했습니다. 잠시 후 다시 시도하세요.';
+    return '서버 부화에 실패했어요. 잠시 후에 다시 시도해 주세요.';
   }
 
   String _messageForRemotePetInteractionFailure(
@@ -1802,18 +1847,34 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     String actionLabel,
   ) {
     if (error.code == 'unauthenticated') {
-      return '온라인 인증이 필요합니다. 앱을 새로고침한 뒤 다시 시도하세요.';
+      return '온라인 인증이 필요해요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
     if (error.code == 'not-found') {
-      return '서버에서 이 마실펫을 찾을 수 없습니다. 진행도를 새로고침한 뒤 다시 시도하세요.';
+      return '서버에서 이 마실펫을 찾을 수 없어요. 진행도를 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
     if (error.code == 'invalid-argument') {
-      return '$actionLabel 요청이 올바르지 않습니다. 앱을 새로고침한 뒤 다시 시도하세요.';
+      return '$actionLabel 요청이 올바르지 않아요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
-    return '서버 $actionLabel 반영에 실패했습니다. 잠시 후 다시 시도하세요.';
+    return '서버에 $actionLabel 결과를 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.';
+  }
+
+  String _messageForRemoteActivePetFailure(MasilPetBackendException error) {
+    if (error.code == 'unauthenticated') {
+      return '온라인 인증이 필요해요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
+    }
+
+    if (error.code == 'not-found') {
+      return '서버에서 이 마실펫을 찾을 수 없어요. 진행도를 새로고침한 뒤에 다시 시도해 주세요.';
+    }
+
+    if (error.code == 'invalid-argument') {
+      return '대표 마실펫 변경 요청이 올바르지 않아요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
+    }
+
+    return '서버에 대표 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.';
   }
 }
 

@@ -36,7 +36,8 @@ Firebase 로그인, Secret, Firebase Web 빌드 설정까지 함께 확인할 �
 - `GOOGLE_APPLICATION_CREDENTIALS` 또는 Application Default Credentials를 준비하고 `tools/set_operator_claim.ps1`로 운영자 UID에 `operator: true`를 부여한다.
 - `tools/run_operator_callable.ps1 -FunctionName seedStarterRegionData`로 전국 지역, POI, 펫 템플릿, 대사 시드를 반영한다.
 - TourAPI 최신 장소 동기화가 필요하면 `tools/run_operator_callable.ps1 -FunctionName syncKoreaPois`를 호출한다.
-- 첫 사용자 액션이 `ensureUserBootstrap`보다 먼저 도착해도 `attemptCheckIn`, `applyStepProgress`, `interactWithPet`가 스타터 사용자 상태를 서버에서 보정하는지 Functions 로그로 확인한다.
+- 첫 사용자 액션이 `ensureUserBootstrap`보다 먼저 도착해도 `attemptCheckIn`, `applyStepProgress`, `interactWithPet`, `setActivePet`이 스타터 사용자 상태를 서버에서 보정하는지 Functions 로그로 확인한다.
+- 마실펫 목록에서 주 캐릭터를 바꾼 뒤 체크인하면 바꾼 펫에게 보상이 쌓이는지(= `setActivePet`이 `users/{uid}.activePetId`를 갱신했는지) 확인한다.
 - Firestore rules에서 사용자 진행도 쓰기가 클라이언트에 열려 있지 않은지 확인한다.
 
 ## 3. 실제 기기 검증

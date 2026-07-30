@@ -218,7 +218,7 @@ class _MeetStep extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 330),
           child: const Text(
-            '동네 한 바퀴가 한 마리의 친구가 됩니다.\n오늘의 걸음을 수첩에 찍어두세요.',
+            '동네 한 바퀴가 한 마리의 친구가 돼요.\n오늘의 걸음을 수첩에 찍어두세요.',
             textAlign: TextAlign.center,
             style: MasilPetType.body,
           ),
@@ -239,17 +239,17 @@ class _LoopStep extends StatelessWidget {
       const _LoopStepData(
         number: '01',
         title: '동네를 걷고',
-        body: '주변 ${checkInRadiusMeters ~/ 1}m 안 산책지가 수첩에 뜹니다',
+        body: '주변 ${checkInRadiusMeters ~/ 1}m 안 산책지가 수첩에 떠요',
       ),
       const _LoopStepData(
         number: '02',
         title: '도착하면 도장',
-        body: '한 번의 체크인이 알을 자라게 합니다',
+        body: '도장 한 번이 알을 자라게 해요',
       ),
       _LoopStepData(
         number: '03',
         title: '같이 자라요',
-        body: '$templateCount마리가 전국에서 너를 기다립니다',
+        body: '$templateCount마리가 전국에서 너를 기다려요',
       ),
     ];
 
@@ -367,7 +367,7 @@ class _LocationStep extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             '위치는 주변 산책지를 찾고 ${checkInRadiusMeters ~/ 1}m 안에 있는지\n'
-            '확인하는 데에만 씁니다. 이름도 이메일도 없이 시작해요.',
+            '확인하는 데에만 써요. 이름도 이메일도 없이 시작해요.',
             textAlign: TextAlign.center,
             style: MasilPetType.bodySmall.copyWith(height: 1.75),
           ),
@@ -379,7 +379,7 @@ class _LocationStep extends StatelessWidget {
               children: [
                 CheckLine(
                   localOnlyNote == null
-                      ? '연결이 끊겨도 오늘의 기록은 기기에 남고, 다시 이어집니다'
+                      ? '연결이 끊겨도 오늘의 기록은 기기에 남고, 다시 이어져요'
                       : localOnlyNote!,
                 ),
                 const SizedBox(height: 9),

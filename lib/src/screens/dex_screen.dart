@@ -81,7 +81,7 @@ class _DexScreenState extends ConsumerState<DexScreen> {
               if (entries.isEmpty)
                 EmptyStateCard(
                   note: '비어 있어요',
-                  title: '조건에 맞는 스티커가 없습니다',
+                  title: '조건에 맞는 스티커가 없어요',
                   body: '다른 지역이나 발견 상태를 골라 앨범을 다시 살펴보세요.',
                   actionLabel: '필터 초기화',
                   onAction: () => setState(() {
@@ -511,7 +511,7 @@ class _NextDiscoveryNote extends StatelessWidget {
             const HandNote('도감을 다 채웠어요'),
             const SizedBox(height: MasilPetSpacing.sm),
             Text(
-              '전국의 마실펫을 모두 만났습니다.\n이제는 같은 길을 더 자주 걸어 친밀도를 쌓아보세요.',
+              '전국의 마실펫을 모두 만났어요.\n이제는 같은 길을 더 자주 걸어 친밀도를 쌓아보세요.',
               style: MasilPetType.prose.copyWith(fontSize: 15),
             ),
           ],
@@ -565,8 +565,8 @@ class _DiscoveryHintList extends StatelessWidget {
     if (pois.isEmpty) {
       return EmptyStateCard(
         note: '힌트 없음',
-        title: '아직 등록된 산책지가 없습니다',
-        body: '현재 위치를 다시 확인하면 가까운 산책지 힌트를 볼 수 있습니다.',
+        title: '아직 등록된 산책지가 없어요',
+        body: '현재 위치를 다시 확인하면 가까운 산책지 힌트를 볼 수 있어요.',
         actionLabel: '지도에서 다시 조회',
         onAction: onOpenMap,
       );

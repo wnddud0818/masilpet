@@ -35,8 +35,8 @@ class PetScreen extends ConsumerWidget {
               if (pet == null)
                 EmptyStateCard(
                   note: '아직 친구가 없어요',
-                  title: '함께 다니는 마실펫이 없습니다',
-                  body: '하우스에서 알을 부화하면 이 자리에 친구가 섭니다.',
+                  title: '함께 다니는 마실펫이 없어요',
+                  body: '하우스에서 알을 부화하면 이 자리에 친구가 서요.',
                   actionLabel: '하우스로 가기',
                   onAction: () => controller.setTab(2),
                 )

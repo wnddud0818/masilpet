@@ -168,7 +168,7 @@ void main() {
     expect(indexHtml, contains('loadingShell.remove()'));
     expect(indexHtml, isNot(contains('name="viewport"')));
     expect(indexHtml, contains('<noscript>'));
-    expect(indexHtml, contains('JavaScript를 켜야 합니다'));
+    expect(indexHtml, contains('JavaScript를 켜주세요'));
     expect(indexHtml, contains('/privacy.html'));
     expect(indexHtml, contains('prefers-reduced-motion'));
     expect(indexHtml, contains('name="application-name" content="MasilPet"'));

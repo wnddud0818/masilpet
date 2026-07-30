@@ -329,18 +329,28 @@ String rarityDisplayLabel(String rarity) {
   }
 }
 
+/// Whether a word ends in a consonant — the fork every Korean particle takes.
+bool endsWithFinalConsonant(String word) {
+  if (word.isEmpty) {
+    return false;
+  }
+  final code = word.codeUnitAt(word.length - 1);
+  if (code < 0xAC00 || code > 0xD7A3) {
+    return false;
+  }
+  return (code - 0xAC00) % 28 != 0;
+}
+
+/// Picks the particle that fits the name: 해랑은 / 누비는, 해랑이 / 누비가.
+/// Non-Hangul endings take the vowel form, which reads least wrong.
+String particleFor(String word, String afterConsonant, String afterVowel) {
+  return endsWithFinalConsonant(word) ? afterConsonant : afterVowel;
+}
+
 /// How a pet is addressed out loud. Korean adds 이 when the name ends in a
 /// consonant (해랑 → 해랑이) and leaves it off when it ends in a vowel (누비).
 String petCallName(String name) {
-  if (name.isEmpty) {
-    return name;
-  }
-  final code = name.codeUnitAt(name.length - 1);
-  if (code < 0xAC00 || code > 0xD7A3) {
-    return name;
-  }
-  final hasFinalConsonant = (code - 0xAC00) % 28 != 0;
-  return hasFinalConsonant ? '$name이' : name;
+  return endsWithFinalConsonant(name) ? '$name이' : name;
 }
 
 class Pet {

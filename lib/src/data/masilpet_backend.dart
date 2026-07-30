@@ -31,6 +31,10 @@ abstract class MasilPetBackend {
     required String petId,
     required String actionType,
   });
+
+  /// Records which pet walks with the user, so server-side rewards land on the
+  /// same companion the app is showing.
+  Future<void> setActivePet(String petId);
 }
 
 MasilPetBackend createMasilPetBackend() {
@@ -121,6 +125,11 @@ class CloudflareMasilPetBackend implements MasilPetBackend {
       'actionType': actionType,
     });
     return RemotePetInteractionResult.fromMap(data);
+  }
+
+  @override
+  Future<void> setActivePet(String petId) async {
+    await _call('setActivePet', {'petId': petId});
   }
 
   Future<Map<String, dynamic>> _call(
@@ -250,6 +259,11 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
       'actionType': actionType,
     });
     return RemotePetInteractionResult.fromMap(data);
+  }
+
+  @override
+  Future<void> setActivePet(String petId) async {
+    await _call('setActivePet', {'petId': petId});
   }
 
   Future<Map<String, dynamic>> _call(String functionName,

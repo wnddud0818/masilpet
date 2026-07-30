@@ -115,6 +115,9 @@ class ResetProgressBackend implements MasilPetBackend {
 
   @override
   Future<void> setActivePet(String petId) async {}
+
+  @override
+  Future<void> setActiveEgg(String eggId) async {}
 }
 
 void main() {

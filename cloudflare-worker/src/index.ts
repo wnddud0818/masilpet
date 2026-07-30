@@ -16,9 +16,11 @@ type CallableName =
   | 'getNearbyPois'
   | 'attemptCheckIn'
   | 'applyStepProgress'
+  | 'syncStepsV2'
   | 'hatchEgg'
   | 'interactWithPet'
   | 'setActivePet'
+  | 'setActiveEgg'
   | 'seedStarterRegionData'
   | 'syncKoreaPois'
   | 'syncBusanPois';
@@ -41,9 +43,11 @@ const callableNames = new Set<CallableName>([
   'getNearbyPois',
   'attemptCheckIn',
   'applyStepProgress',
+  'syncStepsV2',
   'hatchEgg',
   'interactWithPet',
   'setActivePet',
+  'setActiveEgg',
   'seedStarterRegionData',
   'syncKoreaPois',
   'syncBusanPois',

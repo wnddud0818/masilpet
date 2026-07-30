@@ -373,7 +373,7 @@ class _TodayReport extends StatelessWidget {
     final now = DateTime.now();
     final score = _reportScore(state);
     final companion = state.activePet;
-    final nextEgg = state.nextEgg;
+    final nextEgg = state.activeEgg;
 
     return DashedBox(
       fill: MasilPetPalette.subtle,
@@ -912,7 +912,7 @@ List<_JourneyGoal> _journeyGoals({
   required VoidCallback? onOpenHouse,
 }) {
   final dialogueToday = _dialogueCountToday(state);
-  final nextEgg = state.nextEgg;
+  final nextEgg = state.activeEgg;
   final eggProgress = nextEgg?.progressRatio ?? 0;
   final hatchReady = state.hatchableEggCount > 0 || state.pets.length > 1;
   const streakGoalDays = 3;

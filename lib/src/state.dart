@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -69,10 +70,14 @@ class MasilPetState {
     this.careByPetId = const {},
     this.carePoints = 0,
     this.dailyCareRewardClaimKey,
+    this.stepTrackingSupported = false,
+    this.stepTrackingActive = false,
+    this.deviceStepsWaiting = 0,
     required this.currentLocation,
     required this.locationVerified,
     required this.locationVerifiedAt,
     required this.activePetId,
+    this.activeEggId = '',
     required this.selectedTab,
     required this.mapCategoryFocus,
     required this.statusMessage,
@@ -132,6 +137,7 @@ class MasilPetState {
       locationVerified: false,
       locationVerifiedAt: null,
       activePetId: starterCompanionPetId,
+      activeEggId: 'egg-harbor-maru',
       selectedTab: 1,
       mapCategoryFocus: null,
       statusMessage: firebaseReady
@@ -158,10 +164,14 @@ class MasilPetState {
   final Map<String, PetCareState> careByPetId;
   final int carePoints;
   final String? dailyCareRewardClaimKey;
+  final bool stepTrackingSupported;
+  final bool stepTrackingActive;
+  final int deviceStepsWaiting;
   final Coordinates currentLocation;
   final bool locationVerified;
   final DateTime? locationVerifiedAt;
   final String activePetId;
+  final String activeEggId;
   final int selectedTab;
   final PoiCategory? mapCategoryFocus;
   final String statusMessage;
@@ -181,14 +191,35 @@ class MasilPetState {
     return pets.isEmpty ? null : pets.first;
   }
 
+  Egg? get activeEgg {
+    for (final egg in eggs) {
+      if (egg.id == activeEggId && egg.status != EggStatus.hatched) {
+        return egg;
+      }
+    }
+    return nextEgg;
+  }
+
+  Egg? get activeIncubatingEgg {
+    final selected = activeEgg;
+    return selected?.status == EggStatus.incubating ? selected : null;
+  }
+
   PetCareState? careForPet(String petId, {DateTime? now}) {
-    if (!pets.any((pet) => pet.id == petId)) {
+    final pet = pets.where((pet) => pet.id == petId).firstOrNull;
+    if (pet == null) {
       return null;
     }
 
     final resolvedAt = now ?? DateTime.now();
     final stored = careByPetId[petId] ?? PetCareState.initial(resolvedAt);
-    return const CareEngine().resolve(stored, resolvedAt);
+    final age = resolvedAt.difference(pet.hatchedAt);
+    final inNewbornGrace = !age.isNegative && age < const Duration(hours: 24);
+    return const CareEngine().resolve(
+      stored,
+      resolvedAt,
+      stayingHome: petId != activePetId || inNewbornGrace,
+    );
   }
 
   PetCareState? get activePetCare {
@@ -223,8 +254,37 @@ class MasilPetState {
     );
   }
 
+  DailyCareRoutineProgress dailyCareRoutineForPet(
+    String petId, {
+    DateTime? now,
+  }) {
+    final resolvedAt = now ?? DateTime.now();
+    final care = careForPet(petId, now: resolvedAt);
+    final checkedIn = checkIns.any(
+      (checkIn) =>
+          checkIn.companionPetId == petId &&
+          isSameLocalDay(checkIn.createdAt, resolvedAt),
+    );
+    return DailyCareRoutineProgress(
+      fed: care != null && care.feedCountToday > 0,
+      played: care != null && care.playCountToday > 0,
+      cleaned: care != null && care.cleanCountToday > 0,
+      talked: care != null && care.talkCountToday > 0,
+      checkedIn: checkedIn,
+    );
+  }
+
   DailyCareRoutineProgress get dailyCareRoutine {
-    return dailyCareRoutineAt(DateTime.now());
+    final pet = activePet;
+    return pet == null
+        ? const DailyCareRoutineProgress(
+            fed: false,
+            played: false,
+            cleaned: false,
+            talked: false,
+            checkedIn: false,
+          )
+        : dailyCareRoutineForPet(pet.id);
   }
 
   int get dailyCareCompletedCount => dailyCareRoutine.completedCount;
@@ -531,11 +591,15 @@ class MasilPetState {
     int? carePoints,
     String? dailyCareRewardClaimKey,
     bool clearDailyCareRewardClaimKey = false,
+    bool? stepTrackingSupported,
+    bool? stepTrackingActive,
+    int? deviceStepsWaiting,
     Coordinates? currentLocation,
     bool? locationVerified,
     DateTime? locationVerifiedAt,
     bool clearLocationVerifiedAt = false,
     String? activePetId,
+    String? activeEggId,
     int? selectedTab,
     PoiCategory? mapCategoryFocus,
     bool clearMapCategoryFocus = false,
@@ -563,12 +627,17 @@ class MasilPetState {
       dailyCareRewardClaimKey: clearDailyCareRewardClaimKey
           ? null
           : dailyCareRewardClaimKey ?? this.dailyCareRewardClaimKey,
+      stepTrackingSupported:
+          stepTrackingSupported ?? this.stepTrackingSupported,
+      stepTrackingActive: stepTrackingActive ?? this.stepTrackingActive,
+      deviceStepsWaiting: deviceStepsWaiting ?? this.deviceStepsWaiting,
       currentLocation: currentLocation ?? this.currentLocation,
       locationVerified: locationVerified ?? this.locationVerified,
       locationVerifiedAt: clearLocationVerifiedAt
           ? null
           : locationVerifiedAt ?? this.locationVerifiedAt,
       activePetId: activePetId ?? this.activePetId,
+      activeEggId: activeEggId ?? this.activeEggId,
       selectedTab: selectedTab ?? this.selectedTab,
       mapCategoryFocus: clearMapCategoryFocus
           ? null
@@ -591,6 +660,13 @@ DateTime _localDayStamp(DateTime value) {
   return DateTime.utc(value.year, value.month, value.day);
 }
 
+String _koreanDayKey(DateTime value) {
+  final korean = value.toUtc().add(const Duration(hours: 9));
+  return '${korean.year.toString().padLeft(4, '0')}-'
+      '${korean.month.toString().padLeft(2, '0')}-'
+      '${korean.day.toString().padLeft(2, '0')}';
+}
+
 class MasilPetController extends StateNotifier<MasilPetState> {
   MasilPetController({
     required bool firebaseReady,
@@ -599,14 +675,17 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     required MasilPetBackend? backend,
     required FirestoreUserRepository? userRepository,
     LocalProgressRepository? localProgressRepository,
+    DeviceStepService stepService = const DeviceStepService(),
   })  : _locationService = locationService,
         _backend = backend,
         _userRepository = userRepository,
         _localProgressRepository = localProgressRepository,
+        _stepService = stepService,
         super(MasilPetState.initial(
           firebaseReady: firebaseReady,
           firebaseStartupIssue: firebaseStartupIssue,
         )) {
+    state = state.copyWith(stepTrackingSupported: _stepService.isSupported);
     Future.microtask(() async {
       await _safeBootstrapLocalSession();
       if (firebaseReady) {
@@ -619,9 +698,26 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   final MasilPetBackend? _backend;
   final FirestoreUserRepository? _userRepository;
   final LocalProgressRepository? _localProgressRepository;
+  final DeviceStepService _stepService;
   final GrowthEngine _growthEngine = const GrowthEngine();
   final CareEngine _careEngine = const CareEngine();
   final StaticDialogueService _dialogueService = const StaticDialogueService();
+  StreamSubscription<int>? _stepSubscription;
+  int? _lastDeviceStepCount;
+  bool _isFlushingDeviceSteps = false;
+  bool _needsStepBaseline = false;
+  String _stepSyncDeviceId = '';
+  String? _pendingStepOperationId;
+  String? _pendingStepDayKey;
+  int? _pendingStepObservedTotal;
+  int? _pendingStepWaiting;
+  DateTime? _pendingStepObservedAt;
+
+  @override
+  void dispose() {
+    unawaited(_stepSubscription?.cancel());
+    super.dispose();
+  }
 
   Future<void> _safeBootstrapLocalSession() async {
     try {
@@ -645,6 +741,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     if (snapshot == null) {
       return;
     }
+    _stepSyncDeviceId = snapshot.stepSyncDeviceId;
 
     final now = DateTime.now();
     final dialogueCountToday = isSameLocalDay(snapshot.dialogueDay, now)
@@ -675,6 +772,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       activePetId: snapshot.activePetId.isEmpty
           ? state.activePetId
           : snapshot.activePetId,
+      activeEggId: _validActiveEggId(
+        snapshot.activeEggId,
+        snapshot.eggs,
+      ),
       lastVisitedCategory: snapshot.lastVisitedCategory,
       clearLastVisitedCategory: snapshot.lastVisitedCategory == null,
       dialogueCountToday: dialogueCountToday,
@@ -718,10 +819,30 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       locationVerified: state.locationVerified,
       locationVerifiedAt: state.locationVerifiedAt,
       activePetId: state.activePetId,
+      activeEggId: state.activeEggId,
       lastVisitedCategory: state.lastVisitedCategory,
       dialogueCountToday: state.dialogueCountToday,
       dialogueDay: state.dialogueDay,
+      stepSyncDeviceId: _ensureStepSyncDeviceId(),
     );
+  }
+
+  String _ensureStepSyncDeviceId() {
+    if (_stepSyncDeviceId.isNotEmpty) {
+      return _stepSyncDeviceId;
+    }
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final entropy = math.Random.secure().nextInt(0x7FFFFFFF);
+    _stepSyncDeviceId = 'device-$now-$entropy';
+    return _stepSyncDeviceId;
+  }
+
+  void _clearPendingStepSync() {
+    _pendingStepOperationId = null;
+    _pendingStepDayKey = null;
+    _pendingStepObservedTotal = null;
+    _pendingStepWaiting = null;
+    _pendingStepObservedAt = null;
   }
 
   Future<void> _bootstrapOnlineSession() async {
@@ -791,15 +912,18 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       return;
     }
     if (_petById(petId) == null) {
-      state = state.copyWith(statusMessage: '대표로 세울 마실펫을 찾을 수 없어요.');
+      state = state.copyWith(statusMessage: '함께 걸을 마실펫을 찾을 수 없어요.');
       return;
     }
 
     final backend = _backend;
+    final selectedCare = state.careForPet(petId);
     state = state.copyWith(
       activePetId: petId,
+      dialogueCountToday: selectedCare?.talkCountToday ?? 0,
+      dialogueDay: DateTime.now(),
       isBusy: backend != null,
-      statusMessage: '대표 마실펫을 바꿨어요.',
+      statusMessage: '함께 걷는 마실펫을 바꿨어요.',
     );
     _persistLocalProgress();
 
@@ -815,7 +939,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     } on Object {
       _revertActivePet(
         previousPetId,
-        '서버에 대표 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.',
+        '서버에 동행 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.',
       );
     }
   }
@@ -827,6 +951,50 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       statusMessage: statusMessage,
     );
     _persistLocalProgress();
+  }
+
+  Future<void> selectEgg(String eggId) async {
+    final egg = state.eggs.where((item) => item.id == eggId).firstOrNull;
+    if (egg == null || egg.status != EggStatus.incubating) {
+      state = state.copyWith(statusMessage: '품을 알을 찾을 수 없어요.');
+      return;
+    }
+    if (state.activeEggId == eggId) {
+      return;
+    }
+
+    final previousEggId = state.activeEggId;
+    state = state.copyWith(
+      activeEggId: eggId,
+      isBusy: _backend != null,
+      statusMessage: '${templateFor(egg.templateId).name}의 알을 품기 시작했어요.',
+    );
+    _persistLocalProgress();
+
+    final backend = _backend;
+    if (backend == null) {
+      return;
+    }
+    try {
+      await backend.setActiveEgg(eggId);
+      state = state.copyWith(isBusy: false);
+    } on MasilPetBackendException catch (error) {
+      state = state.copyWith(
+        activeEggId: previousEggId,
+        isBusy: false,
+        statusMessage: error.code == 'not-found'
+            ? '서버에서 이 알을 찾을 수 없어요.'
+            : '부화할 알을 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.',
+      );
+      _persistLocalProgress();
+    } on Object {
+      state = state.copyWith(
+        activeEggId: previousEggId,
+        isBusy: false,
+        statusMessage: '부화할 알을 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.',
+      );
+      _persistLocalProgress();
+    }
   }
 
   void useStarterKoreaLocation() {
@@ -969,6 +1137,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         activePetId: progress.activePetId.isEmpty
             ? state.activePetId
             : progress.activePetId,
+        activeEggId: _validActiveEggId(
+          progress.activeEggId,
+          progress.eggs,
+        ),
         isBusy: false,
         statusMessage: silent ? state.statusMessage : '서버 진행도를 불러왔어요.',
       );
@@ -1036,8 +1208,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
 
     if (state.remainingDailyCheckIns == 0) {
       state = state.copyWith(
-        statusMessage:
-            '오늘 쓸 수 있는 체크인 $dailyCheckInLimit회를 모두 썼어요. 내일 다시 이어가요.',
+        statusMessage: '오늘 쓸 수 있는 체크인 $dailyCheckInLimit회를 모두 썼어요. 내일 다시 이어가요.',
         fieldActivity: PetFieldActivity.walking,
         bumpFieldActivity: true,
       );
@@ -1084,6 +1255,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           eggProgress: result.eggProgress ??
               _growthEngine.rewardFor(poi.category).eggProgress,
           remotePetUpdate: result.updatedPet,
+          companionPetId: result.companionPetId,
+          creditedEggId: result.creditedEggId,
           messagePrefix: '${poi.title} 서버 체크인 완료',
         );
         await refreshRemoteProgress(silent: true);
@@ -1108,6 +1281,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       rewardStats: reward.stats,
       eggProgress: reward.eggProgress,
       remotePetUpdate: null,
+      companionPetId: state.activePet?.id,
+      creditedEggId: state.activeIncubatingEgg?.id,
       messagePrefix: '${poi.title} 체크인 완료',
     );
   }
@@ -1164,6 +1339,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     required GrowthStats rewardStats,
     required int eggProgress,
     required RemotePetUpdate? remotePetUpdate,
+    required String? companionPetId,
+    required String? creditedEggId,
     required String messagePrefix,
   }) {
     final updatedPets = _applyCheckInRewardToPet(
@@ -1171,15 +1348,44 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       remotePetUpdate: remotePetUpdate,
       interactedAt: now,
     );
-    final remotePetId = remotePetUpdate?.id;
+    final remotePetId = remotePetUpdate?.id ?? companionPetId;
     final nextActivePetId =
         remotePetId != null && updatedPets.any((pet) => pet.id == remotePetId)
             ? remotePetId
             : state.activePetId;
+    final companionCare =
+        state.careByPetId[nextActivePetId] ?? PetCareState.initial(now);
+    final firstVisit = !companionCare.memories.any(
+      (memory) => memory.id.startsWith('checkin-${poi.id}-'),
+    );
+    final caredAfterVisit = _careEngine.afterCheckIn(
+      companionCare,
+      now,
+      poi: poi,
+      firstVisit: firstVisit,
+    );
+    final targetEggId = creditedEggId ?? state.activeIncubatingEgg?.id;
+    var appliedEggProgress = 0;
     final progressedEggs = state.eggs.map((egg) {
-      return _growthEngine.progressEgg(egg, eggProgress);
+      if (egg.id != targetEggId || egg.status != EggStatus.incubating) {
+        return egg;
+      }
+      appliedEggProgress = eggProgress;
+      final imprints = <PoiCategory>{
+        ...egg.imprints,
+        poi.category,
+      }.toList(growable: false);
+      return _growthEngine.progressEgg(egg, eggProgress).copyWith(
+            incubationBondXp: egg.incubationBondXp + (firstVisit ? 2 : 1),
+            imprints: imprints,
+          );
     }).toList();
     final eggs = _maybeDropEgg(progressedEggs, poi, now);
+    final discoveredNewEgg = eggs.length > progressedEggs.length;
+    final nextActiveEggId = _validActiveEggId(
+      state.activeEggId,
+      eggs,
+    );
     final checkIn = CheckIn(
       id: 'checkin-${now.microsecondsSinceEpoch}',
       poiId: poi.id,
@@ -1190,21 +1396,27 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       rewardApplied: true,
       reward: CheckInReward(
         stats: rewardStats,
-        eggProgress: eggProgress,
+        eggProgress: appliedEggProgress,
       ),
+      companionPetId: nextActivePetId,
+      creditedEggId: appliedEggProgress > 0 ? targetEggId : null,
     );
 
     state = state.copyWith(
       pets: updatedPets,
       eggs: eggs,
       checkIns: [checkIn, ...state.checkIns],
+      careByPetId: _replaceCare(nextActivePetId, caredAfterVisit),
       activePetId: nextActivePetId,
+      activeEggId: nextActiveEggId,
       lastVisitedCategory: poi.category,
       isBusy: false,
-      statusMessage: '$messagePrefix: ${CheckInReward(
-        stats: rewardStats,
-        eggProgress: eggProgress,
-      ).summaryLabel}',
+      statusMessage: discoveredNewEgg && appliedEggProgress == 0
+          ? '$messagePrefix: 새로운 알을 발견했어요!'
+          : '$messagePrefix: ${CheckInReward(
+              stats: rewardStats,
+              eggProgress: appliedEggProgress,
+            ).summaryLabel}',
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
@@ -1237,10 +1449,214 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     return _replacePet(updated);
   }
 
+  Future<void> startStepTracking() async {
+    if (!_stepService.isSupported) {
+      state = state.copyWith(
+        stepTrackingSupported: false,
+        statusMessage: '이 기기에서는 자동 걸음 측정을 지원하지 않아요.',
+      );
+      return;
+    }
+    if (state.stepTrackingActive) {
+      await flushDeviceSteps();
+      return;
+    }
+    state = state.copyWith(
+      isBusy: true,
+      statusMessage: '걸음 센서 권한을 확인하는 중이에요.',
+    );
+    try {
+      final stream = await _stepService.openStepCountStream();
+      await _stepSubscription?.cancel();
+      _lastDeviceStepCount = null;
+      _needsStepBaseline = _backend is CumulativeStepSyncBackend;
+      _clearPendingStepSync();
+      _stepSubscription = stream.listen(
+        _handleDeviceStepCount,
+        onError: (Object error, StackTrace stackTrace) {
+          state = state.copyWith(
+            stepTrackingActive: false,
+            isBusy: false,
+            statusMessage: '걸음 센서를 읽지 못했어요. 체크인 산책은 그대로 기록돼요.',
+          );
+        },
+      );
+      state = state.copyWith(
+        stepTrackingActive: true,
+        isBusy: false,
+        statusMessage: '걸음 수 연결을 시작했어요. 100걸음마다 자동으로 반영해요.',
+      );
+    } on StepTrackingUnavailableException catch (error) {
+      state = state.copyWith(
+        stepTrackingActive: false,
+        isBusy: false,
+        statusMessage: error.message,
+      );
+    } on Object {
+      state = state.copyWith(
+        stepTrackingActive: false,
+        isBusy: false,
+        statusMessage: '걸음 수 연결을 시작하지 못했어요.',
+      );
+    }
+  }
+
+  void _handleDeviceStepCount(int totalSteps) {
+    final previous = _lastDeviceStepCount;
+    _lastDeviceStepCount = totalSteps;
+    if (previous == null || totalSteps < previous) {
+      if (_backend is CumulativeStepSyncBackend) {
+        if (previous != null && totalSteps < previous) {
+          _clearPendingStepSync();
+        }
+        _needsStepBaseline = true;
+        unawaited(flushDeviceSteps());
+      }
+      return;
+    }
+    if (totalSteps == previous) {
+      return;
+    }
+    final waiting = state.deviceStepsWaiting + totalSteps - previous;
+    state = state.copyWith(deviceStepsWaiting: waiting);
+    if (waiting >= 100) {
+      unawaited(flushDeviceSteps());
+    }
+  }
+
+  Future<void> flushDeviceSteps() async {
+    if (_isFlushingDeviceSteps) {
+      return;
+    }
+    final configuredBackend = _backend;
+    final cumulativeBackend = configuredBackend is CumulativeStepSyncBackend
+        ? configuredBackend as CumulativeStepSyncBackend
+        : null;
+    if (cumulativeBackend != null) {
+      if (!_needsStepBaseline && state.deviceStepsWaiting <= 0) {
+        return;
+      }
+      _isFlushingDeviceSteps = true;
+      try {
+        while (_needsStepBaseline || state.deviceStepsWaiting > 0) {
+          final synced = await _flushCumulativeDeviceSteps(cumulativeBackend);
+          if (!synced) {
+            break;
+          }
+        }
+      } finally {
+        _isFlushingDeviceSteps = false;
+      }
+      return;
+    }
+    if (state.deviceStepsWaiting <= 0) {
+      return;
+    }
+    _isFlushingDeviceSteps = true;
+    try {
+      while (state.deviceStepsWaiting > 0) {
+        final requested = math.min(3000, state.deviceStepsWaiting);
+        final applied = await _applyStepProgress(requested);
+        if (applied <= 0) {
+          break;
+        }
+        state = state.copyWith(
+          deviceStepsWaiting: math.max(0, state.deviceStepsWaiting - applied),
+        );
+      }
+    } finally {
+      _isFlushingDeviceSteps = false;
+    }
+  }
+
+  Future<bool> _flushCumulativeDeviceSteps(
+    CumulativeStepSyncBackend backend,
+  ) async {
+    final observedTotal = _lastDeviceStepCount;
+    if (observedTotal == null) {
+      return false;
+    }
+    final now = DateTime.now();
+    final dayKey = _koreanDayKey(now);
+    if (_pendingStepDayKey != null && _pendingStepDayKey != dayKey) {
+      _clearPendingStepSync();
+    }
+    if (_pendingStepOperationId == null) {
+      _pendingStepOperationId =
+          'steps-${now.microsecondsSinceEpoch}-${observedTotal.clamp(0, 9999999)}';
+      _pendingStepDayKey = dayKey;
+      _pendingStepObservedTotal = observedTotal;
+      _pendingStepWaiting = state.deviceStepsWaiting;
+      _pendingStepObservedAt = now;
+    }
+
+    state = state.copyWith(
+      isBusy: true,
+      statusMessage: _needsStepBaseline
+          ? '이 기기의 걸음 기준점을 안전하게 맞추는 중이에요.'
+          : '새 걸음을 중복 없이 동기화하는 중이에요.',
+      fieldActivity: PetFieldActivity.walking,
+      bumpFieldActivity: true,
+    );
+    try {
+      final result = await backend.syncStepsV2(
+        operationId: _pendingStepOperationId!,
+        deviceId: _ensureStepSyncDeviceId(),
+        dayKey: _pendingStepDayKey!,
+        observedCumulativeSteps: _pendingStepObservedTotal!,
+        observedAt: _pendingStepObservedAt!,
+      );
+      final consumedWaiting = _pendingStepWaiting ?? 0;
+      _clearPendingStepSync();
+      _needsStepBaseline = false;
+      state = state.copyWith(
+        deviceStepsWaiting:
+            math.max(0, state.deviceStepsWaiting - consumedWaiting),
+      );
+      if (result.appliedStepDelta > 0) {
+        await _applyStepProgress(
+          result.appliedStepDelta,
+          syncedResult: result,
+        );
+      } else {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: result.counterReset
+              ? '기기 걸음 수가 재설정되어 새 기준점부터 다시 기록해요.'
+              : result.baselineInitialized
+                  ? '걸음 기준점을 맞췄어요. 이제부터 새 걸음만 반영해요.'
+                  : '이미 반영한 걸음이에요. 중복 적립 없이 최신 상태로 맞췄어요.',
+        );
+        _persistLocalProgress();
+      }
+      return true;
+    } on MasilPetBackendException catch (error) {
+      state = state.copyWith(
+        isBusy: false,
+        statusMessage: _messageForRemoteStepFailure(error),
+      );
+      return false;
+    } on Object {
+      state = state.copyWith(
+        isBusy: false,
+        statusMessage: '걸음 동기화가 잠시 멈췄어요. 다음 연결 때 같은 기록으로 다시 시도할게요.',
+      );
+      return false;
+    }
+  }
+
   Future<void> addStepProgress(int stepDelta) async {
+    await _applyStepProgress(stepDelta);
+  }
+
+  Future<int> _applyStepProgress(
+    int stepDelta, {
+    RemoteStepProgressResult? syncedResult,
+  }) async {
     final backend = _backend;
     var appliedStepDelta = stepDelta;
-    if (backend != null) {
+    var resolvedResult = syncedResult;
+    if (backend != null && resolvedResult == null) {
       state = state.copyWith(
         isBusy: true,
         statusMessage: '$stepDelta 걸음을 서버에 반영하는 중이에요.',
@@ -1248,20 +1664,20 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         bumpFieldActivity: true,
       );
       try {
-        final result = await backend.applyStepProgress(stepDelta);
-        appliedStepDelta = result.appliedStepDelta;
+        resolvedResult = await backend.applyStepProgress(stepDelta);
+        appliedStepDelta = resolvedResult.appliedStepDelta;
       } on MasilPetBackendException catch (error) {
         state = state.copyWith(
           isBusy: false,
           statusMessage: _messageForRemoteStepFailure(error),
         );
-        return;
+        return 0;
       } on Object {
         state = state.copyWith(
           isBusy: false,
           statusMessage: '서버에 걸음 수를 반영하지 못했어요. 기기 내 진행 상태는 그대로 남아 있어요.',
         );
-        return;
+        return 0;
       }
     }
 
@@ -1270,43 +1686,134 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         isBusy: false,
         statusMessage: '오늘 반영할 수 있는 걸음 수를 모두 썼어요.',
       );
-      return;
+      return 0;
     }
 
-    final eggs = state.eggs
-        .map((egg) => _growthEngine.progressEgg(egg, appliedStepDelta))
-        .toList();
+    final creditedEggId = syncedResult == null
+        ? state.activeIncubatingEgg?.id
+        : syncedResult.creditedEggId;
+    final targetEgg = state.eggs
+        .where(
+          (egg) =>
+              egg.id == creditedEggId && egg.status == EggStatus.incubating,
+        )
+        .firstOrNull;
+    final eggs = state.eggs.map((egg) {
+      if (egg.id != targetEgg?.id) {
+        return egg;
+      }
+      return _growthEngine.progressEgg(egg, appliedStepDelta).copyWith(
+            incubationBondXp:
+                egg.incubationBondXp + math.max(1, appliedStepDelta ~/ 500),
+          );
+    }).toList();
     final hatchableCount =
         eggs.where((egg) => egg.status == EggStatus.hatchable).length;
+    final now = DateTime.now();
+    final companionPetId = syncedResult?.companionPetId;
+    final activePet = companionPetId == null
+        ? state.activePet
+        : state.pets.where((pet) => pet.id == companionPetId).firstOrNull ??
+            state.activePet;
+    final currentCare = activePet == null ? null : _careFor(activePet, now);
+    final previousMilestones = (currentCare?.walkStepsToday ?? 0) ~/ 500;
+    final nextMilestones =
+        ((currentCare?.walkStepsToday ?? 0) + appliedStepDelta) ~/ 500;
+    final bondReward = math
+        .max(
+          0,
+          math.min(5, nextMilestones) - math.min(5, previousMilestones),
+        )
+        .toInt();
+    final remotePetUpdate = syncedResult?.updatedPet;
+    final nextPets = activePet == null
+        ? state.pets
+        : remotePetUpdate != null
+            ? _replacePet(
+                _petAfterInteraction(
+                  activePet: activePet,
+                  rewardStats: const GrowthStats(
+                    exp: 0,
+                    mood: 0,
+                    knowledge: 0,
+                    affinity: 0,
+                  ),
+                  remotePetUpdate: remotePetUpdate,
+                  interactedAt: now,
+                ),
+              )
+            : bondReward == 0
+                ? state.pets
+                : _replacePet(
+                    _petAfterInteraction(
+                      activePet: activePet,
+                      rewardStats: GrowthStats(
+                        exp: bondReward,
+                        mood: bondReward,
+                        knowledge: 0,
+                        affinity: bondReward,
+                      ),
+                      remotePetUpdate: null,
+                      interactedAt: now,
+                    ),
+                  );
+    final nextCareByPetId = activePet == null
+        ? state.careByPetId
+        : _replaceCare(
+            activePet.id,
+            _careEngine.afterWalk(
+              currentCare!,
+              now,
+              steps: appliedStepDelta,
+            ),
+          );
+    final nextActiveEggId = _validActiveEggId(state.activeEggId, eggs);
     state = state.copyWith(
+      pets: nextPets,
       eggs: eggs,
+      activeEggId: nextActiveEggId,
+      careByPetId: nextCareByPetId,
       isBusy: false,
-      statusMessage: hatchableCount > 0
-          ? '부화할 수 있는 알이 있어요.'
-          : '알 부화 진행도에 $appliedStepDelta 걸음을 반영했어요.',
+      statusMessage: targetEgg == null
+          ? '함께 $appliedStepDelta걸음을 걸었어요. 품고 있는 알을 선택하면 부화에도 반영돼요.'
+          : hatchableCount > 0
+              ? '부화할 수 있는 알이 있어요.'
+              : '지금 품고 있는 알에 $appliedStepDelta걸음을 반영했어요.',
       fieldActivity: PetFieldActivity.walking,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
+    return appliedStepDelta;
   }
 
-  Future<void> hatchEgg(String eggId) async {
+  Future<HatchOutcome?> hatchEgg(String eggId) async {
     final egg = state.eggs.where((item) => item.id == eggId).firstOrNull;
     if (egg == null || egg.status != EggStatus.hatchable) {
       state = state.copyWith(statusMessage: '아직 부화할 수 없는 알이에요.');
-      return;
+      return null;
     }
 
     final template = templateFor(egg.templateId);
     final now = DateTime.now();
     final backend = _backend;
+    final previousActivePetId = state.activePetId;
     var petId = 'pet-${template.id}-${now.microsecondsSinceEpoch}';
+    RemoteHatchResult? remoteOutcome;
 
     if (backend != null) {
       state = state.copyWith(
           isBusy: true, statusMessage: '${template.name}의 알을 서버에서 부화하는 중이에요.');
       try {
-        petId = await backend.hatchEgg(eggId);
+        final detailedBackend = backend is DetailedHatchBackend
+            ? backend as DetailedHatchBackend
+            : null;
+        if (detailedBackend != null) {
+          final outcome = await detailedBackend.hatchEggWithOutcome(eggId);
+          remoteOutcome = outcome;
+          petId = outcome.petId;
+        } else {
+          petId = await backend.hatchEgg(eggId);
+        }
       } on MasilPetBackendException catch (error) {
         state = state.copyWith(
           isBusy: false,
@@ -1314,73 +1821,170 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           fieldActivity: PetFieldActivity.jumping,
           bumpFieldActivity: true,
         );
-        return;
+        return null;
       } on Object {
         state = state.copyWith(
           isBusy: false,
           statusMessage: '서버 부화에 실패했어요. 알 상태를 다시 확인해 주세요.',
         );
-        return;
+        return null;
       }
     }
 
+    final remainingEggs = state.eggs.where((item) => item.id != eggId).toList();
+    final existingPet = state.pets
+            .where((pet) => pet.id == petId)
+            .firstOrNull ??
+        state.pets.where((pet) => pet.templateId == template.id).firstOrNull;
+    final isReunion = remoteOutcome?.reunion == true ||
+        (backend == null && existingPet != null);
+    if (isReunion && existingPet != null) {
+      final remotePet = remoteOutcome?.updatedPet;
+      final reunited = remotePet == null
+          ? _petAfterBond(existingPet, affinity: 5, interactedAt: now)
+          : _petAfterInteraction(
+              activePet: existingPet,
+              rewardStats: const GrowthStats(
+                exp: 0,
+                mood: 0,
+                knowledge: 0,
+                affinity: 0,
+              ),
+              remotePetUpdate: remotePet,
+              interactedAt: now,
+            );
+      final currentCare = _careFor(existingPet, now);
+      final bondedAlready = currentCare.lastBondedDay != null &&
+          isSameLocalDay(currentCare.lastBondedDay!, now);
+      final reunionMemory = PetMemory(
+        id: 'reunion-${egg.id}',
+        title:
+            '${template.name}${particleFor(template.name, '이', '가')} 다시 찾아온 날',
+        detail: '같은 인연을 품은 알이 돌아와, 함께 쌓은 유대가 더 깊어졌어요.',
+        createdAt: now,
+        category: egg.imprints.firstOrNull,
+      );
+      final reunitedCare = currentCare.copyWith(
+        updatedAt: now,
+        affectionScore: currentCare.affectionScore + 5,
+        bondedDays: currentCare.bondedDays + (bondedAlready ? 0 : 1),
+        lastBondedDay: now,
+        memories: [reunionMemory, ...currentCare.memories],
+      );
+      final reunitedWithCount = reunited.copyWith(
+        reunionCount:
+            remoteOutcome?.reunionCount ?? existingPet.reunionCount + 1,
+      );
+      state = state.copyWith(
+        pets: _replacePet(reunitedWithCount),
+        eggs: remainingEggs,
+        careByPetId: _replaceCare(existingPet.id, reunitedCare),
+        activePetId: previousActivePetId,
+        activeEggId: _validActiveEggId('', remainingEggs),
+        isBusy: false,
+        statusMessage:
+            '${template.name}${particleFor(template.name, '이', '가')} '
+            '다시 찾아왔어요. 유대가 더 깊어졌어요.',
+        fieldActivity: PetFieldActivity.jumping,
+        bumpFieldActivity: true,
+      );
+      _persistLocalProgress();
+      return HatchOutcome(petId: existingPet.id, reunion: true);
+    }
+
+    final inheritedAffinity = math.max(10, 10 + egg.incubationBondXp);
+    final remotePet = remoteOutcome?.updatedPet;
+    final initialStats = remotePet?.stats ??
+        GrowthStats(
+          exp: 10,
+          mood: 15,
+          knowledge: math.max(5, egg.imprints.length * 2),
+          affinity: inheritedAffinity,
+        );
     final pet = Pet(
       id: petId,
       templateId: template.id,
       name: template.name,
-      stage: PetStage.baby,
-      level: 1,
-      stats: const GrowthStats(exp: 10, mood: 15, knowledge: 5, affinity: 10),
+      stage: remotePet?.stage ?? PetStage.baby,
+      level: remotePet?.level ?? 1,
+      stats: initialStats,
       originRegionId: egg.originRegionId,
       hatchedAt: now,
       lastInteractedAt: null,
+      originEggId: egg.id,
+      reunionCount: remoteOutcome?.reunionCount ?? 0,
     );
 
+    final hatchCare = PetCareState(
+      updatedAt: now,
+      dailyCountDay: now,
+      bondedDays: 1,
+      lastBondedDay: now,
+      affectionScore: inheritedAffinity,
+      knowledgeScore: egg.imprints.length * 2,
+      adventureScore: egg.incubationBondXp,
+      memories: [
+        PetMemory(
+          id: 'hatch-${egg.id}',
+          title:
+              '${template.name}${particleFor(template.name, '이', '가')} 태어난 날',
+          detail: '알을 품고 함께 걸은 시간과 ${egg.originRegionId}의 추억을 간직하고 있어요.',
+          createdAt: now,
+          category: egg.imprints.firstOrNull,
+        ),
+      ],
+    );
     state = state.copyWith(
       pets: [...state.pets, pet],
-      eggs: state.eggs.where((item) => item.id != eggId).toList(),
+      eggs: remainingEggs,
       careByPetId: {
         ...state.careByPetId,
-        pet.id: PetCareState.initial(now),
+        pet.id: hatchCare,
       },
-      activePetId: pet.id,
+      activePetId: previousActivePetId,
+      activeEggId: _validActiveEggId('', remainingEggs),
       isBusy: false,
-      statusMessage:
-          '${template.name}${particleFor(template.name, '이', '가')} 부화했어요.',
+      statusMessage: remoteOutcome?.reunion == true
+          ? '${template.name}${particleFor(template.name, '이', '가')} 다시 찾아왔어요.'
+          : '${template.name}${particleFor(template.name, '이', '가')} 부화했어요.',
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
+    return HatchOutcome(
+      petId: pet.id,
+      reunion: remoteOutcome?.reunion ?? false,
+    );
   }
 
   Future<void> talkWithActivePet() async {
     final now = DateTime.now();
-    final resetCount =
+    final activePet = state.activePet;
+    if (activePet == null) {
+      state = state.copyWith(statusMessage: '대화할 마실펫이 없어요.');
+      return;
+    }
+    final currentCare = _careFor(activePet, now);
+    final legacyTalkCount =
         isSameLocalDay(state.dialogueDay, now) ? state.dialogueCountToday : 0;
-    if (resetCount >= 5) {
+    final talkCount = math.max(currentCare.talkCountToday, legacyTalkCount);
+    if (talkCount >= dailyPetTalkLimit) {
       state = state.copyWith(
-        dialogueCountToday: resetCount,
+        dialogueCountToday: talkCount,
         dialogueDay: now,
         statusMessage: '오늘의 대화 횟수를 모두 썼어요.',
       );
       return;
     }
 
-    final activePet = state.activePet;
-    if (activePet == null) {
-      state = state.copyWith(statusMessage: '대화할 마실펫이 없어요.');
-      return;
-    }
-
     final template = templateFor(activePet.templateId);
-    final currentCare = _careFor(activePet, now);
     final line = _dialogueService.lineForConversation(
       template: template,
       pet: activePet,
       care: currentCare,
       lastCategory: state.lastVisitedCategory,
       now: now,
-      interactionIndex: resetCount,
+      interactionIndex: talkCount,
     );
     var rewardStats =
         const GrowthStats(exp: 2, mood: 4, knowledge: 0, affinity: 1);
@@ -1429,7 +2033,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         activePet.id,
         _careEngine.afterTalk(currentCare, now),
       ),
-      dialogueCountToday: resetCount + 1,
+      dialogueCountToday: talkCount + 1,
       dialogueDay: now,
       isBusy: false,
       statusMessage: line.text,
@@ -1439,11 +2043,12 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _persistLocalProgress();
   }
 
-  Future<void> feedActivePet() => feedPet(state.activePetId);
+  Future<void> feedActivePet([PetFood? food]) =>
+      feedPet(state.activePetId, food: food);
 
   /// Feeds one specific pet. The yard menu can reach any pet standing outside,
   /// not just the current companion.
-  Future<void> feedPet(String petId) async {
+  Future<void> feedPet(String petId, {PetFood? food}) async {
     final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '먹이를 줄 마실펫이 없어요.');
@@ -1453,6 +2058,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final now = DateTime.now();
     final template = templateFor(activePet.templateId);
     final currentCare = _careFor(activePet, now);
+    final selectedFood = food ?? PetFood.homeMeal;
+    final favoriteFood = _careEngine.favoriteFoodFor(template);
+    final dislikedFood = _careEngine.dislikedFoodFor(template);
     if (currentCare.feedCountToday >= dailyFeedCareLimit) {
       state = state.copyWith(
         statusMessage: '${activePet.name}'
@@ -1506,25 +2114,37 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       pets: _replacePet(updated),
       careByPetId: _replaceCare(
         activePet.id,
-        _careEngine.afterFeed(currentCare, now),
+        _careEngine.afterFeed(
+          currentCare,
+          now,
+          food: selectedFood,
+          favoriteFood: favoriteFood,
+          dislikedFood: dislikedFood,
+        ),
       ),
       isBusy: false,
-      statusMessage: _dialogueService
-          .lineForAction(
-            template: template,
-            trigger: 'fed',
-            variantSeed: currentCare.feedCountToday,
-          )
-          .text,
+      statusMessage: selectedFood == favoriteFood
+          ? '${activePet.name}${particleFor(activePet.name, '이', '가')} '
+              '${selectedFood.label}을 아주 맛있게 먹었어요!'
+          : selectedFood == dislikedFood
+              ? '${activePet.name}${particleFor(activePet.name, '이', '가')} '
+                  '${selectedFood.label} 앞에서 잠깐 망설였어요.'
+              : _dialogueService
+                  .lineForAction(
+                    template: template,
+                    trigger: 'fed',
+                    variantSeed: currentCare.feedCountToday,
+                  )
+                  .text,
       fieldActivity: PetFieldActivity.eating,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
   }
 
-  void playActivePet() => playPet(state.activePetId);
+  Future<void> playActivePet() => playPet(state.activePetId);
 
-  void playPet(String petId) {
+  Future<void> playPet(String petId) async {
     final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '함께 놀 마실펫이 없어요.');
@@ -1534,7 +2154,43 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final now = DateTime.now();
     final template = templateFor(activePet.templateId);
     final currentCare = _careFor(activePet, now);
+    var rewardStats =
+        const GrowthStats(exp: 3, mood: 6, knowledge: 0, affinity: 2);
+    RemotePetUpdate? remotePetUpdate;
+    final backend = _backend;
+    if (backend != null) {
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${activePet.name}와의 놀이를 서버에 반영하는 중이에요.',
+      );
+      try {
+        final result = await backend.interactWithPet(
+          petId: activePet.id,
+          actionType: 'play',
+        );
+        rewardStats = result.reward;
+        remotePetUpdate = result.updatedPet;
+      } on MasilPetBackendException catch (error) {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: _messageForRemotePetInteractionFailure(error, '놀이'),
+        );
+        return;
+      } on Object {
+        state =
+            state.copyWith(isBusy: false, statusMessage: '서버에 놀이를 반영하지 못했어요.');
+        return;
+      }
+    }
     state = state.copyWith(
+      pets: _replacePet(
+        _petAfterInteraction(
+          activePet: activePet,
+          rewardStats: rewardStats,
+          remotePetUpdate: remotePetUpdate,
+          interactedAt: now,
+        ),
+      ),
       careByPetId: _replaceCare(
         activePet.id,
         _careEngine.afterPlay(currentCare, now),
@@ -1546,15 +2202,16 @@ class MasilPetController extends StateNotifier<MasilPetState> {
             variantSeed: currentCare.playCountToday,
           )
           .text,
+      isBusy: false,
       fieldActivity: PetFieldActivity.jumping,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
   }
 
-  void cleanActivePet() => cleanPet(state.activePetId);
+  Future<void> cleanActivePet() => cleanPet(state.activePetId);
 
-  void cleanPet(String petId) {
+  Future<void> cleanPet(String petId) async {
     final activePet = _petById(petId);
     if (activePet == null) {
       state = state.copyWith(statusMessage: '씻겨 줄 마실펫이 없어요.');
@@ -1564,7 +2221,45 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final now = DateTime.now();
     final template = templateFor(activePet.templateId);
     final currentCare = _careFor(activePet, now);
+    var rewardStats =
+        const GrowthStats(exp: 2, mood: 4, knowledge: 0, affinity: 1);
+    RemotePetUpdate? remotePetUpdate;
+    final backend = _backend;
+    if (backend != null) {
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${activePet.name} 씻기기를 서버에 반영하는 중이에요.',
+      );
+      try {
+        final result = await backend.interactWithPet(
+          petId: activePet.id,
+          actionType: 'clean',
+        );
+        rewardStats = result.reward;
+        remotePetUpdate = result.updatedPet;
+      } on MasilPetBackendException catch (error) {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: _messageForRemotePetInteractionFailure(error, '씻기기'),
+        );
+        return;
+      } on Object {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: '서버에 씻기기를 반영하지 못했어요.',
+        );
+        return;
+      }
+    }
     state = state.copyWith(
+      pets: _replacePet(
+        _petAfterInteraction(
+          activePet: activePet,
+          rewardStats: rewardStats,
+          remotePetUpdate: remotePetUpdate,
+          interactedAt: now,
+        ),
+      ),
       careByPetId: _replaceCare(
         activePet.id,
         _careEngine.afterClean(currentCare, now),
@@ -1576,13 +2271,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
             variantSeed: currentCare.cleanCountToday,
           )
           .text,
+      isBusy: false,
       fieldActivity: PetFieldActivity.greeting,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
   }
 
-  void sleepActivePet() {
+  Future<void> sleepActivePet() async {
     final activePet = state.activePet;
     if (activePet == null) {
       state = state.copyWith(statusMessage: '재워 줄 마실펫이 없어요.');
@@ -1592,7 +2288,57 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     final now = DateTime.now();
     final template = templateFor(activePet.templateId);
     final currentCare = _careFor(activePet, now);
+    if (currentCare.isSleeping) {
+      state = state.copyWith(
+        careByPetId: _replaceCare(
+          activePet.id,
+          _careEngine.afterWake(currentCare, now),
+        ),
+        statusMessage:
+            '${activePet.name}${particleFor(activePet.name, '이', '가')} 눈을 비비며 일어났어요.',
+        fieldActivity: PetFieldActivity.greeting,
+        bumpFieldActivity: true,
+      );
+      _persistLocalProgress();
+      return;
+    }
+    var rewardStats =
+        const GrowthStats(exp: 1, mood: 2, knowledge: 0, affinity: 1);
+    RemotePetUpdate? remotePetUpdate;
+    final backend = _backend;
+    if (backend != null) {
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${activePet.name}의 휴식을 서버에 반영하는 중이에요.',
+      );
+      try {
+        final result = await backend.interactWithPet(
+          petId: activePet.id,
+          actionType: 'sleep',
+        );
+        rewardStats = result.reward;
+        remotePetUpdate = result.updatedPet;
+      } on MasilPetBackendException catch (error) {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: _messageForRemotePetInteractionFailure(error, '재우기'),
+        );
+        return;
+      } on Object {
+        state =
+            state.copyWith(isBusy: false, statusMessage: '서버에 휴식을 반영하지 못했어요.');
+        return;
+      }
+    }
     state = state.copyWith(
+      pets: _replacePet(
+        _petAfterInteraction(
+          activePet: activePet,
+          rewardStats: rewardStats,
+          remotePetUpdate: remotePetUpdate,
+          interactedAt: now,
+        ),
+      ),
       careByPetId: _replaceCare(
         activePet.id,
         _careEngine.afterSleep(currentCare, now),
@@ -1603,7 +2349,142 @@ class MasilPetController extends StateNotifier<MasilPetState> {
             trigger: 'resting',
           )
           .text,
+      isBusy: false,
       fieldActivity: PetFieldActivity.sleeping,
+      bumpFieldActivity: true,
+    );
+    _persistLocalProgress();
+  }
+
+  Future<void> touchActivePet(PetTouch touch) async {
+    final pet = state.activePet;
+    if (pet == null) {
+      state = state.copyWith(statusMessage: '쓰다듬어 줄 마실펫이 없어요.');
+      return;
+    }
+    final now = DateTime.now();
+    final template = templateFor(pet.templateId);
+    final currentCare = _careFor(pet, now);
+    final preferred = _careEngine.preferredTouchFor(template);
+    final updated = _careEngine.afterTouch(
+      currentCare,
+      now,
+      touch: touch,
+      preferredTouch: preferred,
+    );
+    final reaction = touch == preferred
+        ? '${pet.name}${particleFor(pet.name, '이', '가')} 가장 좋아하는 '
+            '${touch.label}에 몸을 기대 왔어요.'
+        : touch == PetTouch.tail
+            ? '${pet.name}${particleFor(pet.name, '이', '가')} 꼬리를 살짝 감추고 쳐다봐요.'
+            : '${pet.name}${particleFor(pet.name, '이', '가')} ${touch.label}에 기분 좋게 웃어요.';
+    var rewardStats =
+        const GrowthStats(exp: 1, mood: 3, knowledge: 0, affinity: 1);
+    RemotePetUpdate? remotePetUpdate;
+    final backend = _backend;
+    if (backend != null) {
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${pet.name}와의 교감을 서버에 반영하는 중이에요.',
+      );
+      try {
+        final result = await backend.interactWithPet(
+          petId: pet.id,
+          actionType: 'touch',
+        );
+        rewardStats = result.reward;
+        remotePetUpdate = result.updatedPet;
+      } on MasilPetBackendException catch (error) {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: _messageForRemotePetInteractionFailure(error, '쓰다듬기'),
+        );
+        return;
+      } on Object {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: '서버에 쓰다듬기를 반영하지 못했어요.',
+        );
+        return;
+      }
+    }
+    state = state.copyWith(
+      pets: _replacePet(
+        _petAfterInteraction(
+          activePet: pet,
+          rewardStats: rewardStats,
+          remotePetUpdate: remotePetUpdate,
+          interactedAt: now,
+        ),
+      ),
+      careByPetId: _replaceCare(pet.id, updated),
+      statusMessage: reaction,
+      isBusy: false,
+      fieldActivity: touch == PetTouch.hug
+          ? PetFieldActivity.greeting
+          : PetFieldActivity.jumping,
+      bumpFieldActivity: true,
+    );
+    _persistLocalProgress();
+  }
+
+  Future<void> cleanActivePetWaste() async {
+    final pet = state.activePet;
+    if (pet == null) {
+      return;
+    }
+    final now = DateTime.now();
+    final current = _careFor(pet, now);
+    if (current.wasteCount == 0) {
+      state = state.copyWith(statusMessage: '지금은 주변이 깨끗해요.');
+      return;
+    }
+    var rewardStats =
+        const GrowthStats(exp: 2, mood: 4, knowledge: 0, affinity: 1);
+    RemotePetUpdate? remotePetUpdate;
+    final backend = _backend;
+    if (backend != null) {
+      state = state.copyWith(
+        isBusy: true,
+        statusMessage: '${pet.name} 주변 청소를 서버에 반영하는 중이에요.',
+      );
+      try {
+        final result = await backend.interactWithPet(
+          petId: pet.id,
+          actionType: 'clean',
+        );
+        rewardStats = result.reward;
+        remotePetUpdate = result.updatedPet;
+      } on MasilPetBackendException catch (error) {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: _messageForRemotePetInteractionFailure(error, '주변 청소'),
+        );
+        return;
+      } on Object {
+        state = state.copyWith(
+          isBusy: false,
+          statusMessage: '서버에 주변 청소를 반영하지 못했어요.',
+        );
+        return;
+      }
+    }
+    state = state.copyWith(
+      pets: _replacePet(
+        _petAfterInteraction(
+          activePet: pet,
+          rewardStats: rewardStats,
+          remotePetUpdate: remotePetUpdate,
+          interactedAt: now,
+        ),
+      ),
+      careByPetId: _replaceCare(
+        pet.id,
+        _careEngine.afterWasteClean(current, now),
+      ),
+      statusMessage: '${pet.name} 주변을 말끔히 치웠어요. 고맙다는 듯 빙글 돌아요.',
+      isBusy: false,
+      fieldActivity: PetFieldActivity.greeting,
       bumpFieldActivity: true,
     );
     _persistLocalProgress();
@@ -1618,6 +2499,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     return null;
   }
 
+  Pet? petForId(String petId) => _petById(petId);
+
   void claimDailyCareReward() {
     final now = DateTime.now();
     final claimKey = _careEngine.localDayKey(now);
@@ -1626,7 +2509,16 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       return;
     }
 
-    final routine = state.dailyCareRoutineAt(now);
+    final pet = state.activePet;
+    final routine = pet == null
+        ? const DailyCareRoutineProgress(
+            fed: false,
+            played: false,
+            cleaned: false,
+            talked: false,
+            checkedIn: false,
+          )
+        : state.dailyCareRoutineForPet(pet.id, now: now);
     if (!routine.isComplete) {
       state = state.copyWith(
         statusMessage:
@@ -1668,8 +2560,47 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     );
   }
 
+  Pet _petAfterBond(
+    Pet pet, {
+    required int affinity,
+    required DateTime interactedAt,
+  }) {
+    return _petAfterInteraction(
+      activePet: pet,
+      rewardStats: GrowthStats(
+        exp: affinity,
+        mood: affinity,
+        knowledge: 0,
+        affinity: affinity.clamp(1, 5),
+      ),
+      remotePetUpdate: null,
+      interactedAt: interactedAt,
+    );
+  }
+
   PetTemplate templateFor(String templateId) {
     return state.templates.firstWhere((template) => template.id == templateId);
+  }
+
+  PetPersonality personalityFor(Pet pet) {
+    return _careEngine.personalityFor(templateFor(pet.templateId));
+  }
+
+  PetFood favoriteFoodFor(Pet pet) {
+    return _careEngine.favoriteFoodFor(templateFor(pet.templateId));
+  }
+
+  PetFood dislikedFoodFor(Pet pet) {
+    return _careEngine.dislikedFoodFor(templateFor(pet.templateId));
+  }
+
+  PetTouch preferredTouchFor(Pet pet) {
+    return _careEngine.preferredTouchFor(templateFor(pet.templateId));
+  }
+
+  PetNeed currentNeedFor(Pet pet, {DateTime? now}) {
+    final resolvedAt = now ?? DateTime.now();
+    return _careEngine.requestFor(_careFor(pet, resolvedAt), resolvedAt);
   }
 
   List<Pet> _withCanonicalPetNames(Iterable<Pet> pets) {
@@ -1707,6 +2638,25 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     };
   }
 
+  String _validActiveEggId(String requestedId, List<Egg> eggs) {
+    final requested = eggs.where(
+      (egg) => egg.id == requestedId && egg.status != EggStatus.hatched,
+    );
+    if (requested.isNotEmpty) {
+      return requested.first.id;
+    }
+    final incubating = eggs.where(
+      (egg) => egg.status == EggStatus.incubating,
+    );
+    if (incubating.isNotEmpty) {
+      return incubating.first.id;
+    }
+    final hatchable = eggs.where(
+      (egg) => egg.status == EggStatus.hatchable,
+    );
+    return hatchable.isEmpty ? '' : hatchable.first.id;
+  }
+
   Map<String, PetCareState> _careForPets({
     required List<Pet> pets,
     required Map<String, PetCareState> existing,
@@ -1723,9 +2673,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   }
 
   List<Egg> _maybeDropEgg(List<Egg> currentEggs, Poi poi, DateTime now) {
-    final hasOpenEgg =
-        currentEggs.any((egg) => egg.status != EggStatus.hatched);
-    if (hasOpenEgg) {
+    if (currentEggs.where((egg) => egg.status != EggStatus.hatched).length >=
+        maxStoredEggs) {
       return currentEggs;
     }
 
@@ -1740,6 +2689,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       poi.category,
       poi.regionId,
       poi.id,
+      excludedTemplateIds: {
+        ...state.pets.map((pet) => pet.templateId),
+        ...currentEggs.map((egg) => egg.templateId),
+      },
     );
     return [
       ...currentEggs,
@@ -1747,10 +2700,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
         id: 'egg-${template.id}-${now.microsecondsSinceEpoch}',
         templateId: template.id,
         originRegionId: poi.regionId,
+        originPoiId: poi.id,
+        finderPetId: state.activePet?.id,
         progress: 0,
         requiredSteps: 3500,
         status: EggStatus.incubating,
         createdAt: now,
+        incubationBondXp: 1,
+        imprints: [poi.category],
       ),
     ];
   }
@@ -1758,9 +2715,15 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   PetTemplate _templateForCategory(
     PoiCategory category,
     String regionId,
-    String poiId,
-  ) {
-    final regionalCategoryMatches = state.templates
+    String poiId, {
+    Set<String> excludedTemplateIds = const {},
+  }) {
+    final availableTemplates = state.templates
+        .where((template) => !excludedTemplateIds.contains(template.id))
+        .toList(growable: false);
+    final candidatePool =
+        availableTemplates.isEmpty ? state.templates : availableTemplates;
+    final regionalCategoryMatches = candidatePool
         .where(
           (template) =>
               template.regionId == regionId &&
@@ -1772,7 +2735,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           _stableTemplateIndex(poiId, regionalCategoryMatches.length)];
     }
 
-    final regionalMatches = state.templates
+    final regionalMatches = candidatePool
         .where((template) => template.regionId == regionId)
         .toList(growable: false);
     if (regionalMatches.isNotEmpty) {
@@ -1780,14 +2743,14 @@ class MasilPetController extends StateNotifier<MasilPetState> {
           _stableTemplateIndex(poiId, regionalMatches.length)];
     }
 
-    final categoryMatches = state.templates
+    final categoryMatches = candidatePool
         .where((template) => template.primaryCategory == category)
         .toList(growable: false);
     if (categoryMatches.isNotEmpty) {
       return categoryMatches[
           _stableTemplateIndex(poiId, categoryMatches.length)];
     }
-    return state.templates.first;
+    return candidatePool.first;
   }
 
   int _stableTemplateIndex(String value, int length) {
@@ -1871,10 +2834,10 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     }
 
     if (error.code == 'invalid-argument') {
-      return '대표 마실펫 변경 요청이 올바르지 않아요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
+      return '동행 마실펫 변경 요청이 올바르지 않아요. 앱을 새로고침한 뒤에 다시 시도해 주세요.';
     }
 
-    return '서버에 대표 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.';
+    return '서버에 동행 마실펫을 반영하지 못했어요. 잠시 후에 다시 시도해 주세요.';
   }
 }
 

@@ -198,7 +198,7 @@ void main() {
     expect(find.text('세 걸음이면 충분해'), findsOneWidget);
     expect(find.text('동네를 걷고'), findsOneWidget);
     expect(find.text('주변 150m 안 산책지가 수첩에 떠요'), findsOneWidget);
-    expect(find.text('37마리가 전국에서 너를 기다려요'), findsOneWidget);
+    expect(find.text('57마리가 전국에서 너를 기다려요'), findsOneWidget);
     await tester.tap(find.text('좋아, 알겠어'));
     await _settle(tester);
 
@@ -389,13 +389,13 @@ void main() {
     await _settle(tester);
 
     final tabBar = find.byType(PaperTabBar);
-    // 4 talks left, 1 egg, 36 undiscovered, 1 day streak.
+    // 4 talks left, 1 egg, 56 undiscovered, 1 day streak.
     expect(
       find.descendant(of: tabBar, matching: find.text('4')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: tabBar, matching: find.text('36')),
+      find.descendant(of: tabBar, matching: find.text('56')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -837,11 +837,43 @@ void main() {
     expect(find.byType(SpeechBubble), findsOneWidget);
     expect(find.text('쓰다듬기 · 오늘 5번 남음'), findsOneWidget);
     expect(find.text('오늘 해준 것'), findsOneWidget);
+    expect(find.text('지금의 마음'), findsOneWidget);
+    expect(find.text('오늘의 산책'), findsOneWidget);
     expect(find.text('배부름'), findsOneWidget);
     expect(find.text('청결'), findsOneWidget);
     expect(find.text('활력'), findsOneWidget);
+    expect(find.text('행복'), findsOneWidget);
+    expect(find.textContaining('성격'), findsOneWidget);
     expect(find.text('진화까지'), findsOneWidget);
     expect(find.text('EXP 20 / 500'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pet food picker shows preferences and records the meal',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    final pet = controller.state.activePet!;
+    final favorite = controller.favoriteFoodFor(pet);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const PetScreen()));
+    await _settle(tester);
+
+    final feedAction = find.text('밥 주기');
+    await tester.ensureVisible(feedAction);
+    await _settle(tester);
+    await tester.tap(feedAction);
+    await _settle(tester);
+
+    expect(find.text('${pet.name}에게 무엇을 줄까요?'), findsOneWidget);
+    expect(find.text('가장 좋아해요'), findsOneWidget);
+
+    await tester.tap(find.text(favorite.label));
+    await _settle(tester);
+
+    expect(controller.state.activePetCare!.lastFood, favorite);
+    expect(controller.state.activePetCare!.memories.first.category,
+        PoiCategory.food);
     expect(tester.takeException(), isNull);
   });
 
@@ -1034,7 +1066,7 @@ void main() {
     await _settle(tester);
 
     expect(find.text('내 마실펫 1마리'), findsOneWidget);
-    expect(find.text('MAIN'), findsOneWidget);
+    expect(find.text('동행'), findsOneWidget);
     expect(find.text('지금 함께 다녀요'), findsOneWidget);
     expect(find.text('상세보기'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -1064,7 +1096,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('pet roster promotes another pet to main companion',
+  testWidgets('pet roster selects another walking companion',
       (WidgetTester tester) async {
     final controller = _controller()..setTab(1);
     final first = controller.state.activePet!;
@@ -1087,7 +1119,7 @@ void main() {
 
     expect(find.text('내 마실펫 2마리'), findsOneWidget);
 
-    final promote = find.text('주 캐릭터로');
+    final promote = find.text('함께 걷기');
     expect(promote, findsOneWidget);
     await tester.ensureVisible(promote);
     await tester.pump();
@@ -1313,7 +1345,7 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
     await _settle(tester);
 
-    // 해랑 sits well down the 37-cell grid, so scroll it into view first.
+    // 해랑 sits well down the 57-cell grid, so scroll it into view first.
     // The pill rows are scrollables too, hence naming the vertical one.
     final cell = find.text('해랑');
     await tester.dragUntilVisible(

@@ -249,8 +249,8 @@ class _PetPlayFieldState extends State<PetPlayField>
     }
 
     final activePetLabel = activePet == null
-        ? '대표 마실펫이 없어요'
-        : '대표 마실펫 ${activePet.name}, ${_activitySemanticsLabel(_displayActivity)}';
+        ? '동행 마실펫이 없어요'
+        : '동행 마실펫 ${activePet.name}, ${_activitySemanticsLabel(_displayActivity)}';
     return '마실펫 놀이터. $activePetLabel. 함께 있는 마실펫 ${playmates.length}마리.';
   }
 

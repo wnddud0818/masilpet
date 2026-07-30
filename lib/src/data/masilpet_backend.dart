@@ -35,6 +35,23 @@ abstract class MasilPetBackend {
   /// Records which pet walks with the user, so server-side rewards land on the
   /// same companion the app is showing.
   Future<void> setActivePet(String petId);
+
+  /// Records which egg receives walking and check-in incubation credit.
+  Future<void> setActiveEgg(String eggId);
+}
+
+abstract interface class DetailedHatchBackend {
+  Future<RemoteHatchResult> hatchEggWithOutcome(String eggId);
+}
+
+abstract interface class CumulativeStepSyncBackend {
+  Future<RemoteStepProgressResult> syncStepsV2({
+    required String operationId,
+    required String deviceId,
+    required String dayKey,
+    required int observedCumulativeSteps,
+    required DateTime observedAt,
+  });
 }
 
 MasilPetBackend createMasilPetBackend() {
@@ -45,7 +62,11 @@ MasilPetBackend createMasilPetBackend() {
   return FirebaseMasilPetBackend();
 }
 
-class CloudflareMasilPetBackend implements MasilPetBackend {
+class CloudflareMasilPetBackend
+    implements
+        MasilPetBackend,
+        DetailedHatchBackend,
+        CumulativeStepSyncBackend {
   CloudflareMasilPetBackend({
     required String baseUrl,
     FirebaseAuth? auth,
@@ -111,8 +132,31 @@ class CloudflareMasilPetBackend implements MasilPetBackend {
 
   @override
   Future<String> hatchEgg(String eggId) async {
+    return (await hatchEggWithOutcome(eggId)).petId;
+  }
+
+  @override
+  Future<RemoteStepProgressResult> syncStepsV2({
+    required String operationId,
+    required String deviceId,
+    required String dayKey,
+    required int observedCumulativeSteps,
+    required DateTime observedAt,
+  }) async {
+    final data = await _call('syncStepsV2', {
+      'operationId': operationId,
+      'deviceId': deviceId,
+      'dayKey': dayKey,
+      'observedCumulativeSteps': observedCumulativeSteps,
+      'observedAt': observedAt.toUtc().toIso8601String(),
+    });
+    return RemoteStepProgressResult.fromMap(data);
+  }
+
+  @override
+  Future<RemoteHatchResult> hatchEggWithOutcome(String eggId) async {
     final data = await _call('hatchEgg', {'eggId': eggId});
-    return data['petId'] as String;
+    return RemoteHatchResult.fromMap(data);
   }
 
   @override
@@ -130,6 +174,11 @@ class CloudflareMasilPetBackend implements MasilPetBackend {
   @override
   Future<void> setActivePet(String petId) async {
     await _call('setActivePet', {'petId': petId});
+  }
+
+  @override
+  Future<void> setActiveEgg(String eggId) async {
+    await _call('setActiveEgg', {'eggId': eggId});
   }
 
   Future<Map<String, dynamic>> _call(
@@ -183,7 +232,11 @@ class CloudflareMasilPetBackend implements MasilPetBackend {
   }
 }
 
-class FirebaseMasilPetBackend implements MasilPetBackend {
+class FirebaseMasilPetBackend
+    implements
+        MasilPetBackend,
+        DetailedHatchBackend,
+        CumulativeStepSyncBackend {
   FirebaseMasilPetBackend({
     FirebaseFunctions? functions,
   }) : _functions = functions ??
@@ -243,10 +296,33 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
 
   @override
   Future<String> hatchEgg(String eggId) async {
+    return (await hatchEggWithOutcome(eggId)).petId;
+  }
+
+  @override
+  Future<RemoteStepProgressResult> syncStepsV2({
+    required String operationId,
+    required String deviceId,
+    required String dayKey,
+    required int observedCumulativeSteps,
+    required DateTime observedAt,
+  }) async {
+    final data = await _call('syncStepsV2', {
+      'operationId': operationId,
+      'deviceId': deviceId,
+      'dayKey': dayKey,
+      'observedCumulativeSteps': observedCumulativeSteps,
+      'observedAt': observedAt.toUtc().toIso8601String(),
+    });
+    return RemoteStepProgressResult.fromMap(data);
+  }
+
+  @override
+  Future<RemoteHatchResult> hatchEggWithOutcome(String eggId) async {
     final data = await _call('hatchEgg', {
       'eggId': eggId,
     });
-    return data['petId'] as String;
+    return RemoteHatchResult.fromMap(data);
   }
 
   @override
@@ -264,6 +340,11 @@ class FirebaseMasilPetBackend implements MasilPetBackend {
   @override
   Future<void> setActivePet(String petId) async {
     await _call('setActivePet', {'petId': petId});
+  }
+
+  @override
+  Future<void> setActiveEgg(String eggId) async {
+    await _call('setActiveEgg', {'eggId': eggId});
   }
 
   Future<Map<String, dynamic>> _call(String functionName,
@@ -367,6 +448,8 @@ class RemoteCheckInResult {
     required this.reward,
     required this.eggProgress,
     required this.updatedPet,
+    this.companionPetId,
+    this.creditedEggId,
   });
 
   factory RemoteCheckInResult.fromMap(Map<String, dynamic> map) {
@@ -382,6 +465,8 @@ class RemoteCheckInResult {
       reward: _statsFromMap(_mapFromValue(map['reward'])),
       eggProgress: _intFromValue(map['eggProgress']),
       updatedPet: updatedPet,
+      companionPetId: _nullableStringFromValue(map['companionPetId']),
+      creditedEggId: _nullableStringFromValue(map['creditedEggId']),
     );
   }
 
@@ -390,23 +475,80 @@ class RemoteCheckInResult {
   final GrowthStats reward;
   final int? eggProgress;
   final RemotePetUpdate? updatedPet;
+  final String? companionPetId;
+  final String? creditedEggId;
+}
+
+class RemoteHatchResult {
+  const RemoteHatchResult({
+    required this.petId,
+    required this.reunion,
+    required this.updatedPet,
+    this.reunionCount,
+  });
+
+  factory RemoteHatchResult.fromMap(Map<String, dynamic> map) {
+    final petId = _stringFromValue(map['petId']);
+    if (petId.isEmpty) {
+      throw const MasilPetBackendException(
+        code: 'invalid-response',
+        message: 'Hatch response did not include a petId.',
+      );
+    }
+    return RemoteHatchResult(
+      petId: petId,
+      reunion: map['reunion'] == true,
+      updatedPet: map['updatedPet'] is Map
+          ? RemotePetUpdate.fromMap(
+              Map<String, dynamic>.from(map['updatedPet'] as Map),
+            )
+          : null,
+      reunionCount: _intFromValue(
+        _mapFromValue(map['updatedPet'])['reunionCount'],
+      ),
+    );
+  }
+
+  final String petId;
+  final bool reunion;
+  final RemotePetUpdate? updatedPet;
+  final int? reunionCount;
 }
 
 class RemoteStepProgressResult {
   const RemoteStepProgressResult({
     required this.hatchableCount,
     required this.appliedStepDelta,
+    this.creditedEggId,
+    this.companionPetId,
+    this.updatedPet,
+    this.baselineInitialized = false,
+    this.counterReset = false,
   });
 
   factory RemoteStepProgressResult.fromMap(Map<String, dynamic> map) {
     return RemoteStepProgressResult(
       hatchableCount: _intFromValue(map['hatchableCount']) ?? 0,
       appliedStepDelta: _intFromValue(map['appliedStepDelta']) ?? 0,
+      creditedEggId: _nullableStringFromValue(map['creditedEggId']),
+      companionPetId: _nullableStringFromValue(map['companionPetId']),
+      updatedPet: map['updatedPet'] is Map
+          ? RemotePetUpdate.fromMap(
+              Map<String, dynamic>.from(map['updatedPet'] as Map),
+            )
+          : null,
+      baselineInitialized: map['baselineInitialized'] == true,
+      counterReset: map['counterReset'] == true,
     );
   }
 
   final int hatchableCount;
   final int appliedStepDelta;
+  final String? creditedEggId;
+  final String? companionPetId;
+  final RemotePetUpdate? updatedPet;
+  final bool baselineInitialized;
+  final bool counterReset;
 }
 
 class RemotePetInteractionResult {
@@ -495,6 +637,11 @@ String _stringFromValue(Object? value, {String fallback = ''}) {
     return value;
   }
   return fallback;
+}
+
+String? _nullableStringFromValue(Object? value) {
+  final resolved = _stringFromValue(value);
+  return resolved.isEmpty ? null : resolved;
 }
 
 int? _intFromValue(Object? value) {

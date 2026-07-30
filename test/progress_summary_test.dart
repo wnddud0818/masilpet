@@ -45,6 +45,9 @@ class FakeStepBackend implements MasilPetBackend {
   Future<void> setActivePet(String petId) async {}
 
   @override
+  Future<void> setActiveEgg(String eggId) async {}
+
+  @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
 
   @override
@@ -98,6 +101,9 @@ class FakeHatchErrorBackend implements MasilPetBackend {
   Future<void> setActivePet(String petId) async {}
 
   @override
+  Future<void> setActiveEgg(String eggId) async {}
+
+  @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
 
   @override
@@ -147,6 +153,9 @@ class FakeCheckInBackend implements MasilPetBackend {
   Future<void> setActivePet(String petId) async {}
 
   @override
+  Future<void> setActiveEgg(String eggId) async {}
+
+  @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
 
   @override
@@ -191,6 +200,9 @@ class FakeCheckInErrorBackend implements MasilPetBackend {
 
   @override
   Future<void> setActivePet(String petId) async {}
+
+  @override
+  Future<void> setActiveEgg(String eggId) async {}
 
   @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
@@ -239,6 +251,9 @@ class FakeInteractionBackend implements MasilPetBackend {
   Future<void> setActivePet(String petId) async {}
 
   @override
+  Future<void> setActiveEgg(String eggId) async {}
+
+  @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
 
   @override
@@ -283,6 +298,9 @@ class FakeInteractionErrorBackend implements MasilPetBackend {
 
   @override
   Future<void> setActivePet(String petId) async {}
+
+  @override
+  Future<void> setActiveEgg(String eggId) async {}
 
   @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
@@ -342,6 +360,9 @@ class FakeCompanionBackend implements MasilPetBackend {
   }
 
   @override
+  Future<void> setActiveEgg(String eggId) async {}
+
+  @override
   Future<List<RemotePoi>> getNearbyPois(Coordinates location) async => const [];
 
   @override
@@ -373,7 +394,7 @@ class FakeCompanionBackend implements MasilPetBackend {
 }
 
 /// Walks far enough to hatch the starter egg, leaving two pets in the roster
-/// with the newly hatched one active.
+/// while preserving the existing active companion.
 Future<MasilPetController> _controllerWithTwoPets(
   MasilPetBackend backend,
 ) async {
@@ -548,6 +569,26 @@ void main() {
         'mokpo-hongari',
         'damyang-juksoli',
         'iksan-boseoki',
+        'gimpo-geumnuri',
+        'yongin-baekami',
+        'hwaseong-gaetnori',
+        'pocheon-dolbami',
+        'wonju-hanjiri',
+        'pyeongchang-memiri',
+        'danyang-gosuri',
+        'jecheon-yakchori',
+        'cheonan-hodami',
+        'buyeo-yeonkkori',
+        'gunsan-milbomi',
+        'namwon-sarangbi',
+        'gochang-bokbuni',
+        'gurye-sansuri',
+        'wando-miyeori',
+        'ulleung-ojingari',
+        'yeongju-seonbiri',
+        'hadong-maesili',
+        'geoje-dongbaegi',
+        'jeju-hanrari',
       ]),
     );
   });
@@ -594,7 +635,7 @@ void main() {
 
     expect(
       templateIds.toSet(),
-      {'yeosu-bambada', 'suncheon-galpi', 'damyang-juksoli'},
+      {'suncheon-galpi', 'damyang-juksoli', 'gurye-sansuri'},
     );
   });
 
@@ -1036,12 +1077,12 @@ void main() {
   test('changing the companion is mirrored to the server', () async {
     final backend = FakeCompanionBackend(hatchedPetId: 'pet-remote-hatched');
     final controller = await _controllerWithTwoPets(backend);
-    expect(controller.state.activePetId, 'pet-remote-hatched');
-
-    await controller.selectPet(starterCompanionPetId);
-
-    expect(backend.activePetIds, [starterCompanionPetId]);
     expect(controller.state.activePetId, starterCompanionPetId);
+
+    await controller.selectPet('pet-remote-hatched');
+
+    expect(backend.activePetIds, ['pet-remote-hatched']);
+    expect(controller.state.activePetId, 'pet-remote-hatched');
     expect(controller.state.isBusy, isFalse);
   });
 
@@ -1055,9 +1096,9 @@ void main() {
     );
     final controller = await _controllerWithTwoPets(backend);
 
-    await controller.selectPet(starterCompanionPetId);
+    await controller.selectPet('pet-remote-hatched');
 
-    expect(controller.state.activePetId, 'pet-remote-hatched');
+    expect(controller.state.activePetId, starterCompanionPetId);
     expect(controller.state.isBusy, isFalse);
     expect(controller.state.statusMessage, contains('마실펫을 찾을 수 없어요'));
   });
@@ -1066,7 +1107,7 @@ void main() {
     final backend = FakeCompanionBackend(hatchedPetId: 'pet-remote-hatched');
     final controller = await _controllerWithTwoPets(backend);
 
-    await controller.selectPet('pet-remote-hatched');
+    await controller.selectPet(starterCompanionPetId);
 
     expect(backend.activePetIds, isEmpty);
   });

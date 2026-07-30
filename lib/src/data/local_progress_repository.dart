@@ -136,12 +136,14 @@ class LocalProgressSnapshot {
     required this.locationVerified,
     required this.locationVerifiedAt,
     required this.activePetId,
+    this.activeEggId = '',
     required this.lastVisitedCategory,
     required this.dialogueCountToday,
     required this.dialogueDay,
     this.careByPetId = const {},
     this.carePoints = 0,
     this.dailyCareRewardClaimKey,
+    this.stepSyncDeviceId = '',
   });
 
   factory LocalProgressSnapshot.fromMap(Map<String, dynamic> map) {
@@ -160,6 +162,7 @@ class LocalProgressSnapshot {
       locationVerified: map['locationVerified'] == true,
       locationVerifiedAt: _nullableDateFromValue(map['locationVerifiedAt']),
       activePetId: _stringFromValue(map['activePetId']),
+      activeEggId: _stringFromValue(map['activeEggId']),
       lastVisitedCategory: _nullableCategoryFromName(
         _stringFromValue(map['lastVisitedCategory']),
       ),
@@ -169,6 +172,7 @@ class LocalProgressSnapshot {
       carePoints: _intFromValue(map['carePoints']) ?? 0,
       dailyCareRewardClaimKey:
           dailyCareRewardClaimKey.isEmpty ? null : dailyCareRewardClaimKey,
+      stepSyncDeviceId: _stringFromValue(map['stepSyncDeviceId']),
     );
   }
 
@@ -181,16 +185,18 @@ class LocalProgressSnapshot {
   final bool locationVerified;
   final DateTime? locationVerifiedAt;
   final String activePetId;
+  final String activeEggId;
   final PoiCategory? lastVisitedCategory;
   final int dialogueCountToday;
   final DateTime dialogueDay;
   final Map<String, PetCareState> careByPetId;
   final int carePoints;
   final String? dailyCareRewardClaimKey;
+  final String stepSyncDeviceId;
 
   Map<String, dynamic> toMap() {
     return {
-      'version': 1,
+      'version': 4,
       'onboardingComplete': onboardingComplete,
       'pois': pois.map(_poiToMap).toList(),
       'pets': pets.map(_petToMap).toList(),
@@ -200,6 +206,7 @@ class LocalProgressSnapshot {
       'locationVerified': locationVerified,
       'locationVerifiedAt': locationVerifiedAt?.toIso8601String(),
       'activePetId': activePetId,
+      'activeEggId': activeEggId,
       'lastVisitedCategory': lastVisitedCategory?.name,
       'dialogueCountToday': dialogueCountToday,
       'dialogueDay': dialogueDay.toIso8601String(),
@@ -209,6 +216,7 @@ class LocalProgressSnapshot {
       },
       'carePoints': carePoints,
       'dailyCareRewardClaimKey': dailyCareRewardClaimKey,
+      'stepSyncDeviceId': stepSyncDeviceId,
     };
   }
 }
@@ -218,11 +226,42 @@ Map<String, dynamic> _careToMap(PetCareState care) {
     'satiety': care.satiety,
     'cleanliness': care.cleanliness,
     'vitality': care.vitality,
+    'happiness': care.happiness,
     'updatedAt': care.updatedAt.toIso8601String(),
     'dailyCountDay': care.dailyCountDay.toIso8601String(),
     'feedCountToday': care.feedCountToday,
     'playCountToday': care.playCountToday,
     'cleanCountToday': care.cleanCountToday,
+    'talkCountToday': care.talkCountToday,
+    'petCountToday': care.petCountToday,
+    'bondedDays': care.bondedDays,
+    'lastBondedDay': care.lastBondedDay?.toIso8601String(),
+    'wasteCount': care.wasteCount,
+    'lastWasteAt': care.lastWasteAt.toIso8601String(),
+    'isSleeping': care.isSleeping,
+    'sleepStartedAt': care.sleepStartedAt?.toIso8601String(),
+    'ailment': care.ailment.name,
+    'ailmentUntil': care.ailmentUntil?.toIso8601String(),
+    'lastFood': care.lastFood?.name,
+    'sameFoodStreak': care.sameFoodStreak,
+    'walkStepsToday': care.walkStepsToday,
+    'walkDay': care.walkDay.toIso8601String(),
+    'adventureScore': care.adventureScore,
+    'gourmetScore': care.gourmetScore,
+    'knowledgeScore': care.knowledgeScore,
+    'affectionScore': care.affectionScore,
+    'eleganceScore': care.eleganceScore,
+    'memories': care.memories.map(_memoryToMap).toList(),
+  };
+}
+
+Map<String, dynamic> _memoryToMap(PetMemory memory) {
+  return {
+    'id': memory.id,
+    'title': memory.title,
+    'detail': memory.detail,
+    'createdAt': memory.createdAt.toIso8601String(),
+    'category': memory.category?.name,
   };
 }
 
@@ -239,15 +278,48 @@ Map<String, PetCareState> _careByPetIdFromMap(Object? value) {
       satiety: _intFromValue(careMap['satiety']) ?? 72,
       cleanliness: _intFromValue(careMap['cleanliness']) ?? 76,
       vitality: _intFromValue(careMap['vitality']) ?? 74,
+      happiness: _intFromValue(careMap['happiness']) ?? 72,
       updatedAt: updatedAt,
       dailyCountDay:
           _nullableDateFromValue(careMap['dailyCountDay']) ?? updatedAt,
       feedCountToday: _intFromValue(careMap['feedCountToday']) ?? 0,
       playCountToday: _intFromValue(careMap['playCountToday']) ?? 0,
       cleanCountToday: _intFromValue(careMap['cleanCountToday']) ?? 0,
+      talkCountToday: _intFromValue(careMap['talkCountToday']) ?? 0,
+      petCountToday: _intFromValue(careMap['petCountToday']) ?? 0,
+      bondedDays: _intFromValue(careMap['bondedDays']) ?? 0,
+      lastBondedDay: _nullableDateFromValue(careMap['lastBondedDay']),
+      wasteCount: _intFromValue(careMap['wasteCount']) ?? 0,
+      lastWasteAt: _nullableDateFromValue(careMap['lastWasteAt']) ?? updatedAt,
+      isSleeping: careMap['isSleeping'] == true,
+      sleepStartedAt: _nullableDateFromValue(careMap['sleepStartedAt']),
+      ailment: _petAilmentFromName(_stringFromValue(careMap['ailment'])),
+      ailmentUntil: _nullableDateFromValue(careMap['ailmentUntil']),
+      lastFood: _nullablePetFoodFromName(
+        _stringFromValue(careMap['lastFood']),
+      ),
+      sameFoodStreak: _intFromValue(careMap['sameFoodStreak']) ?? 0,
+      walkStepsToday: _intFromValue(careMap['walkStepsToday']) ?? 0,
+      walkDay: _nullableDateFromValue(careMap['walkDay']) ?? updatedAt,
+      adventureScore: _intFromValue(careMap['adventureScore']) ?? 0,
+      gourmetScore: _intFromValue(careMap['gourmetScore']) ?? 0,
+      knowledgeScore: _intFromValue(careMap['knowledgeScore']) ?? 0,
+      affectionScore: _intFromValue(careMap['affectionScore']) ?? 0,
+      eleganceScore: _intFromValue(careMap['eleganceScore']) ?? 0,
+      memories: _listOfMaps(careMap['memories']).map(_memoryFromMap).toList(),
     );
   }
   return result;
+}
+
+PetMemory _memoryFromMap(Map<String, dynamic> map) {
+  return PetMemory(
+    id: _stringFromValue(map['id']),
+    title: _stringFromValue(map['title'], fallback: '함께한 기억'),
+    detail: _stringFromValue(map['detail']),
+    createdAt: _dateFromValue(map['createdAt']),
+    category: _nullableCategoryFromName(_stringFromValue(map['category'])),
+  );
 }
 
 Map<String, dynamic> _poiToMap(Poi poi) {
@@ -285,6 +357,8 @@ Map<String, dynamic> _petToMap(Pet pet) {
     'originRegionId': pet.originRegionId,
     'hatchedAt': pet.hatchedAt.toIso8601String(),
     'lastInteractedAt': pet.lastInteractedAt?.toIso8601String(),
+    'originEggId': pet.originEggId,
+    'reunionCount': pet.reunionCount,
   };
 }
 
@@ -299,6 +373,8 @@ Pet _petFromMap(Map<String, dynamic> map) {
     originRegionId: _stringFromValue(map['originRegionId'], fallback: 'korea'),
     hatchedAt: _dateFromValue(map['hatchedAt']),
     lastInteractedAt: _nullableDateFromValue(map['lastInteractedAt']),
+    originEggId: _nullableStringFromValue(map['originEggId']),
+    reunionCount: _intFromValue(map['reunionCount']) ?? 0,
   );
 }
 
@@ -311,6 +387,10 @@ Map<String, dynamic> _eggToMap(Egg egg) {
     'requiredSteps': egg.requiredSteps,
     'status': egg.status.name,
     'createdAt': egg.createdAt.toIso8601String(),
+    'originPoiId': egg.originPoiId,
+    'finderPetId': egg.finderPetId,
+    'incubationBondXp': egg.incubationBondXp,
+    'imprints': egg.imprints.map((category) => category.name).toList(),
   };
 }
 
@@ -323,6 +403,12 @@ Egg _eggFromMap(Map<String, dynamic> map) {
     requiredSteps: _intFromValue(map['requiredSteps']) ?? 3500,
     status: _eggStatusFromName(_stringFromValue(map['status'])),
     createdAt: _dateFromValue(map['createdAt']),
+    originPoiId: _nullableStringFromValue(map['originPoiId']),
+    finderPetId: _nullableStringFromValue(map['finderPetId']),
+    incubationBondXp: _intFromValue(map['incubationBondXp']) ?? 0,
+    imprints: _listOfStrings(map['imprints'])
+        .map(_categoryFromName)
+        .toList(growable: false),
   );
 }
 
@@ -336,6 +422,8 @@ Map<String, dynamic> _checkInToMap(CheckIn checkIn) {
     'distanceMeters': checkIn.distanceMeters,
     'rewardApplied': checkIn.rewardApplied,
     'reward': checkIn.reward == null ? null : _rewardToMap(checkIn.reward!),
+    'companionPetId': checkIn.companionPetId,
+    'creditedEggId': checkIn.creditedEggId,
   };
 }
 
@@ -349,6 +437,8 @@ CheckIn _checkInFromMap(Map<String, dynamic> map) {
     distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
     rewardApplied: map['rewardApplied'] == true,
     reward: _rewardFromMap(map['reward']),
+    companionPetId: _nullableStringFromValue(map['companionPetId']),
+    creditedEggId: _nullableStringFromValue(map['creditedEggId']),
   );
 }
 
@@ -439,6 +529,25 @@ PoiCategory? _nullableCategoryFromName(String? name) {
   return _categoryFromName(name);
 }
 
+PetAilment _petAilmentFromName(String? name) {
+  return PetAilment.values.firstWhere(
+    (value) => value.name == name,
+    orElse: () => PetAilment.none,
+  );
+}
+
+PetFood? _nullablePetFoodFromName(String? name) {
+  if (name == null || name.isEmpty) {
+    return null;
+  }
+  for (final value in PetFood.values) {
+    if (value.name == name) {
+      return value;
+    }
+  }
+  return null;
+}
+
 DateTime _dateFromValue(Object? value) {
   if (value is DateTime) {
     return value;
@@ -469,6 +578,13 @@ List<Map<String, dynamic>> _listOfMaps(Object? value) {
   return value.whereType<Map>().map(_mapFromValue).toList();
 }
 
+List<String> _listOfStrings(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return value.whereType<String>().toList(growable: false);
+}
+
 Map<String, dynamic> _mapOrEmpty(Object? value) {
   return _mapFromValue(value);
 }
@@ -488,6 +604,11 @@ String _stringFromValue(Object? value, {String fallback = ''}) {
     return value;
   }
   return fallback;
+}
+
+String? _nullableStringFromValue(Object? value) {
+  final string = _stringFromValue(value);
+  return string.isEmpty ? null : string;
 }
 
 int? _intFromValue(Object? value) {

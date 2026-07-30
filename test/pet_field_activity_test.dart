@@ -324,7 +324,7 @@ void main() {
       expect(_assetNames(tester), hasLength(1));
       expect(
         find.bySemanticsLabel(
-          '마실펫 놀이터. 대표 마실펫 해랑, 간식을 먹는 중. 함께 있는 마실펫 1마리.',
+          '마실펫 놀이터. 동행 마실펫 해랑, 간식을 먹는 중. 함께 있는 마실펫 1마리.',
         ),
         findsOneWidget,
       );

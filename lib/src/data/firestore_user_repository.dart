@@ -6,12 +6,14 @@ import '../models.dart';
 class UserProgressSnapshot {
   const UserProgressSnapshot({
     required this.activePetId,
+    required this.activeEggId,
     required this.pets,
     required this.eggs,
     required this.checkIns,
   });
 
   final String activePetId;
+  final String activeEggId;
   final List<Pet> pets;
   final List<Egg> eggs;
   final List<CheckIn> checkIns;
@@ -49,6 +51,7 @@ class FirestoreUserRepository {
 
     return UserProgressSnapshot(
       activePetId: _stringFromValue(userDoc.data()?['activePetId']),
+      activeEggId: _stringFromValue(userDoc.data()?['activeEggId']),
       pets: petsSnapshot.docs
           .map((doc) => _petFromDoc(doc.id, doc.data()))
           .toList(),
@@ -73,6 +76,8 @@ Pet _petFromDoc(String id, Map<String, dynamic> data) {
     originRegionId: _stringFromValue(data['originRegionId'], fallback: 'korea'),
     hatchedAt: _dateFromValue(data['hatchedAt']),
     lastInteractedAt: _nullableDateFromValue(data['lastInteractedAt']),
+    originEggId: _nullableStringFromValue(data['originEggId']),
+    reunionCount: _intFromValue(data['reunionCount']) ?? 0,
   );
 }
 
@@ -85,6 +90,10 @@ Egg _eggFromDoc(String id, Map<String, dynamic> data) {
     requiredSteps: _intFromValue(data['requiredSteps']) ?? 3500,
     status: _eggStatusFromName(_stringFromValue(data['status'])),
     createdAt: _dateFromValue(data['createdAt']),
+    originPoiId: _nullableStringFromValue(data['originPoiId']),
+    finderPetId: _nullableStringFromValue(data['finderPetId']),
+    incubationBondXp: _intFromValue(data['incubationBondXp']) ?? 0,
+    imprints: _categoryListFromValue(data['imprints']),
   );
 }
 
@@ -98,6 +107,8 @@ CheckIn _checkInFromDoc(String id, Map<String, dynamic> data) {
     distanceMeters: _doubleFromValue(data['distanceMeters']) ?? 0,
     rewardApplied: data['rewardApplied'] == true,
     reward: _rewardFromMap(data['reward'], data['eggProgress']),
+    companionPetId: _nullableStringFromValue(data['companionPetId']),
+    creditedEggId: _nullableStringFromValue(data['creditedEggId']),
   );
 }
 
@@ -180,6 +191,21 @@ String _stringFromValue(Object? value, {String fallback = ''}) {
     return value;
   }
   return fallback;
+}
+
+String? _nullableStringFromValue(Object? value) {
+  final string = _stringFromValue(value);
+  return string.isEmpty ? null : string;
+}
+
+List<PoiCategory> _categoryListFromValue(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return value
+      .whereType<String>()
+      .map(_categoryFromName)
+      .toList(growable: false);
 }
 
 int? _intFromValue(Object? value) {

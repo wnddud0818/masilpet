@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masilpet/src/data/local_progress_repository.dart';
 import 'package:masilpet/src/models.dart';
@@ -12,6 +14,18 @@ MasilPetController _controller() {
     backend: null,
     userRepository: null,
   );
+}
+
+class _FakeStepService extends DeviceStepService {
+  _FakeStepService(this.events);
+
+  final Stream<int> events;
+
+  @override
+  bool get isSupported => true;
+
+  @override
+  Future<Stream<int>> openStepCountStream() async => events;
 }
 
 void main() {
@@ -78,6 +92,90 @@ void main() {
     expect(cleaned.playCountToday, 1);
     expect(cleaned.cleanCountToday, 1);
     expect(isSameLocalDay(cleaned.dailyCountDay, nextDay), isTrue);
+  });
+
+  test('time creates cleanable waste and only temporary discomfort', () {
+    final startedAt = DateTime(2026, 7, 14, 9);
+    final later = startedAt.add(const Duration(hours: 16));
+    final care = PetCareState(updatedAt: startedAt);
+
+    final waiting = engine.resolve(care, later);
+    expect(waiting.wasteCount, 2);
+    expect(waiting.ailment, PetAilment.itchy);
+
+    final cleaned = engine.afterWasteClean(waiting, later);
+    expect(cleaned.wasteCount, 0);
+    expect(cleaned.ailment, PetAilment.none);
+    expect(cleaned.cleanliness, greaterThan(waiting.cleanliness));
+  });
+
+  test('food preferences, repeated meals, touch, and walking shape a pet', () {
+    final now = DateTime(2026, 7, 14, 12);
+    final template = starterPetTemplates.first;
+    final favorite = engine.favoriteFoodFor(template);
+    final disliked = engine.dislikedFoodFor(template);
+    final preferredTouch = engine.preferredTouchFor(template);
+    var care = PetCareState(updatedAt: now);
+
+    care = engine.afterFeed(
+      care,
+      now,
+      food: favorite,
+      favoriteFood: favorite,
+      dislikedFood: disliked,
+    );
+    expect(care.happiness, greaterThan(72));
+    expect(care.gourmetScore, 3);
+    expect(care.memories.first.category, PoiCategory.food);
+
+    care = engine.afterFeed(
+      care,
+      now,
+      food: favorite,
+      favoriteFood: favorite,
+      dislikedFood: disliked,
+    );
+    expect(care.ailment, PetAilment.tummyAche);
+
+    care = engine.afterTouch(
+      care,
+      now,
+      touch: preferredTouch,
+      preferredTouch: preferredTouch,
+    );
+    expect(care.affectionScore, 3);
+
+    care = engine.afterWalk(care, now, steps: 1800);
+    expect(care.walkStepsToday, 1800);
+    expect(care.adventureScore, greaterThan(0));
+    expect(care.memories.first.title, contains('1800걸음'));
+  });
+
+  test('check-ins become companion memories and influence growth tendency', () {
+    final now = DateTime(2026, 7, 14, 12);
+    final care = engine.afterCheckIn(
+      PetCareState(updatedAt: now),
+      now,
+      poi: starterPoiSeed.first,
+      firstVisit: true,
+    );
+
+    expect(care.memories.single.title, contains('처음'));
+    expect(care.memories.single.title, contains(starterPoiSeed.first.title));
+    expect(care.adventureScore, 4);
+  });
+
+  test('pets staying home lose needs more slowly', () {
+    final now = DateTime(2026, 7, 14, 9);
+    final care = PetCareState(updatedAt: now);
+    final later = now.add(const Duration(hours: 12));
+
+    final companion = engine.resolve(care, later);
+    final atHome = engine.resolve(care, later, stayingHome: true);
+
+    expect(atHome.satiety, greaterThan(companion.satiety));
+    expect(atHome.cleanliness, greaterThan(companion.cleanliness));
+    expect(atHome.happiness, greaterThan(companion.happiness));
   });
 
   test('daily care routine completes when any four conditions are met', () {
@@ -201,11 +299,36 @@ void main() {
           satiety: 61,
           cleanliness: 73,
           vitality: 82,
+          happiness: 91,
           updatedAt: now,
           dailyCountDay: now,
           feedCountToday: 1,
           playCountToday: 2,
           cleanCountToday: 3,
+          petCountToday: 4,
+          wasteCount: 1,
+          isSleeping: true,
+          sleepStartedAt: now,
+          ailment: PetAilment.tummyAche,
+          ailmentUntil: now.add(const Duration(hours: 1)),
+          lastFood: PetFood.fruit,
+          sameFoodStreak: 2,
+          walkStepsToday: 1234,
+          walkDay: now,
+          adventureScore: 8,
+          gourmetScore: 6,
+          knowledgeScore: 4,
+          affectionScore: 9,
+          eleganceScore: 3,
+          memories: [
+            PetMemory(
+              id: 'memory-test',
+              title: '바다를 본 날',
+              detail: '파도 소리를 기억했어요.',
+              createdAt: now,
+              category: PoiCategory.nature,
+            ),
+          ],
         ),
       },
       carePoints: 90,
@@ -218,9 +341,17 @@ void main() {
     expect(restoredCare.satiety, 61);
     expect(restoredCare.cleanliness, 73);
     expect(restoredCare.vitality, 82);
+    expect(restoredCare.happiness, 91);
     expect(restoredCare.feedCountToday, 1);
     expect(restoredCare.playCountToday, 2);
     expect(restoredCare.cleanCountToday, 3);
+    expect(restoredCare.petCountToday, 4);
+    expect(restoredCare.wasteCount, 1);
+    expect(restoredCare.isSleeping, isTrue);
+    expect(restoredCare.ailment, PetAilment.tummyAche);
+    expect(restoredCare.lastFood, PetFood.fruit);
+    expect(restoredCare.walkStepsToday, 1234);
+    expect(restoredCare.memories.single.title, '바다를 본 날');
     expect(restored.carePoints, 90);
     expect(restored.dailyCareRewardClaimKey, '2026-07-15');
 
@@ -228,5 +359,27 @@ void main() {
     expect(legacy.careByPetId, isEmpty);
     expect(legacy.carePoints, 0);
     expect(legacy.dailyCareRewardClaimKey, isNull);
+  });
+
+  test('device step stream feeds egg and active companion progress', () async {
+    final events = StreamController<int>();
+    final controller = MasilPetController(
+      firebaseReady: false,
+      locationService: const DeviceLocationService(),
+      backend: null,
+      userRepository: null,
+      stepService: _FakeStepService(events.stream),
+    );
+    final eggBefore = controller.state.eggs.single.progress;
+
+    await controller.startStepTracking();
+    events.add(1000);
+    events.add(1150);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(controller.state.eggs.single.progress, eggBefore + 150);
+    expect(controller.state.activePetCare!.walkStepsToday, 150);
+    expect(controller.state.stepTrackingActive, isTrue);
+    await events.close();
   });
 }

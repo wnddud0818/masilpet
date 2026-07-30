@@ -92,7 +92,7 @@ class _HomePage {
 List<_HomePage> _homePages(MasilPetState state) {
   final petName = state.activePet?.name ?? '마실펫';
   final streak = state.currentVisitStreakDays;
-  final eggProgress = state.nextEgg;
+  final eggProgress = state.activeEgg;
 
   return [
     _HomePage(

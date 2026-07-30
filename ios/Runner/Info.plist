@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>현재 위치 주변의 여행지를 찾고 방문 체크인을 확인하기 위해 위치 정보가 필요합니다.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>함께 걷는 마실펫의 산책과 알 부화 진행도에 걸음 수를 반영하기 위해 사용합니다.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

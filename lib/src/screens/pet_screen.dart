@@ -25,6 +25,12 @@ class PetScreen extends ConsumerWidget {
     final pet = state.activePet;
     final care = state.activePetCare;
     final talksLeft = _talksLeftToday(state);
+    final personality = pet == null ? null : controller.personalityFor(pet);
+    final favoriteFood = pet == null ? null : controller.favoriteFoodFor(pet);
+    final dislikedFood = pet == null ? null : controller.dislikedFoodFor(pet);
+    final preferredTouch =
+        pet == null ? null : controller.preferredTouchFor(pet);
+    final need = pet == null ? null : controller.currentNeedFor(pet);
 
     return CustomScrollView(
       slivers: [
@@ -48,6 +54,7 @@ class PetScreen extends ConsumerWidget {
                   care: care,
                   talksLeft: talksLeft,
                   onTalk: state.isBusy ? null : controller.talkWithActivePet,
+                  onTouch: state.isBusy ? null : controller.touchActivePet,
                 ),
                 const SizedBox(height: 18),
                 _PetIdentityRow(
@@ -55,13 +62,42 @@ class PetScreen extends ConsumerWidget {
                   template: controller.templateFor(pet.templateId),
                 ),
                 const SizedBox(height: 18),
+                _PetLifeCard(
+                  pet: pet,
+                  care: care,
+                  personality: personality!,
+                  favoriteFood: favoriteFood!,
+                  dislikedFood: dislikedFood!,
+                  preferredTouch: preferredTouch!,
+                  need: need!,
+                  onNeedAction: () => _handleNeedAction(
+                    context,
+                    controller,
+                    pet,
+                    care,
+                    need,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _WalkConnectionCard(
+                  care: care,
+                  isSupported: state.stepTrackingSupported,
+                  isActive: state.stepTrackingActive,
+                  waitingSteps: state.deviceStepsWaiting,
+                  isBusy: state.isBusy,
+                  onConnect: controller.startStepTracking,
+                  onFlush: controller.flushDeviceSteps,
+                  onOpenMap: () => controller.setTab(0),
+                ),
+                const SizedBox(height: 18),
                 _CareActions(
                   care: care,
                   isBusy: state.isBusy,
-                  onFeed: controller.feedActivePet,
+                  onFeed: () => _showFoodPicker(context, controller, pet),
                   onPlay: controller.playActivePet,
                   onClean: controller.cleanActivePet,
                   onSleep: state.isBusy ? null : controller.sleepActivePet,
+                  onWasteClean: controller.cleanActivePetWaste,
                 ),
                 const SizedBox(height: 18),
                 _CarePointsNote(
@@ -76,7 +112,10 @@ class PetScreen extends ConsumerWidget {
                   pet: pet,
                   onOpenMap: () => controller.setTab(0),
                 ),
-                if (_walkMemory(state) case final memory?) ...[
+                if (care != null && care.memories.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _PetMemoryBook(memories: care.memories, petName: pet.name),
+                ] else if (_walkMemory(state, pet.id) case final memory?) ...[
                   const SizedBox(height: 18),
                   _MemoryNote(memory: memory, petName: pet.name),
                 ],
@@ -91,6 +130,100 @@ class PetScreen extends ConsumerWidget {
   }
 }
 
+Future<void> _showFoodPicker(
+  BuildContext context,
+  MasilPetController controller,
+  Pet pet,
+) async {
+  final favorite = controller.favoriteFoodFor(pet);
+  final disliked = controller.dislikedFoodFor(pet);
+  final selected = await showModalBottomSheet<PetFood>(
+    context: context,
+    showDragHandle: true,
+    builder: (context) {
+      return SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+          children: [
+            Text(
+              '${pet.name}에게 무엇을 줄까요?',
+              style: MasilPetType.sectionTitle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '좋아하는 음식은 더 행복하게 하지만, 같은 음식만 계속 먹으면 배가 더부룩할 수 있어요.',
+              style: MasilPetType.bodySmall,
+            ),
+            const SizedBox(height: 14),
+            for (final food in PetFood.values)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                title: Text(food.label),
+                subtitle: Text(
+                  food == favorite
+                      ? '가장 좋아해요'
+                      : food == disliked
+                          ? '조금 망설여요'
+                          : '오늘의 식사 후보',
+                ),
+                trailing: food == favorite
+                    ? const MonoChip('좋아함')
+                    : food == disliked
+                        ? const MonoChip('낯설어요')
+                        : null,
+                onTap: () => Navigator.of(context).pop(food),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+  if (selected != null) {
+    await controller.feedPet(pet.id, food: selected);
+  }
+}
+
+void _handleNeedAction(
+  BuildContext context,
+  MasilPetController controller,
+  Pet pet,
+  PetCareState? care,
+  PetNeed need,
+) {
+  switch (need) {
+    case PetNeed.hungry:
+      _showFoodPicker(context, controller, pet);
+      return;
+    case PetNeed.dirty:
+      controller.cleanActivePet();
+      return;
+    case PetNeed.tired:
+    case PetNeed.sleeping:
+      controller.sleepActivePet();
+      return;
+    case PetNeed.bored:
+      controller.playActivePet();
+      return;
+    case PetNeed.potty:
+      controller.cleanActivePetWaste();
+      return;
+    case PetNeed.sick:
+      if ((care?.wasteCount ?? 0) > 0) {
+        controller.cleanActivePetWaste();
+      } else {
+        controller.sleepActivePet();
+      }
+      return;
+    case PetNeed.wantsWalk:
+      controller.setTab(0);
+      return;
+    case PetNeed.content:
+      controller.touchActivePet(PetTouch.head);
+      return;
+  }
+}
+
 /// The stage: sky over grass, one pet, one line of speech.
 class _PetStage extends StatelessWidget {
   const _PetStage({
@@ -100,6 +233,7 @@ class _PetStage extends StatelessWidget {
     required this.care,
     required this.talksLeft,
     required this.onTalk,
+    required this.onTouch,
   });
 
   final MasilPetState state;
@@ -108,6 +242,7 @@ class _PetStage extends StatelessWidget {
   final PetCareState? care;
   final int talksLeft;
   final VoidCallback? onTalk;
+  final ValueChanged<PetTouch>? onTouch;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +298,23 @@ class _PetStage extends StatelessWidget {
                       button: onTalk != null,
                       label: '${pet.name} 쓰다듬기',
                       child: GestureDetector(
-                        onTap: onTalk,
+                        onTap: onTouch == null
+                            ? null
+                            : () => onTouch!(PetTouch.head),
+                        onDoubleTap: onTouch == null
+                            ? null
+                            : () => onTouch!(PetTouch.cheek),
+                        onLongPress: onTouch == null
+                            ? null
+                            : () => onTouch!(PetTouch.hug),
+                        onHorizontalDragEnd: onTouch == null
+                            ? null
+                            : (details) => onTouch!(
+                                  details.primaryVelocity != null &&
+                                          details.primaryVelocity! < 0
+                                      ? PetTouch.paw
+                                      : PetTouch.tail,
+                                ),
                         child: SizedBox(
                           height: 186,
                           child: Stack(
@@ -340,7 +491,8 @@ class _PetIdentityRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'Lv.${pet.level} · ${pet.stage.label} 단계 · $days일째 동행',
+                  'Lv.${pet.level} · ${pet.stage.label} 단계 · '
+                  '${pet.bondLevel.label} · $days일째 동행',
                   style: MasilPetType.caption,
                 ),
               ],
@@ -348,6 +500,181 @@ class _PetIdentityRow extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           RarityStamp(template.rarityLabel),
+        ],
+      ),
+    );
+  }
+}
+
+class _PetLifeCard extends StatelessWidget {
+  const _PetLifeCard({
+    required this.pet,
+    required this.care,
+    required this.personality,
+    required this.favoriteFood,
+    required this.dislikedFood,
+    required this.preferredTouch,
+    required this.need,
+    required this.onNeedAction,
+  });
+
+  final Pet pet;
+  final PetCareState? care;
+  final PetPersonality personality;
+  final PetFood favoriteFood;
+  final PetFood dislikedFood;
+  final PetTouch preferredTouch;
+  final PetNeed need;
+  final VoidCallback onNeedAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final care = this.care;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionEyebrow('지금의 마음'),
+        PaperCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          need.title,
+                          style: MasilPetType.rowTitle.copyWith(fontSize: 17),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          care?.conditionLabel ?? '상태를 살피고 있어요',
+                          style: MasilPetType.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  PaperButton.ghost(
+                    label: need.actionLabel,
+                    onPressed: onNeedAction,
+                    expand: false,
+                    fontSize: 13,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  MonoChip('${personality.label} 성격'),
+                  MonoChip('좋아함 · ${favoriteFood.shortLabel}'),
+                  MonoChip('낯섦 · ${dislikedFood.shortLabel}'),
+                  MonoChip('교감 · ${preferredTouch.label}'),
+                  if ((care?.wasteCount ?? 0) > 0)
+                    MonoChip('치울 것 ${care!.wasteCount}개'),
+                  if (care?.isSleeping ?? false) const MonoChip('꿈꾸는 중'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                personality.description,
+                style: MasilPetType.prose.copyWith(fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '펫을 한 번 누르면 머리, 두 번 누르면 볼, 길게 누르면 꼭 안아줄 수 있어요.',
+                style: MasilPetType.caption,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WalkConnectionCard extends StatelessWidget {
+  const _WalkConnectionCard({
+    required this.care,
+    required this.isSupported,
+    required this.isActive,
+    required this.waitingSteps,
+    required this.isBusy,
+    required this.onConnect,
+    required this.onFlush,
+    required this.onOpenMap,
+  });
+
+  final PetCareState? care;
+  final bool isSupported;
+  final bool isActive;
+  final int waitingSteps;
+  final bool isBusy;
+  final VoidCallback onConnect;
+  final VoidCallback onFlush;
+  final VoidCallback onOpenMap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tracked = care?.walkStepsToday ?? 0;
+    return DashedBox(
+      fill: MasilPetPalette.subtle,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const HandNote('오늘의 산책'),
+                const SizedBox(height: 5),
+                Text(
+                  '$tracked걸음 함께 걸었어요'
+                  '${waitingSteps > 0 ? ' · $waitingSteps걸음 반영 대기' : ''}',
+                  style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isSupported
+                      ? isActive
+                          ? '센서가 걸음을 모으고 있어요. 많이 걸으면 배고프고 졸릴 수 있어요.'
+                          : '동작 및 피트니스 권한을 허용하면 실제 걸음을 기록해요.'
+                      : '이 기기에서는 체크인으로 산책 추억을 남길 수 있어요.',
+                  style: MasilPetType.bodySmall.copyWith(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          PaperButton.ghost(
+            label: !isSupported
+                ? '지도 열기'
+                : !isActive
+                    ? '걸음 연결'
+                    : waitingSteps > 0
+                        ? '지금 반영'
+                        : '연결됨',
+            onPressed: isBusy
+                ? null
+                : !isSupported
+                    ? onOpenMap
+                    : !isActive
+                        ? onConnect
+                        : waitingSteps > 0
+                            ? onFlush
+                            : null,
+            expand: false,
+            fontSize: 13,
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          ),
         ],
       ),
     );
@@ -363,6 +690,7 @@ class _CareActions extends StatelessWidget {
     required this.onPlay,
     required this.onClean,
     required this.onSleep,
+    required this.onWasteClean,
   });
 
   final PetCareState? care;
@@ -371,6 +699,7 @@ class _CareActions extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback onClean;
   final VoidCallback? onSleep;
+  final VoidCallback onWasteClean;
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +728,10 @@ class _CareActions extends StatelessWidget {
       children: [
         SectionEyebrow(
           '오늘 해준 것',
-          trailing: MonoButton(label: '포근하게 재우기', onPressed: onSleep),
+          trailing: MonoButton(
+            label: care?.isSleeping == true ? '살며시 깨우기' : '포근하게 재우기',
+            onPressed: onSleep,
+          ),
         ),
         Row(
           children: [
@@ -409,6 +741,15 @@ class _CareActions extends StatelessWidget {
             ],
           ],
         ),
+        if ((care?.wasteCount ?? 0) > 0) ...[
+          const SizedBox(height: 9),
+          PaperButton.ghost(
+            label: '주변 치워주기 · ${care!.wasteCount}개',
+            onPressed: isBusy ? null : onWasteClean,
+            fontSize: 14,
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+          ),
+        ],
       ],
     );
   }
@@ -585,6 +926,13 @@ class _PetVitalsCard extends StatelessWidget {
               ratio: care.vitality / 100,
               color: MasilPetPalette.statVitality,
             ),
+            const SizedBox(height: 14),
+            PaperStatBar(
+              label: '행복',
+              valueLabel: '${care.happiness}',
+              ratio: care.happiness / 100,
+              color: MasilPetPalette.stamp,
+            ),
           ],
           const SizedBox(height: MasilPetSpacing.lg),
           const DashedRule(),
@@ -609,6 +957,15 @@ class _PetVitalsCard extends StatelessWidget {
               ),
             ],
           ),
+          if (care != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '성장 성향 · ${care.growthTendency.label}',
+              style: MasilPetType.caption.copyWith(
+                color: MasilPetPalette.forest,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -686,6 +1043,75 @@ class _GrowthGoalNote extends StatelessWidget {
 }
 
 /// The last place you walked, remembered out loud.
+class _PetMemoryBook extends StatelessWidget {
+  const _PetMemoryBook({required this.memories, required this.petName});
+
+  final List<PetMemory> memories;
+  final String petName;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = memories.take(5).toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionEyebrow('추억 수첩', trailing: MonoChip('${memories.length}개')),
+        DashedBox(
+          fill: MasilPetPalette.subtle,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (index, memory) in visible.indexed) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${memory.createdAt.month.toString().padLeft(2, '0')}.'
+                      '${memory.createdAt.day.toString().padLeft(2, '0')}',
+                      style: MasilPetType.microMono,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            memory.title,
+                            style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            memory.detail,
+                            style:
+                                MasilPetType.bodySmall.copyWith(fontSize: 13.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (index != visible.length - 1) ...[
+                  const SizedBox(height: 12),
+                  const DashedRule(),
+                  const SizedBox(height: 12),
+                ],
+              ],
+              if (memories.length > visible.length) ...[
+                const SizedBox(height: 12),
+                Text(
+                  '${petCallName(petName)}가 ${memories.length - visible.length}개의 기억을 더 간직하고 있어요.',
+                  style: MasilPetType.caption,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _MemoryNote extends StatelessWidget {
   const _MemoryNote({required this.memory, required this.petName});
 
@@ -846,10 +1272,17 @@ class _RosterCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Lv.${pet.level} · ${pet.stage.label} · '
+                      '${pet.bondLevel.label} · '
                       '${shortRegionLabelForId(template.regionId)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: MasilPetType.caption.copyWith(fontSize: 12),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '함께한 날 ${care?.bondedDays ?? 0}일 · '
+                      '추억 ${care?.memories.length ?? 0}개',
+                      style: MasilPetType.caption.copyWith(fontSize: 11.5),
                     ),
                     const SizedBox(height: 8),
                     PaperTrack(
@@ -887,7 +1320,7 @@ class _RosterCard extends StatelessWidget {
                         ),
                       )
                     : PaperButton(
-                        label: '주 캐릭터로',
+                        label: '함께 걷기',
                         onPressed: onSetMain,
                         fontSize: 12.5,
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -913,7 +1346,7 @@ class _MainTag extends StatelessWidget {
         borderRadius: MasilPetRadii.tightBorder,
       ),
       child: Text(
-        'MAIN',
+        '동행',
         style: MasilPetType.microMono.copyWith(
           fontSize: 8.5,
           letterSpacing: 0.85,
@@ -934,6 +1367,12 @@ int _talksLeftToday(MasilPetState state) {
 /// Sprite emotion follows what the pet is doing, then falls back to how well
 /// it is being looked after.
 String _stageEmotion(PetFieldActivity activity, PetCareState? care) {
+  if (care?.isSleeping == true) {
+    return 'sleepy';
+  }
+  if (care?.ailment != null && care!.ailment != PetAilment.none) {
+    return 'sad';
+  }
   switch (activity) {
     case PetFieldActivity.jumping:
     case PetFieldActivity.greeting:
@@ -963,12 +1402,33 @@ String _friendlyPetMessage(MasilPetState state, Pet pet) {
     orElse: () => state.templates.first,
   );
   const dialogue = StaticDialogueService();
+  if (raw.contains(pet.name) && raw.length <= 100) {
+    return raw;
+  }
   if (raw.isNotEmpty &&
       dialogue.isDialogueText(
         templateId: template.id,
         text: raw,
       )) {
     return raw;
+  }
+  final care = state.activePetCare;
+  if (care != null) {
+    final need = const CareEngine().requestFor(care, DateTime.now());
+    final requestLine = switch (need) {
+      PetNeed.hungry => '밥그릇이 자꾸 눈에 들어와…',
+      PetNeed.dirty => '몸을 털고 나면 개운할 것 같아.',
+      PetNeed.tired => '조금만 포근하게 쉬어도 될까?',
+      PetNeed.bored => '같이 놀면 금방 신날 것 같아!',
+      PetNeed.potty => '내 주변을 한번 살펴봐 줄래?',
+      PetNeed.sick => '오늘은 내 곁에 조금 더 있어 줘.',
+      PetNeed.sleeping => '음… 오늘 산책길 꿈을 꾸는 중이야.',
+      PetNeed.wantsWalk => '현관 밖에는 어떤 냄새가 날까?',
+      PetNeed.content => null,
+    };
+    if (requestLine != null) {
+      return requestLine;
+    }
   }
   final seed = pet.id.codeUnits.fold<int>(0, (sum, unit) => sum + unit);
   return dialogue
@@ -988,8 +1448,10 @@ class _WalkMemory {
   final String placeLabel;
 }
 
-_WalkMemory? _walkMemory(MasilPetState state) {
-  final recent = state.recentCheckIns;
+_WalkMemory? _walkMemory(MasilPetState state, String petId) {
+  final recent = state.recentCheckIns
+      .where((checkIn) => checkIn.companionPetId == petId)
+      .toList(growable: false);
   if (recent.isEmpty) {
     return null;
   }

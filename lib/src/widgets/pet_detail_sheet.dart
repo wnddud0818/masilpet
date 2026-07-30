@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../pet_assets.dart';
 import '../seed_data.dart';
+import '../services.dart';
 import '../theme.dart';
 import 'paper_kit.dart';
 
@@ -53,6 +54,10 @@ class PetDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final care = this.care;
+    const careEngine = CareEngine();
+    final personality = careEngine.personalityFor(template);
+    final favoriteFood = careEngine.favoriteFoodFor(template);
+    final dislikedFood = careEngine.dislikedFoodFor(template);
 
     return SafeArea(
       child: ConstrainedBox(
@@ -92,7 +97,7 @@ class PetDetailSheet extends StatelessWidget {
                           const SizedBox(height: 5),
                           Text(
                             'Lv.${pet.level} · ${pet.stage.label} 단계 · '
-                            '${petDaysTogether(pet)}일째',
+                            '${pet.bondLevel.label} · ${petDaysTogether(pet)}일째',
                             style:
                                 MasilPetType.caption.copyWith(fontSize: 12.5),
                           ),
@@ -126,6 +131,13 @@ class PetDetailSheet extends StatelessWidget {
                     color: MasilPetPalette.statVitality,
                   ),
                   const SizedBox(height: 13),
+                  PaperStatBar(
+                    label: '행복',
+                    valueLabel: '${care.happiness}',
+                    ratio: care.happiness / 100,
+                    color: MasilPetPalette.stamp,
+                  ),
+                  const SizedBox(height: 13),
                 ],
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -150,7 +162,25 @@ class PetDetailSheet extends StatelessWidget {
                 const SizedBox(height: 16),
                 const DashedRule(),
                 const SizedBox(height: 16),
-                Text(template.basePersonality, style: MasilPetType.prose),
+                Text(
+                  '${personality.label} · ${care?.conditionLabel ?? '평온해요'}',
+                  style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+                ),
+                const SizedBox(height: 6),
+                Text(personality.description, style: MasilPetType.prose),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    MonoChip('좋아함 · ${favoriteFood.shortLabel}'),
+                    MonoChip('낯섦 · ${dislikedFood.shortLabel}'),
+                    if (care != null)
+                      MonoChip('성장 · ${care.growthTendency.label}'),
+                    if (care != null) MonoChip('함께한 날 ${care.bondedDays}일'),
+                    if (care != null) MonoChip('추억 ${care.memories.length}개'),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 const DashedRule(),
                 const SizedBox(height: 14),
@@ -190,7 +220,7 @@ class PetDetailSheet extends StatelessWidget {
                               ),
                             )
                           : PaperButton.stamp(
-                              label: '주 캐릭터로 설정',
+                              label: '함께 걷기',
                               onPressed: () {
                                 onSetMain();
                                 Navigator.of(context).pop();

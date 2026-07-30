@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'models.dart';
 import 'seed_data.dart';
@@ -97,79 +100,433 @@ class CareEngine {
   static const satietyDecayInterval = Duration(hours: 2);
   static const cleanlinessDecayInterval = Duration(hours: 3);
   static const vitalityDecayInterval = Duration(hours: 4);
+  static const wasteInterval = Duration(hours: 8);
 
-  PetCareState resolve(PetCareState care, DateTime now) {
+  PetCareState resolve(
+    PetCareState care,
+    DateTime now, {
+    bool stayingHome = false,
+  }) {
     final elapsed = now.difference(care.updatedAt);
     final elapsedMinutes = elapsed.isNegative
         ? 0
         : math.min(elapsed.inMinutes, maxDecayDuration.inMinutes);
+    final homeFactor = stayingHome ? 4 : 1;
     final sameCountDay = isSameLocalDay(care.dailyCountDay, now);
+    final sameWalkDay = isSameLocalDay(care.walkDay, now);
     final resolvedAt = now.isBefore(care.updatedAt) ? care.updatedAt : now;
+    final sleepDuration = care.sleepStartedAt == null
+        ? Duration.zero
+        : now.difference(care.sleepStartedAt!);
+    final wokeNaturally =
+        care.isSleeping && sleepDuration >= const Duration(hours: 8);
+    final sleeping = care.isSleeping && !wokeNaturally;
+    final wasteElapsed = now.difference(care.lastWasteAt);
+    final generatedWaste = stayingHome || wasteElapsed.isNegative
+        ? 0
+        : math.min(3, wasteElapsed.inMinutes ~/ wasteInterval.inMinutes);
+    final sleepRecovery = care.isSleeping
+        ? math.min(24, elapsedMinutes ~/ const Duration(minutes: 30).inMinutes)
+        : 0;
+    var ailment = care.ailment;
+    DateTime? ailmentUntil = care.ailmentUntil;
+    if (ailmentUntil != null && !now.isBefore(ailmentUntil)) {
+      ailment = PetAilment.none;
+      ailmentUntil = null;
+    }
+    final nextWaste = math.min(3, care.wasteCount + generatedWaste);
+    final nextVitality = care.vitality -
+        (care.isSleeping
+            ? 0
+            : elapsedMinutes ~/
+                (vitalityDecayInterval.inMinutes * homeFactor)) +
+        sleepRecovery;
+    if (!stayingHome && ailment == PetAilment.none && nextWaste >= 2) {
+      ailment = PetAilment.itchy;
+      ailmentUntil = now.add(const Duration(hours: 2));
+    } else if (!stayingHome &&
+        ailment == PetAilment.none &&
+        nextVitality <= 15) {
+      ailment = PetAilment.exhausted;
+      ailmentUntil = now.add(const Duration(hours: 2));
+    }
 
+    final resolvedSatiety = care.satiety -
+        (elapsedMinutes ~/ (satietyDecayInterval.inMinutes * homeFactor));
+    final resolvedCleanliness = care.cleanliness -
+        (elapsedMinutes ~/ (cleanlinessDecayInterval.inMinutes * homeFactor));
+    final resolvedHappiness = care.happiness -
+        (elapsedMinutes ~/ (const Duration(hours: 4).inMinutes * homeFactor));
     return care.copyWith(
-      satiety:
-          care.satiety - (elapsedMinutes ~/ satietyDecayInterval.inMinutes),
-      cleanliness: care.cleanliness -
-          (elapsedMinutes ~/ cleanlinessDecayInterval.inMinutes),
-      vitality:
-          care.vitality - (elapsedMinutes ~/ vitalityDecayInterval.inMinutes),
+      satiety: stayingHome ? math.max(55, resolvedSatiety) : resolvedSatiety,
+      cleanliness:
+          stayingHome ? math.max(55, resolvedCleanliness) : resolvedCleanliness,
+      vitality: stayingHome ? math.max(55, nextVitality) : nextVitality,
+      happiness:
+          stayingHome ? math.max(55, resolvedHappiness) : resolvedHappiness,
+      wasteCount: nextWaste,
+      lastWasteAt: generatedWaste > 0 ? now : care.lastWasteAt,
+      ailment: ailment,
+      ailmentUntil: ailmentUntil,
+      clearAilmentUntil: ailmentUntil == null,
       updatedAt: resolvedAt,
       dailyCountDay: sameCountDay ? care.dailyCountDay : now,
       feedCountToday: sameCountDay ? care.feedCountToday : 0,
       playCountToday: sameCountDay ? care.playCountToday : 0,
       cleanCountToday: sameCountDay ? care.cleanCountToday : 0,
+      talkCountToday: sameCountDay ? care.talkCountToday : 0,
+      petCountToday: sameCountDay ? care.petCountToday : 0,
+      walkDay: sameWalkDay ? care.walkDay : now,
+      walkStepsToday: sameWalkDay ? care.walkStepsToday : 0,
+      isSleeping: sleeping,
+      clearSleepStartedAt: wokeNaturally,
     );
   }
 
-  PetCareState afterFeed(PetCareState care, DateTime now) {
+  PetPersonality personalityFor(PetTemplate template) {
+    return PetPersonality.values[_stableIndex(
+      '${template.id}:${template.basePersonality}',
+      PetPersonality.values.length,
+    )];
+  }
+
+  PetFood favoriteFoodFor(PetTemplate template) {
+    return PetFood.values[_stableIndex(template.id, PetFood.values.length)];
+  }
+
+  PetFood dislikedFoodFor(PetTemplate template) {
+    final favorite = favoriteFoodFor(template);
+    return PetFood.values[
+        (favorite.index + 2 + _stableIndex(template.assetKey, 2)) %
+            PetFood.values.length];
+  }
+
+  PetTouch preferredTouchFor(PetTemplate template) {
+    return PetTouch
+        .values[_stableIndex(template.assetKey, PetTouch.values.length)];
+  }
+
+  PetNeed requestFor(PetCareState care, DateTime now) {
     final current = resolve(care, now);
-    return current.copyWith(
-      satiety: current.satiety + 28,
-      vitality: current.vitality + 3,
-      updatedAt: now,
-      dailyCountDay: now,
-      feedCountToday: current.feedCountToday + 1,
-    );
+    if (current.isSleeping) {
+      return PetNeed.sleeping;
+    }
+    if (current.ailment != PetAilment.none) {
+      return PetNeed.sick;
+    }
+    if (current.wasteCount > 0) {
+      return PetNeed.potty;
+    }
+    if (current.satiety < 42) {
+      return PetNeed.hungry;
+    }
+    if (current.cleanliness < 42) {
+      return PetNeed.dirty;
+    }
+    if (current.vitality < 38) {
+      return PetNeed.tired;
+    }
+    if (current.happiness < 45) {
+      return PetNeed.bored;
+    }
+    if (now.hour >= 22 || now.hour < 7) {
+      return PetNeed.tired;
+    }
+    if (current.walkStepsToday < 500 && now.hour >= 9 && now.hour < 20) {
+      return PetNeed.wantsWalk;
+    }
+    return PetNeed.content;
+  }
+
+  PetCareState afterFeed(
+    PetCareState care,
+    DateTime now, {
+    PetFood food = PetFood.homeMeal,
+    PetFood? favoriteFood,
+    PetFood? dislikedFood,
+  }) {
+    final current = resolve(care, now);
+    final repeated = current.lastFood == food ? current.sameFoodStreak + 1 : 1;
+    final isFavorite = food == favoriteFood;
+    final isDisliked = food == dislikedFood;
+    final overfed = current.satiety >= 90 || repeated >= 3;
+    final gainsWaste = (current.feedCountToday + 1).isEven;
+    return _markBonded(
+        current.copyWith(
+          satiety: current.satiety +
+              (isFavorite
+                  ? 34
+                  : isDisliked
+                      ? 20
+                      : 28),
+          vitality: current.vitality + 3,
+          happiness: current.happiness +
+              (isFavorite
+                  ? 12
+                  : isDisliked
+                      ? 1
+                      : 5),
+          updatedAt: now,
+          dailyCountDay: now,
+          feedCountToday: current.feedCountToday + 1,
+          wasteCount: current.wasteCount + (gainsWaste ? 1 : 0),
+          lastFood: food,
+          sameFoodStreak: repeated,
+          gourmetScore: current.gourmetScore + (isFavorite ? 3 : 1),
+          ailment: overfed ? PetAilment.tummyAche : current.ailment,
+          ailmentUntil: overfed
+              ? now.add(const Duration(hours: 2))
+              : current.ailmentUntil,
+          isSleeping: false,
+          clearSleepStartedAt: true,
+          memories: _withMemory(
+            current.memories,
+            PetMemory(
+              id: 'food-${now.microsecondsSinceEpoch}',
+              title: '${food.label}을 먹은 날',
+              detail: isFavorite
+                  ? '가장 좋아하는 음식이라 꼬리가 쉴 새 없이 흔들렸어요.'
+                  : isDisliked
+                      ? '조금 망설였지만 남김없이 먹었어요.'
+                      : '새로운 맛을 차분히 기억해 두었어요.',
+              createdAt: now,
+              category: PoiCategory.food,
+            ),
+          ),
+        ),
+        now);
   }
 
   PetCareState afterPlay(PetCareState care, DateTime now) {
     final current = resolve(care, now);
-    return current.copyWith(
-      satiety: current.satiety - 2,
-      cleanliness: current.cleanliness - 3,
-      vitality: current.vitality + 18,
-      updatedAt: now,
-      dailyCountDay: now,
-      playCountToday: current.playCountToday + 1,
-    );
+    return _markBonded(
+        current.copyWith(
+          satiety: current.satiety - 2,
+          cleanliness: current.cleanliness - 3,
+          vitality: current.vitality + 18,
+          happiness: current.happiness + 22,
+          updatedAt: now,
+          dailyCountDay: now,
+          playCountToday: current.playCountToday + 1,
+          affectionScore: current.affectionScore + 1,
+          isSleeping: false,
+          clearSleepStartedAt: true,
+        ),
+        now);
   }
 
   PetCareState afterClean(PetCareState care, DateTime now) {
     final current = resolve(care, now);
-    return current.copyWith(
-      cleanliness: current.cleanliness + 32,
-      vitality: current.vitality + 2,
-      updatedAt: now,
-      dailyCountDay: now,
-      cleanCountToday: current.cleanCountToday + 1,
-    );
+    return _markBonded(
+        current.copyWith(
+          cleanliness: current.cleanliness + 32,
+          vitality: current.vitality + 2,
+          happiness: current.happiness + 4,
+          updatedAt: now,
+          dailyCountDay: now,
+          cleanCountToday: current.cleanCountToday + 1,
+          wasteCount: 0,
+          lastWasteAt: now,
+          eleganceScore: current.eleganceScore + 2,
+          ailment: current.ailment == PetAilment.itchy
+              ? PetAilment.none
+              : current.ailment,
+          clearAilmentUntil: current.ailment == PetAilment.itchy,
+        ),
+        now);
   }
 
   PetCareState afterSleep(PetCareState care, DateTime now) {
     final current = resolve(care, now);
-    return current.copyWith(
-      satiety: current.satiety - 1,
-      vitality: current.vitality + 34,
-      updatedAt: now,
-    );
+    return _markBonded(
+        current.copyWith(
+          satiety: current.satiety - 1,
+          vitality: current.vitality + 34,
+          happiness: current.happiness + 3,
+          updatedAt: now,
+          isSleeping: true,
+          sleepStartedAt: now,
+          ailment: current.ailment == PetAilment.exhausted
+              ? PetAilment.none
+              : current.ailment,
+          clearAilmentUntil: current.ailment == PetAilment.exhausted,
+        ),
+        now);
+  }
+
+  PetCareState afterWake(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return _markBonded(
+        current.copyWith(
+          isSleeping: false,
+          clearSleepStartedAt: true,
+          vitality: current.vitality + 4,
+          happiness: current.happiness + 2,
+          updatedAt: now,
+        ),
+        now);
   }
 
   PetCareState afterTalk(PetCareState care, DateTime now) {
     final current = resolve(care, now);
-    return current.copyWith(
-      vitality: current.vitality + 6,
-      updatedAt: now,
+    return _markBonded(
+        current.copyWith(
+          vitality: current.vitality + 6,
+          happiness: current.happiness + 8,
+          affectionScore: current.affectionScore + 2,
+          talkCountToday: current.talkCountToday + 1,
+          isSleeping: false,
+          clearSleepStartedAt: true,
+          updatedAt: now,
+        ),
+        now);
+  }
+
+  PetCareState afterTouch(
+    PetCareState care,
+    DateTime now, {
+    required PetTouch touch,
+    required PetTouch preferredTouch,
+  }) {
+    final current = resolve(care, now);
+    final preferred = touch == preferredTouch;
+    return _markBonded(
+        current.copyWith(
+          happiness: current.happiness +
+              (preferred
+                  ? 12
+                  : touch == PetTouch.tail
+                      ? 1
+                      : 6),
+          vitality: current.vitality + (touch == PetTouch.hug ? 4 : 1),
+          petCountToday: current.petCountToday + 1,
+          affectionScore: current.affectionScore + (preferred ? 3 : 1),
+          isSleeping: false,
+          clearSleepStartedAt: true,
+          updatedAt: now,
+        ),
+        now);
+  }
+
+  PetCareState afterWasteClean(PetCareState care, DateTime now) {
+    final current = resolve(care, now);
+    return _markBonded(
+        current.copyWith(
+          wasteCount: 0,
+          cleanliness: current.cleanliness + 18,
+          happiness: current.happiness + 5,
+          lastWasteAt: now,
+          ailment: current.ailment == PetAilment.itchy
+              ? PetAilment.none
+              : current.ailment,
+          clearAilmentUntil: current.ailment == PetAilment.itchy,
+          eleganceScore: current.eleganceScore + 1,
+          updatedAt: now,
+        ),
+        now);
+  }
+
+  PetCareState afterWalk(
+    PetCareState care,
+    DateTime now, {
+    required int steps,
+  }) {
+    final current = resolve(care, now);
+    final normalizedSteps = math.max(0, steps);
+    final strenuous = normalizedSteps >= 5000;
+    return _markBonded(
+        current.copyWith(
+          satiety: current.satiety - math.min(12, normalizedSteps ~/ 700),
+          cleanliness:
+              current.cleanliness - math.min(10, normalizedSteps ~/ 900),
+          vitality: current.vitality +
+              (strenuous ? -8 : math.min(8, normalizedSteps ~/ 500)),
+          happiness: current.happiness + math.min(16, normalizedSteps ~/ 350),
+          walkStepsToday: current.walkStepsToday + normalizedSteps,
+          walkDay: now,
+          adventureScore:
+              current.adventureScore + math.max(1, normalizedSteps ~/ 500),
+          ailment: strenuous && current.vitality < 35
+              ? PetAilment.exhausted
+              : current.ailment,
+          ailmentUntil: strenuous && current.vitality < 35
+              ? now.add(const Duration(hours: 2))
+              : current.ailmentUntil,
+          isSleeping: false,
+          clearSleepStartedAt: true,
+          updatedAt: now,
+          memories: normalizedSteps < 1000
+              ? current.memories
+              : _withMemory(
+                  current.memories,
+                  PetMemory(
+                    id: 'walk-${now.microsecondsSinceEpoch}',
+                    title: '$normalizedSteps걸음을 함께 걸은 날',
+                    detail: strenuous
+                        ? '실컷 걷고 돌아와 포근한 낮잠을 기다리고 있어요.'
+                        : '발걸음마다 새로운 냄새와 소리를 기억했어요.',
+                    createdAt: now,
+                  ),
+                ),
+        ),
+        now);
+  }
+
+  PetCareState afterCheckIn(
+    PetCareState care,
+    DateTime now, {
+    required Poi poi,
+    required bool firstVisit,
+  }) {
+    final current = resolve(care, now);
+    final isKnowledge = poi.category == PoiCategory.culture ||
+        poi.category == PoiCategory.history;
+    final isFood = poi.category == PoiCategory.food;
+    return _markBonded(
+        current.copyWith(
+          happiness: current.happiness + (firstVisit ? 10 : 5),
+          vitality: current.vitality + 3,
+          adventureScore: current.adventureScore + (firstVisit ? 4 : 2),
+          knowledgeScore: current.knowledgeScore + (isKnowledge ? 4 : 1),
+          gourmetScore: current.gourmetScore + (isFood ? 3 : 0),
+          updatedAt: now,
+          memories: _withMemory(
+            current.memories,
+            PetMemory(
+              id: 'checkin-${poi.id}-${now.microsecondsSinceEpoch}',
+              title:
+                  firstVisit ? '${poi.title}에 처음 간 날' : '${poi.title}에 다시 간 날',
+              detail: '${poi.category.label} 장소의 냄새와 풍경을 수첩에 남겼어요.',
+              createdAt: now,
+              category: poi.category,
+            ),
+          ),
+        ),
+        now);
+  }
+
+  PetCareState _markBonded(PetCareState care, DateTime now) {
+    final bondedToday =
+        care.lastBondedDay != null && isSameLocalDay(care.lastBondedDay!, now);
+    return care.copyWith(
+      bondedDays: care.bondedDays + (bondedToday ? 0 : 1),
+      lastBondedDay: now,
     );
+  }
+
+  List<PetMemory> _withMemory(
+    List<PetMemory> current,
+    PetMemory memory,
+  ) {
+    return [memory, ...current].take(24).toList(growable: false);
+  }
+
+  int _stableIndex(String value, int length) {
+    var hash = 0;
+    for (final codeUnit in value.codeUnits) {
+      hash = (hash * 31 + codeUnit) & 0x7FFFFFFF;
+    }
+    return hash % length;
   }
 
   String localDayKey(DateTime value) {
@@ -320,6 +677,44 @@ class StaticDialogueService {
       return 'afternoon';
     }
     return 'evening';
+  }
+}
+
+class StepTrackingUnavailableException implements Exception {
+  const StepTrackingUnavailableException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class DeviceStepService {
+  const DeviceStepService();
+
+  bool get isSupported {
+    if (kIsWeb) {
+      return false;
+    }
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  Future<Stream<int>> openStepCountStream() async {
+    if (!isSupported) {
+      throw const StepTrackingUnavailableException(
+        '이 기기에서는 자동 걸음 측정을 지원하지 않아요.',
+      );
+    }
+
+    final permission = await Permission.activityRecognition.request();
+    if (!permission.isGranted) {
+      throw const StepTrackingUnavailableException(
+        '걸음 수를 연결하려면 동작 및 피트니스 권한이 필요해요.',
+      );
+    }
+
+    return Pedometer.stepCountStream.map((event) => event.steps);
   }
 }
 

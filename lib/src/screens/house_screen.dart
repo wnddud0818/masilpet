@@ -26,7 +26,7 @@ class HouseScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(masilPetControllerProvider);
     final controller = ref.read(masilPetControllerProvider.notifier);
-    final nextEgg = state.nextEgg;
+    final nextEgg = state.activeEgg;
     final otherEggs = state.eggs.where((egg) => egg.id != nextEgg?.id).toList();
     final justHatched = _recentlyHatchedPet(state);
 
@@ -45,6 +45,9 @@ class HouseScreen extends ConsumerWidget {
                 _HatchedCard(
                   pet: justHatched,
                   template: controller.templateFor(justHatched.templateId),
+                  isActive: justHatched.id == state.activePetId,
+                  isBusy: state.isBusy,
+                  onWalkTogether: () => controller.selectPet(justHatched.id),
                 ),
                 const SizedBox(height: MasilPetSpacing.xl),
               ],
@@ -59,7 +62,8 @@ class HouseScreen extends ConsumerWidget {
                   egg: nextEgg,
                   template: controller.templateFor(nextEgg.templateId),
                   isBusy: state.isBusy,
-                  onHatch: () => controller.hatchEgg(nextEgg.id),
+                  onHatch: () =>
+                      _hatchAndChooseCompanion(context, controller, nextEgg),
                   onCollectSteps: () => controller.setTab(
                     0,
                     mapCategoryFocus: controller
@@ -75,7 +79,9 @@ class HouseScreen extends ConsumerWidget {
                     egg: egg,
                     template: controller.templateFor(egg.templateId),
                     isBusy: state.isBusy,
-                    onHatch: () => controller.hatchEgg(egg.id),
+                    onHatch: () =>
+                        _hatchAndChooseCompanion(context, controller, egg),
+                    onSelect: () => controller.selectEgg(egg.id),
                   ),
                   const SizedBox(height: MasilPetSpacing.sm),
                 ],
@@ -408,12 +414,18 @@ class _EggHeroCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         children: [
-          Eyebrow('${regionNameForId(egg.originRegionId)}에서 데려온 알'),
+          const Eyebrow('지금 품고 있는 알', color: MasilPetPalette.forest),
+          const SizedBox(height: 4),
+          Text(
+            '${regionNameForId(egg.originRegionId)}에서 만났어요',
+            style: MasilPetType.caption,
+          ),
           const SizedBox(height: 14),
           _EggMeter(
             ratio: egg.progressRatio,
             ready: ready,
             initials: template.initials,
+            revealStage: egg.revealStage,
           ),
           const SizedBox(height: MasilPetSpacing.lg),
           Text(
@@ -422,13 +434,34 @@ class _EggHeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            ready
-                ? '준비됐어요. 알이 계속 흔들리고 있어요!'
-                : '도장 한 번에 걸음이 쌓여요. $remaining 걸음만 더!',
+            egg.revealStage.label,
             textAlign: TextAlign.center,
             style:
                 MasilPetType.bodySmall.copyWith(fontSize: 13.5, height: 1.65),
           ),
+          if (!ready) ...[
+            const SizedBox(height: 3),
+            Text(
+              '$remaining 걸음만 더! 함께 걸으면 다음 모습을 볼 수 있어요.',
+              textAlign: TextAlign.center,
+              style: MasilPetType.caption,
+            ),
+          ],
+          if (egg.revealStage == EggRevealStage.silhouette) ...[
+            const SizedBox(height: 8),
+            HandNote('${template.primaryCategory.label}의 기운이 느껴져요'),
+          ],
+          if (egg.revealStage == EggRevealStage.personalityHint) ...[
+            const SizedBox(height: 8),
+            Text(
+              template.basePersonality,
+              textAlign: TextAlign.center,
+              style: MasilPetType.caption.copyWith(
+                color: MasilPetPalette.forest,
+                height: 1.5,
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           if (ready)
             PaperButton.stamp(
@@ -459,11 +492,13 @@ class _EggMeter extends StatelessWidget {
     required this.ratio,
     required this.ready,
     required this.initials,
+    required this.revealStage,
   });
 
   final double ratio;
   final bool ready;
   final String initials;
+  final EggRevealStage revealStage;
 
   @override
   Widget build(BuildContext context) {
@@ -521,7 +556,14 @@ class _EggMeter extends StatelessWidget {
                 ),
               ),
               child: HandNote(
-                ready ? initials : '?',
+                switch (revealStage) {
+                  EggRevealStage.quiet => '?',
+                  EggRevealStage.stirring => '·',
+                  EggRevealStage.silhouette => '◌',
+                  EggRevealStage.personalityHint =>
+                    initials.isEmpty ? '?' : initials.substring(0, 1),
+                  EggRevealStage.ready => initials,
+                },
                 fontSize: 30,
                 color: const Color(0xFFB09A6E),
               ),
@@ -539,12 +581,14 @@ class _EggRow extends StatelessWidget {
     required this.template,
     required this.isBusy,
     required this.onHatch,
+    required this.onSelect,
   });
 
   final Egg egg;
   final PetTemplate template;
   final bool isBusy;
   final VoidCallback onHatch;
+  final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +605,7 @@ class _EggRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${template.name}의 알',
+                  _eggDisplayName(egg, template),
                   style: MasilPetType.rowTitle,
                 ),
                 const SizedBox(height: 3),
@@ -585,14 +629,9 @@ class _EggRow extends StatelessWidget {
               onPressed: isBusy ? null : onHatch,
             )
           else
-            Text(
-              '$remaining걸음\n더 걸어요',
-              textAlign: TextAlign.right,
-              style: MasilPetType.caption.copyWith(
-                fontSize: 11.5,
-                height: 1.35,
-                color: MasilPetPalette.faintWarm,
-              ),
+            InkTag(
+              label: '이 알 품기',
+              onPressed: isBusy ? null : onSelect,
             ),
         ],
       ),
@@ -600,12 +639,31 @@ class _EggRow extends StatelessWidget {
   }
 }
 
+String _eggDisplayName(Egg egg, PetTemplate template) {
+  return switch (egg.revealStage) {
+    EggRevealStage.quiet => '조용한 알',
+    EggRevealStage.stirring => '움직이기 시작한 알',
+    EggRevealStage.silhouette => '실루엣이 보이는 알',
+    EggRevealStage.personalityHint => '${template.primaryCategory.label} 기운의 알',
+    EggRevealStage.ready => '${template.name}의 알',
+  };
+}
+
 /// The celebration card shown right after a shell cracks open.
 class _HatchedCard extends StatelessWidget {
-  const _HatchedCard({required this.pet, required this.template});
+  const _HatchedCard({
+    required this.pet,
+    required this.template,
+    required this.isActive,
+    required this.isBusy,
+    required this.onWalkTogether,
+  });
 
   final Pet pet;
   final PetTemplate template;
+  final bool isActive;
+  final bool isBusy;
+  final VoidCallback onWalkTogether;
 
   @override
   Widget build(BuildContext context) {
@@ -641,6 +699,23 @@ class _HatchedCard extends StatelessWidget {
                 style: MasilPetType.prose.copyWith(fontSize: 15.5),
               ),
             ),
+            const SizedBox(height: MasilPetSpacing.lg),
+            if (isActive)
+              const InkTag(label: '지금 함께 걷는 친구')
+            else ...[
+              Text(
+                '기존 친구는 그대로 곁에 있어요. 새 친구와 바로 걸을지는 지금 정할 수 있어요.',
+                textAlign: TextAlign.center,
+                style: MasilPetType.caption.copyWith(height: 1.5),
+              ),
+              const SizedBox(height: MasilPetSpacing.md),
+              PaperButton.stamp(
+                label: '${petCallName(pet.name)}와 함께 걷기',
+                onPressed: isBusy ? null : onWalkTogether,
+                maxWidth: 300,
+                fontSize: 15,
+              ),
+            ],
           ],
         ),
       ),
@@ -717,7 +792,7 @@ class _HouseLedger extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nextEgg = state.nextEgg;
+    final nextEgg = state.activeEgg;
     final remainingSteps = nextEgg == null
         ? null
         : (nextEgg.requiredSteps - nextEgg.progress)
@@ -840,4 +915,70 @@ Pet? _recentlyHatchedPet(MasilPetState state) {
   }
   final age = DateTime.now().difference(newest.hatchedAt);
   return age.inMinutes < 3 && !age.isNegative ? newest : null;
+}
+
+Future<void> _hatchAndChooseCompanion(
+  BuildContext context,
+  MasilPetController controller,
+  Egg egg,
+) async {
+  final outcome = await controller.hatchEgg(egg.id);
+  if (outcome == null || !context.mounted) {
+    return;
+  }
+  final pet = controller.petForId(outcome.petId);
+  if (pet == null) {
+    return;
+  }
+  final template = controller.templateFor(pet.templateId);
+  final walkTogether = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Eyebrow(
+              outcome.reunion ? '소중한 인연이 돌아왔어요' : '새 친구가 태어났어요',
+              color: MasilPetPalette.forest,
+            ),
+            const SizedBox(height: MasilPetSpacing.md),
+            PixelSprite(
+              asset: PetAssets.emotion(template.assetKey, 'excited'),
+              size: 132,
+              semanticLabel: pet.name,
+            ),
+            const SizedBox(height: MasilPetSpacing.sm),
+            Text(pet.name, style: MasilPetType.heroTitle),
+            const SizedBox(height: 8),
+            Text(
+              outcome.reunion
+                  ? '다시 만난 기억이 유대로 이어졌어요. 누구와 걸을지는 직접 정할 수 있어요.'
+                  : '알에서 쌓은 걸음과 장소의 기억을 간직하고 태어났어요.',
+              textAlign: TextAlign.center,
+              style: MasilPetType.prose,
+            ),
+            const SizedBox(height: MasilPetSpacing.lg),
+            PaperButton.stamp(
+              label: '${petCallName(pet.name)}와 함께 걷기',
+              onPressed: () => Navigator.of(sheetContext).pop(true),
+              fontSize: 16,
+            ),
+            const SizedBox(height: MasilPetSpacing.sm),
+            PaperButton.ghost(
+              label: '마당에서 쉬게 하기',
+              onPressed: () => Navigator.of(sheetContext).pop(false),
+              fontSize: 15,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  if (walkTogether == true) {
+    await controller.selectPet(pet.id);
+  }
 }

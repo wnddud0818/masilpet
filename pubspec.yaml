@@ -25,6 +25,8 @@ dependencies:
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.2
   web: ^1.1.1
+  pedometer: ^4.2.0
+  permission_handler: ^12.0.3
 
 dev_dependencies:
   flutter_test:
@@ -199,3 +201,83 @@ flutter:
     - assets/pets/iksan_boseoki/emotions/
     - assets/pets/iksan_boseoki/growth/
     - assets/pets/iksan_boseoki/animations/
+    - assets/pets/gimpo_geumnuri/actions/
+    - assets/pets/gimpo_geumnuri/emotions/
+    - assets/pets/gimpo_geumnuri/growth/
+    - assets/pets/gimpo_geumnuri/animations/
+    - assets/pets/yongin_baekami/actions/
+    - assets/pets/yongin_baekami/emotions/
+    - assets/pets/yongin_baekami/growth/
+    - assets/pets/yongin_baekami/animations/
+    - assets/pets/hwaseong_gaetnori/actions/
+    - assets/pets/hwaseong_gaetnori/emotions/
+    - assets/pets/hwaseong_gaetnori/growth/
+    - assets/pets/hwaseong_gaetnori/animations/
+    - assets/pets/pocheon_dolbami/actions/
+    - assets/pets/pocheon_dolbami/emotions/
+    - assets/pets/pocheon_dolbami/growth/
+    - assets/pets/pocheon_dolbami/animations/
+    - assets/pets/wonju_hanjiri/actions/
+    - assets/pets/wonju_hanjiri/emotions/
+    - assets/pets/wonju_hanjiri/growth/
+    - assets/pets/wonju_hanjiri/animations/
+    - assets/pets/pyeongchang_memiri/actions/
+    - assets/pets/pyeongchang_memiri/emotions/
+    - assets/pets/pyeongchang_memiri/growth/
+    - assets/pets/pyeongchang_memiri/animations/
+    - assets/pets/danyang_gosuri/actions/
+    - assets/pets/danyang_gosuri/emotions/
+    - assets/pets/danyang_gosuri/growth/
+    - assets/pets/danyang_gosuri/animations/
+    - assets/pets/jecheon_yakchori/actions/
+    - assets/pets/jecheon_yakchori/emotions/
+    - assets/pets/jecheon_yakchori/growth/
+    - assets/pets/jecheon_yakchori/animations/
+    - assets/pets/cheonan_hodami/actions/
+    - assets/pets/cheonan_hodami/emotions/
+    - assets/pets/cheonan_hodami/growth/
+    - assets/pets/cheonan_hodami/animations/
+    - assets/pets/buyeo_yeonkkori/actions/
+    - assets/pets/buyeo_yeonkkori/emotions/
+    - assets/pets/buyeo_yeonkkori/growth/
+    - assets/pets/buyeo_yeonkkori/animations/
+    - assets/pets/gunsan_milbomi/actions/
+    - assets/pets/gunsan_milbomi/emotions/
+    - assets/pets/gunsan_milbomi/growth/
+    - assets/pets/gunsan_milbomi/animations/
+    - assets/pets/namwon_sarangbi/actions/
+    - assets/pets/namwon_sarangbi/emotions/
+    - assets/pets/namwon_sarangbi/growth/
+    - assets/pets/namwon_sarangbi/animations/
+    - assets/pets/gochang_bokbuni/actions/
+    - assets/pets/gochang_bokbuni/emotions/
+    - assets/pets/gochang_bokbuni/growth/
+    - assets/pets/gochang_bokbuni/animations/
+    - assets/pets/gurye_sansuri/actions/
+    - assets/pets/gurye_sansuri/emotions/
+    - assets/pets/gurye_sansuri/growth/
+    - assets/pets/gurye_sansuri/animations/
+    - assets/pets/wando_miyeori/actions/
+    - assets/pets/wando_miyeori/emotions/
+    - assets/pets/wando_miyeori/growth/
+    - assets/pets/wando_miyeori/animations/
+    - assets/pets/ulleung_ojingari/actions/
+    - assets/pets/ulleung_ojingari/emotions/
+    - assets/pets/ulleung_ojingari/growth/
+    - assets/pets/ulleung_ojingari/animations/
+    - assets/pets/yeongju_seonbiri/actions/
+    - assets/pets/yeongju_seonbiri/emotions/
+    - assets/pets/yeongju_seonbiri/growth/
+    - assets/pets/yeongju_seonbiri/animations/
+    - assets/pets/hadong_maesili/actions/
+    - assets/pets/hadong_maesili/emotions/
+    - assets/pets/hadong_maesili/growth/
+    - assets/pets/hadong_maesili/animations/
+    - assets/pets/geoje_dongbaegi/actions/
+    - assets/pets/geoje_dongbaegi/emotions/
+    - assets/pets/geoje_dongbaegi/growth/
+    - assets/pets/geoje_dongbaegi/animations/
+    - assets/pets/jeju_hanrari/actions/
+    - assets/pets/jeju_hanrari/emotions/
+    - assets/pets/jeju_hanrari/growth/
+    - assets/pets/jeju_hanrari/animations/

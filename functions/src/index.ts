@@ -5,7 +5,13 @@ import {
   getFirestore,
   initializeFirestore,
 } from 'firebase-admin/firestore';
-import type {DocumentReference, Transaction, WriteBatch} from 'firebase-admin/firestore';
+import type {
+  DocumentData,
+  DocumentReference,
+  QueryDocumentSnapshot,
+  Transaction,
+  WriteBatch,
+} from 'firebase-admin/firestore';
 import {HttpsError, onCall} from 'firebase-functions/v2/https';
 import {logger} from 'firebase-functions';
 import {defineSecret} from 'firebase-functions/params';
@@ -35,6 +41,7 @@ const checkInRadiusMeters = 150;
 const maxDailyCheckIns = 20;
 const maxStepDeltaPerCall = 3000;
 const maxDailyStepDelta = 12000;
+const maxStoredEggs = 5;
 const tourApiKey = defineSecret('TOUR_API_KEY');
 const starterPetId = 'pet-starter-busan-paranguri';
 const starterEggId = 'egg-harbor-maru';
@@ -66,6 +73,11 @@ type PoiDoc = {
 
 type PetStage = 'baby' | 'grown' | 'evolved';
 
+type PetBond = {
+  xp: number;
+  level: number;
+};
+
 type PetDoc = {
   templateId: string;
   name: string;
@@ -73,6 +85,13 @@ type PetDoc = {
   level: number;
   stats: GrowthStats;
   originRegionId: string;
+  originEggId?: string;
+  bond?: PetBond;
+  reunionCount?: number;
+  walkStepDay?: string;
+  walkStepsToday?: number;
+  walkBondDay?: string;
+  walkBondAwardedToday?: number;
 };
 
 type EggDoc = {
@@ -81,7 +100,38 @@ type EggDoc = {
   progress: number;
   requiredSteps: number;
   status: 'incubating' | 'hatchable' | 'hatched';
+  incubationBondXp?: number;
+  imprints?: PoiCategory[];
 };
+
+type ResolvedEgg = {
+  id: string;
+  ref: DocumentReference<DocumentData>;
+  data: EggDoc;
+};
+
+type StepSyncResult = {
+  success: true;
+  dayKey: string;
+  deviceId: string;
+  observedCumulativeSteps: number;
+  baselineInitialized: boolean;
+  counterReset: boolean;
+  appliedStepDelta: number;
+  hatchableCount: number;
+  creditedEggId: string | null;
+  companionPetId: string | null;
+  updatedPet: UpdatedPetResult | null;
+};
+
+type UpdatedPetResult = {
+  id: string;
+  stats: GrowthStats;
+  level: number;
+  stage: PetStage;
+};
+
+type PetInteractionType = 'talk' | 'feed' | 'play' | 'clean' | 'sleep' | 'touch';
 
 type RegionDoc = {
   name: string;
@@ -913,6 +963,226 @@ const starterPetTemplateSeed = [
     initials: '서',
     assetKey: 'iksan_boseoki',
   },
+  {
+    id: 'gimpo-geumnuri',
+    name: '금누리',
+    regionId: 'gyeonggi',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '황금 들판과 물길을 누비며 잘 익은 수확의 기쁨을 누구와도 넉넉히 나누는 친구.',
+    colorValue: 0xd6a33a,
+    initials: '금',
+    assetKey: 'gimpo_geumnuri',
+  },
+  {
+    id: 'yongin-baekami',
+    name: '백암이',
+    regionId: 'gyeonggi',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '백자의 맑은 빛과 단정한 선을 닮아 서두르지 않고 마음을 고요히 다듬어주는 토끼.',
+    colorValue: 0x4f6ea8,
+    initials: '백',
+    assetKey: 'yongin_baekami',
+  },
+  {
+    id: 'hwaseong-gaetnori',
+    name: '갯노리',
+    regionId: 'gyeonggi',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '갯벌의 작은 발자국과 물때를 세심히 읽으며 생명들의 놀이터를 지키는 저어새 친구.',
+    colorValue: 0xe87864,
+    initials: '갯',
+    assetKey: 'hwaseong_gaetnori',
+  },
+  {
+    id: 'pocheon-dolbami',
+    name: '돌밤이',
+    regionId: 'gyeonggi',
+    rarity: 'common',
+    primaryCategory: 'nature',
+    basePersonality: '화강암 계곡처럼 든든하면서도 맑은 물소리에 금세 귀를 쫑긋 세우는 순한 바위 토끼.',
+    colorValue: 0x7288a4,
+    initials: '돌',
+    assetKey: 'pocheon_dolbami',
+  },
+  {
+    id: 'wonju-hanjiri',
+    name: '한지리',
+    regionId: 'gangwon',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '닥나무 섬유처럼 부드럽고 질긴 마음으로 흩어진 이야기를 곱게 이어 붙이는 여우.',
+    colorValue: 0x7f9a63,
+    initials: '한',
+    assetKey: 'wonju_hanjiri',
+  },
+  {
+    id: 'pyeongchang-memiri',
+    name: '메밀이',
+    regionId: 'gangwon',
+    rarity: 'common',
+    primaryCategory: 'festival',
+    basePersonality: '하얀 메밀꽃밭을 폴짝이며 작은 축제도 눈송이처럼 풍성하게 피워내는 명랑한 양.',
+    colorValue: 0xb8a7d9,
+    initials: '메',
+    assetKey: 'pyeongchang_memiri',
+  },
+  {
+    id: 'danyang-gosuri',
+    name: '고수리',
+    regionId: 'chungbuk',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '석회동굴의 울림과 물방울 소리를 따라 어두운 곳에서도 안전한 길을 찾아내는 아기 박쥐.',
+    colorValue: 0x7766b5,
+    initials: '고',
+    assetKey: 'danyang_gosuri',
+  },
+  {
+    id: 'jecheon-yakchori',
+    name: '약초리',
+    regionId: 'chungbuk',
+    rarity: 'rare',
+    primaryCategory: 'culture',
+    basePersonality: '산과 마을에 전해진 약초 이야기를 기억하며 지친 친구에게 향긋한 쉼을 건네는 사슴.',
+    colorValue: 0x6f9c62,
+    initials: '약',
+    assetKey: 'jecheon_yakchori',
+  },
+  {
+    id: 'cheonan-hodami',
+    name: '호담이',
+    regionId: 'chungnam',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '단단한 호두 속 고소한 마음을 발견해 혼자 숨기지 않고 꼭 나눠 먹는 부지런한 다람쥐.',
+    colorValue: 0xa96f3e,
+    initials: '호',
+    assetKey: 'cheonan_hodami',
+  },
+  {
+    id: 'buyeo-yeonkkori',
+    name: '연꼬리',
+    regionId: 'chungnam',
+    rarity: 'epic',
+    primaryCategory: 'history',
+    basePersonality: '백제의 물길과 연꽃 사이를 헤엄치며 물 아래 잠든 오래된 이야기를 다정히 건져 올리는 수달.',
+    colorValue: 0x55a890,
+    initials: '연',
+    assetKey: 'buyeo_yeonkkori',
+  },
+  {
+    id: 'gunsan-milbomi',
+    name: '밀봄이',
+    regionId: 'jeonbuk',
+    rarity: 'rare',
+    primaryCategory: 'history',
+    basePersonality: '근대 항구의 창고와 밀밭에 남은 시간을 날개 끝으로 살피며 새봄의 소식을 전하는 갈매기.',
+    colorValue: 0xd3a247,
+    initials: '밀',
+    assetKey: 'gunsan_milbomi',
+  },
+  {
+    id: 'namwon-sarangbi',
+    name: '사랑비',
+    regionId: 'jeonbuk',
+    rarity: 'epic',
+    primaryCategory: 'festival',
+    basePersonality: '꽃비 속에서 마음과 마음을 이어주며 쑥스러운 진심도 노래처럼 용기 있게 전하는 사랑새.',
+    colorValue: 0xe36f87,
+    initials: '사',
+    assetKey: 'namwon_sarangbi',
+  },
+  {
+    id: 'gochang-bokbuni',
+    name: '복분이',
+    regionId: 'jeonbuk',
+    rarity: 'rare',
+    primaryCategory: 'food',
+    basePersonality: '새콤달콤한 복분자 향을 따라 가장 잘 익은 열매를 찾아 친구의 기운부터 챙기는 아기 곰.',
+    colorValue: 0x824a88,
+    initials: '복',
+    assetKey: 'gochang_bokbuni',
+  },
+  {
+    id: 'gurye-sansuri',
+    name: '산수리',
+    regionId: 'jeonnam',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '산수유 꽃과 붉은 열매로 계절의 변화를 먼저 알아채고 따뜻한 소식을 전하는 여우.',
+    colorValue: 0xe5ae35,
+    initials: '산',
+    assetKey: 'gurye_sansuri',
+  },
+  {
+    id: 'wando-miyeori',
+    name: '미역이',
+    regionId: 'jeonnam',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '완도 바다의 푸른 물결을 타며 싱싱한 해초와 건강한 한 끼를 야무지게 챙기는 아기 물범.',
+    colorValue: 0x3d9b8a,
+    initials: '미',
+    assetKey: 'wando_miyeori',
+  },
+  {
+    id: 'ulleung-ojingari',
+    name: '오징아리',
+    regionId: 'gyeongbuk',
+    rarity: 'epic',
+    primaryCategory: 'nature',
+    basePersonality: '화산섬의 깊은 물빛과 힘찬 파도를 품고 낯선 바닷길도 씩씩하게 탐험하는 아기 오징어.',
+    colorValue: 0x4b5fa8,
+    initials: '오',
+    assetKey: 'ulleung_ojingari',
+  },
+  {
+    id: 'yeongju-seonbiri',
+    name: '선비리',
+    regionId: 'gyeongbuk',
+    rarity: 'rare',
+    primaryCategory: 'history',
+    basePersonality: '옛 글의 뜻을 차분히 새기되 어려운 이야기도 도토리처럼 알기 쉽게 나눠주는 선비 다람쥐.',
+    colorValue: 0x9b6037,
+    initials: '선',
+    assetKey: 'yeongju_seonbiri',
+  },
+  {
+    id: 'hadong-maesili',
+    name: '매실이',
+    regionId: 'gyeongnam',
+    rarity: 'common',
+    primaryCategory: 'food',
+    basePersonality: '봄빛 매실 향처럼 산뜻한 말로 지친 마음을 깨우고 새콤한 기운을 나눠주는 담비.',
+    colorValue: 0x8ba83e,
+    initials: '매',
+    assetKey: 'hadong_maesili',
+  },
+  {
+    id: 'geoje-dongbaegi',
+    name: '동백이',
+    regionId: 'gyeongnam',
+    rarity: 'rare',
+    primaryCategory: 'nature',
+    basePersonality: '겨울 바다에도 붉게 피는 동백처럼 씩씩하고 따뜻하게 곁을 지켜주는 청록빛 아기 물범.',
+    colorValue: 0x0d7480,
+    initials: '동',
+    assetKey: 'geoje_dongbaegi',
+  },
+  {
+    id: 'jeju-hanrari',
+    name: '한라리',
+    regionId: 'jeju',
+    rarity: 'epic',
+    primaryCategory: 'nature',
+    basePersonality: '한라산의 구름과 숲길을 고요히 살피며 길 잃은 마음을 맑은 곳으로 이끄는 흰 사슴.',
+    colorValue: 0x4c8d8b,
+    initials: '한',
+    assetKey: 'jeju_hanrari',
+  },
 ];
 
 type VisitDialogueTrigger = 'default' | PoiCategory;
@@ -1323,6 +1593,266 @@ const regionalDialogueProfiles: VisitDialogueProfile[] = [
       other: '아직 정체를 모른다는 건 발견할 여지가 많다는 뜻이야. 기대해도 좋아.',
     },
   },
+  {
+    templateId: 'gimpo-geumnuri',
+    lines: {
+      default: '황금 들판 끝까지 물길이 반짝여. 오늘도 넉넉한 마음으로 걸어보자.',
+      nature: '물길에 작은 하늘이 비쳤어. 논과 강이 서로 인사하는 것 같아.',
+      food: '갓 지은 밥 냄새다! 따뜻할 때 한 숟갈씩 꼭 나눠 먹자.',
+      festival: '풍년을 축하하는 장단이 들려! 내 꼬리도 절로 들썩거려.',
+      culture: '들판의 계절을 이렇게 아름답게 담았네. 손끝에 햇살이 남아 있어.',
+      history: '오래 이어진 물길이 수많은 밥상을 키웠겠지. 고마운 길이야.',
+      shopping: '알이 꽉 차고 향이 좋은 걸 골라보자. 내가 꼼꼼히 살펴줄게.',
+      other: '처음 보는 길에도 물소리는 이어져. 반짝이는 쪽부터 가보자!',
+    },
+  },
+  {
+    templateId: 'yongin-baekami',
+    lines: {
+      default: '맑은 빛은 요란하지 않아도 오래 남아. 오늘 마음도 단정히 빚어보자.',
+      nature: '흰 구름과 푸른 나무가 한 폭에 담겼어. 자연의 색은 참 단정해.',
+      food: '정갈한 그릇에 담으니 한입도 작품 같아. 천천히 음미하자.',
+      festival: '화려한 빛 사이에도 고요한 여백이 있네. 그곳에서 축제를 바라볼래.',
+      culture: '손으로 빚은 작은 굴곡마다 마음이 담겼어. 가까이서 천천히 보자.',
+      history: '깨진 조각도 이어보면 시대의 모양이 보여. 소중히 기억하고 싶어.',
+      shopping: '오래 곁에 둘수록 편안한 것을 골라보자. 매끈함보다 마음이 중요해.',
+      other: '이름을 몰라도 아름다운 선은 느낄 수 있어. 조용히 둘러보자.',
+    },
+  },
+  {
+    templateId: 'hwaseong-gaetnori',
+    lines: {
+      default: '물이 빠진 자리마다 작은 발자국이 나타났어. 갯벌 친구들을 만나러 가자!',
+      nature: '게가 옆걸음으로 인사했어! 멀리서 조용히 길을 비켜주자.',
+      food: '바다와 땅이 함께 키운 맛이네. 생명을 준 갯벌에 감사하며 먹자.',
+      festival: '사람들 발걸음이 많아졌어. 정해진 길 안에서 신나게 즐기자!',
+      culture: '갯벌의 선과 색을 이렇게 담았네. 물때의 리듬까지 느껴지는 것 같아.',
+      history: '이 물길은 아주 오래 들고났겠지. 발자국은 지워져도 이야기는 남아.',
+      shopping: '갯벌을 생각한 물건인지 살펴보자. 오래 쓰는 선택이 친구들을 도와.',
+      other: '낯선 구멍은 손대지 말고 기다려보자. 주인이 먼저 인사할지도 몰라.',
+    },
+  },
+  {
+    templateId: 'pocheon-dolbami',
+    lines: {
+      default: '단단한 돌 사이로 맑은 물이 흐르네. 든든하게 네 옆을 걸어줄게.',
+      nature: '물은 단단한 돌도 천천히 다듬어. 오래 바라보면 부드러운 길이 보여.',
+      food: '계곡을 걸은 뒤 먹는 한입은 유난히 든든해. 천천히 꼭꼭 씹자.',
+      festival: '북소리가 바위벽에 울려 더 커졌어! 내 발도 장단을 맞춰볼래.',
+      culture: '돌의 결을 살려 만든 모습이 멋져. 힘을 빼야 선이 더 잘 보이네.',
+      history: '이 바위는 수많은 계절을 견뎠겠지. 말없는 이야기를 들어보자.',
+      shopping: '보기보다 튼튼하고 오래 쓸 수 있는지 살펴보자. 내가 들어볼게.',
+      other: '길이 울퉁불퉁해도 괜찮아. 내가 앞에서 발 디딜 곳을 찾아줄게.',
+    },
+  },
+  {
+    templateId: 'wonju-hanjiri',
+    lines: {
+      default: '얇은 한 장도 겹치면 오래가는 이야기가 돼. 오늘 기억도 곱게 붙여둘게.',
+      nature: '나뭇결과 종이결이 닮았어. 자연이 남긴 선을 천천히 따라가자.',
+      food: '정갈하게 싸인 한입에 손길이 담겼어. 고마움을 함께 맛보자.',
+      festival: '종이등이 바람에 살랑여! 수많은 이야기가 밤하늘에 떠 있는 것 같아.',
+      culture: '겹치고 물들이고 말리는 손길이 보여. 한 장 안에 시간이 참 많아.',
+      history: '오래된 기록이 남은 건 질긴 결과 지킨 마음 덕분이야. 소중히 읽자.',
+      shopping: '손끝에 닿는 결이 편안한지 봐. 오래 곁에 둘 물건은 촉감도 중요해.',
+      other: '빈 종이 같은 장소네. 우리가 천천히 첫 장면을 남겨볼까?',
+    },
+  },
+  {
+    templateId: 'pyeongchang-memiri',
+    lines: {
+      default: '하얀 메밀꽃이 바람마다 춤춰! 우리도 꽃밭 장단에 맞춰 폴짝여보자.',
+      nature: '작은 꽃마다 벌과 바람이 찾아와. 들판 전체가 함께 춤추고 있어.',
+      food: '고소하고 담백한 향이야! 꽃밭을 닮은 맛을 천천히 즐기자.',
+      festival: '음악이 시작됐어! 하얀 물결 사이로 신나게 행진해보자.',
+      culture: '꽃 한 송이의 모양까지 정성껏 담았네. 밝은 기분이 번져와.',
+      history: '이 들판의 축제도 수많은 계절을 지나 이어졌겠지. 장단을 기억하자.',
+      shopping: '메밀 향이 은은하고 손길이 느껴지는 걸 골라보자. 선물도 좋겠어!',
+      other: '처음 보는 곳도 한 바퀴 뛰면 금세 무대가 돼. 같이 시작하자!',
+    },
+  },
+  {
+    templateId: 'danyang-gosuri',
+    lines: {
+      default: '어두워도 걱정 마. 물방울 울림을 들으면 동굴의 길이 그려지거든.',
+      nature: '물 한 방울이 오랜 시간 돌을 빚고 있어. 아주 느린 자연의 조각이야.',
+      food: '동굴 밖 향긋한 한입이 반가워. 냄새도 길을 알려주는 소리 같아.',
+      festival: '북소리가 동굴처럼 울려 가슴까지 닿아! 박자를 따라 날아볼래.',
+      culture: '빛과 그림자로 깊이를 만들었네. 소리 없이도 공간이 들리는 것 같아.',
+      history: '오래된 흔적일수록 깊은 곳에 남아. 울림을 해치지 않게 살펴보자.',
+      shopping: '소리가 맑고 오래 울리는 물건을 찾아보자. 살짝 두드려봐도 될까?',
+      other: '낯선 곳이면 먼저 가만히 들어봐. 길이 자기 소리로 인사할 거야.',
+    },
+  },
+  {
+    templateId: 'jecheon-yakchori',
+    lines: {
+      default: '산바람에 약초 향이 섞였어. 오늘 마음에 필요한 향부터 찾아보자.',
+      nature: '비슷해 보여도 잎맥과 향이 모두 달라. 함부로 꺾지 말고 눈으로 배우자.',
+      food: '산의 향을 살린 따뜻한 음식이네. 한입마다 몸이 편안해지는 것 같아.',
+      festival: '약초 향과 웃음이 골목 가득 퍼졌어. 배운 이야기를 함께 나눠보자.',
+      culture: '풀 한 포기에 담긴 지혜를 이렇게 이어왔구나. 정성껏 기억하고 싶어.',
+      history: '누군가의 경험이 이름과 쓰임으로 남았어. 오래된 지혜를 소중히 듣자.',
+      shopping: '향이 지나치게 세지 않고 믿을 만한 손길로 만든 것을 골라보자.',
+      other: '모르는 풀은 만지지 말고 모양부터 살펴봐. 아는 만큼 안전해져.',
+    },
+  },
+  {
+    templateId: 'cheonan-hodami',
+    lines: {
+      default: '단단한 껍질 안엔 고소한 마음이 숨어 있어. 좋은 건 꼭 반으로 나누자!',
+      nature: '나무가 작은 보물들을 떨어뜨렸어. 필요한 만큼만 고맙게 줍자.',
+      food: '껍질을 열자 고소한 향이 톡 퍼졌어! 첫 조각은 네가 먹어.',
+      festival: '호두 굴리기와 깨기 소리가 장단 같아! 나도 신나게 참가할래.',
+      culture: '작은 열매 모양을 이렇게 정교하게 담았네. 손끝이 정말 야무져.',
+      history: '오래된 나무 아래서도 사람들이 호두를 나눴겠지. 따뜻한 풍경이야.',
+      shopping: '흔들어보고 무게도 재보자. 속이 꽉 찬 호두는 내가 알아볼 수 있어.',
+      other: '낯선 곳에도 숨겨진 고소함이 있을 거야. 꼼꼼히 찾아보자!',
+    },
+  },
+  {
+    templateId: 'buyeo-yeonkkori',
+    lines: {
+      default: '연꽃 사이 물길은 오래된 궁의 이야기를 기억해. 꼬리를 따라 천천히 와.',
+      nature: '연잎 아래 작은 물고기가 쉬고 있어. 물결을 작게 만들어 지나가자.',
+      food: '연잎 향이 은은하게 밴 맛이야. 오래된 지혜까지 함께 담긴 것 같아.',
+      festival: '등불이 물 위에 길을 만들었어! 옛 궁의 밤도 이렇게 빛났을까?',
+      culture: '연꽃 선과 물결 무늬가 우아하게 이어져. 마음까지 차분해지는구나.',
+      history: '돌 하나와 물길 하나에도 왕도의 시간이 남아 있어. 서두르지 말고 듣자.',
+      shopping: '옛 무늬를 가볍게 흉내 낸 건지 정성껏 이어온 건지 살펴보자.',
+      other: '이름 없는 물길도 어딘가의 기억으로 이어져. 꼬리를 따라와.',
+    },
+  },
+  {
+    templateId: 'gunsan-milbomi',
+    lines: {
+      default: '항구 바람에 밀 향과 오래된 창고 냄새가 섞였어. 시간의 길을 따라 날아보자.',
+      nature: '갈매기와 바람, 밀밭이 한 길로 이어져. 바다와 땅이 만나는 풍경이야.',
+      food: '밀 향이 구수하게 피어올라. 항구 사람들의 든든한 하루가 담긴 맛이네.',
+      festival: '창고 사이 음악이 울리고 깃발이 펄럭여! 바람을 타고 함께 즐기자.',
+      culture: '오래된 건물에 새 작품이 자리 잡았어. 두 시간이 멋지게 만났네.',
+      history: '철길과 창고에 수많은 발걸음이 남아 있어. 가볍게 지나치지 말자.',
+      shopping: '옛 공간의 이야기를 존중하며 만든 물건인지 살펴보자. 오래 간직하고 싶어.',
+      other: '낯선 골목 끝에도 바다는 보여. 지붕 위에서 방향을 찾아줄게.',
+    },
+  },
+  {
+    templateId: 'namwon-sarangbi',
+    lines: {
+      default: '꽃비가 내리면 숨겨둔 마음도 살짝 피어나. 네 진심을 노래로 이어줄게.',
+      nature: '꽃과 새가 서로 계절을 알려주네. 말하지 않아도 이어지는 마음 같아.',
+      food: '달콤한 향이 마음까지 풀어줘. 좋아하는 사람과 나누면 더 맛있겠지?',
+      festival: '노래와 꽃비가 거리를 가득 채웠어! 우리도 사랑스러운 장단을 보태자.',
+      culture: '오래된 사랑 이야기가 새로운 노래로 피었네. 마음은 시대를 건너나 봐.',
+      history: '수많은 만남과 기다림이 이 길에 남아 있어. 진심을 가볍게 여기지 말자.',
+      shopping: '마음을 전할 작은 선물을 고르자. 화려함보다 떠올린 시간이 중요해.',
+      other: '처음 보는 곳에도 누군가 아끼는 마음이 있어. 다정하게 둘러보자.',
+    },
+  },
+  {
+    templateId: 'gochang-bokbuni',
+    lines: {
+      default: '새콤달콤한 향이 코끝을 간질여! 가장 잘 익은 열매를 찾아줄게.',
+      nature: '햇빛과 비가 작은 열매 안에 모였어. 필요한 만큼만 감사히 따자.',
+      food: '새콤함 뒤에 달콤함이 따라와! 천천히 맛보면 기운이 살아나.',
+      festival: '보랏빛 향과 웃음이 가득해! 바구니를 들고 신나게 둘러보자.',
+      culture: '열매의 색을 이렇게 곱게 담았네. 계절의 향까지 느껴지는 것 같아.',
+      history: '오래전부터 이 열매로 기운을 나눴대. 정성이 이어진 맛이구나.',
+      shopping: '향이 맑고 색이 깊은 걸 골라보자. 눌리지 않게 내가 잘 안을게.',
+      other: '낯선 수풀도 향을 따라가면 길이 보여. 내 코를 믿어봐!',
+    },
+  },
+  {
+    templateId: 'gurye-sansuri',
+    lines: {
+      default: '노란 꽃이 먼저 봄을 알리고 붉은 열매가 가을을 기억해. 계절 소식을 들으러 가자.',
+      nature: '꽃과 열매가 같은 나무의 다른 인사야. 계절마다 표정이 참 다르지?',
+      food: '새콤한 향 속에 햇살이 담겼어. 몸을 따뜻하게 생각하며 맛보자.',
+      festival: '노란 꽃길에 사람들 웃음이 이어졌어! 봄이 크게 인사하는 것 같아.',
+      culture: '가지의 곡선과 꽃의 색을 섬세하게 담았네. 계절을 오래 간직할 수 있겠어.',
+      history: '마을의 오래된 나무가 수많은 봄과 가을을 지켜봤겠지. 이야기를 들어보자.',
+      shopping: '계절의 향을 해치지 않고 정성껏 만든 것을 고르자. 오래 기억될 거야.',
+      other: '어디인지 몰라도 식물의 표정을 보면 계절이 길을 알려줘. 천천히 보자.',
+    },
+  },
+  {
+    templateId: 'wando-miyeori',
+    lines: {
+      default: '푸른 물결 아래 미역 숲이 살랑여. 싱싱한 바다 길을 따라가자!',
+      nature: '미역 숲은 작은 물고기들의 집이야. 잎을 건드리지 않게 지나가자.',
+      food: '바다 향이 깨끗하고 씹을수록 맛있어! 건강한 힘을 천천히 채우자.',
+      festival: '푸른 해초와 깃발이 함께 흔들려! 바다 장단에 맞춰 둥실 놀자.',
+      culture: '바다의 선과 색을 생활 속에 담았네. 손끝에 물결이 느껴져.',
+      history: '이 바다에서 오래 먹거리를 길러왔대. 물때를 읽는 지혜가 대단해.',
+      shopping: '색이 맑고 바다 향이 깨끗한 걸 고르자. 필요한 만큼만 챙길게.',
+      other: '낯선 바다도 물결을 읽으면 길이 보여. 내 지느러미를 따라와!',
+    },
+  },
+  {
+    templateId: 'ulleung-ojingari',
+    lines: {
+      default: '화산섬 아래 깊은 물빛이 꿈틀거려! 낯선 바닷길도 나와 함께라면 괜찮아.',
+      nature: '검은 바위와 푸른 파도가 부딪혀 새로운 모양을 만들고 있어. 멋지다!',
+      food: '깨끗한 바다 향이 가득해. 섬의 힘을 한입씩 고맙게 맛보자.',
+      festival: '파도 소리와 북소리가 함께 울려! 내 팔도 장단에 맞춰 춤출래.',
+      culture: '섬과 바다의 색을 강하게 담았네. 멀리서도 힘이 느껴지는 작품이야.',
+      history: '섬을 오간 수많은 배의 길이 물 아래 겹쳐 있겠지. 흔적을 따라가 보자.',
+      shopping: '바다와 섬을 아끼며 만든 물건인지 살펴보자. 오래 쓸 것을 고를래.',
+      other: '지도에 없는 길이면 더 신나지! 물결을 읽으며 천천히 탐험하자.',
+    },
+  },
+  {
+    templateId: 'yeongju-seonbiri',
+    lines: {
+      default: '어려운 글도 한 줄씩 읽으면 도토리처럼 알찬 뜻이 보여. 함께 풀어보자.',
+      nature: '나이테도 풀잎도 자연이 쓴 글이야. 모양과 흐름을 천천히 읽어보자.',
+      food: '정성 들인 한입에는 지역의 지혜가 담겨 있어. 맛과 뜻을 함께 기억하자.',
+      festival: '배운 이야기가 노래와 놀이로 살아났어. 즐기면서 익히니 더 잘 남겠구나.',
+      culture: '글과 그림, 손길이 서로 뜻을 보태고 있어. 여러 번 볼수록 깊어져.',
+      history: '기록의 빈자리도 중요한 단서야. 남은 흔적을 차분히 맞춰보자.',
+      shopping: '겉모양보다 만든 뜻과 오래 쓸 가치를 살펴보자. 좋은 선택도 배움이야.',
+      other: '모른다는 말은 배움의 첫 줄이야. 부끄러워 말고 함께 질문하자.',
+    },
+  },
+  {
+    templateId: 'hadong-maesili',
+    lines: {
+      default: '봄빛 매실 향이 톡 퍼졌어! 지친 마음도 산뜻하게 깨워줄게.',
+      nature: '작은 꽃이 열매가 되기까지 햇빛과 바람이 도왔어. 계절의 선물이야.',
+      food: '새콤함과 달콤함이 알맞게 만났어! 한입 먹으니 기운이 번쩍 난다.',
+      festival: '초록 열매와 웃음이 가득해! 상큼한 장단에 맞춰 뛰어보자.',
+      culture: '매실의 색과 향을 생활 속에 정성껏 담았네. 봄을 오래 간직할 수 있겠어.',
+      history: '해마다 열매를 담그며 기다림을 이어왔대. 시간이 맛을 깊게 했구나.',
+      shopping: '단단하고 향이 맑은 걸 골라보자. 상처 나지 않게 내가 잘 담을게.',
+      other: '낯선 길도 산뜻한 향이 나는 쪽부터 가보자. 좋은 일이 있을 것 같아!',
+    },
+  },
+  {
+    templateId: 'geoje-dongbaegi',
+    lines: {
+      default: '차가운 바닷바람 속에서도 동백은 붉게 피어. 내가 따뜻하게 곁을 지켜줄게.',
+      nature: '바위틈 동백이 바다를 바라보고 있어. 강인함과 부드러움이 함께 있네.',
+      food: '찬 바다에서 온 재료에 따뜻한 손길이 더해졌어. 마음까지 든든한 맛이야.',
+      festival: '붉은 꽃길과 바닷바람이 축제를 열었어! 지느러미로 장단을 맞춰볼래.',
+      culture: '동백의 붉은색과 바다의 청록색이 멋지게 어울려. 오래 바라보고 싶어.',
+      history: '이 섬의 사람들도 바람을 견디며 길을 이어왔겠지. 단단한 마음이 느껴져.',
+      shopping: '동백과 바다를 아끼며 만든 것인지 살펴보자. 따뜻한 뜻을 고르고 싶어.',
+      other: '낯선 바람이 불어도 내 곁으로 와. 따뜻한 방향을 함께 찾자.',
+    },
+  },
+  {
+    templateId: 'jeju-hanrari',
+    lines: {
+      default: '한라산 구름이 숲길을 천천히 열어줘. 고요한 방향으로 함께 걸을까?',
+      nature: '구름, 숲, 돌이 높이에 따라 다른 표정을 보여. 발걸음을 낮추고 바라보자.',
+      food: '섬의 바람과 햇살이 담긴 맛이야. 천천히 먹으니 마음까지 맑아져.',
+      festival: '산 아래 웃음과 장단이 번져와. 고요함을 잃지 않으며 함께 즐기자.',
+      culture: '섬의 선과 색을 담백하게 담았네. 여백에서 바람 소리가 들리는 것 같아.',
+      history: '이 숲길과 오름에는 오래된 삶의 발자국이 있어. 조용히 존중하며 걷자.',
+      shopping: '섬을 아끼고 오래 쓸 수 있는 것을 고르자. 필요한 만큼이면 충분해.',
+      other: '앞이 흐리면 잠시 멈춰도 괜찮아. 구름이 걷힐 때까지 함께 기다릴게.',
+    },
+  },
 ];
 
 const regionalDialogueSeed = regionalDialogueProfiles.flatMap((profile) => [
@@ -1718,7 +2248,21 @@ export const ensureUserBootstrap = onCall({region: functionRegion}, async (reque
   await db.runTransaction(async (transaction) => {
     const userSnap = await transaction.get(userRef);
     if (userSnap.exists) {
-      transaction.set(userRef, {lastLoginAt: now}, {merge: true});
+      const activeEggId = String(userSnap.data()?.activeEggId ?? '');
+      const fallbackEgg = activeEggId
+        ? null
+        : selectActiveEgg(
+          (await transaction.get(userRef.collection('eggs'))).docs,
+          '',
+        );
+      transaction.set(
+        userRef,
+        {
+          lastLoginAt: now,
+          ...(fallbackEgg ? {activeEggId: fallbackEgg.id} : {}),
+        },
+        {merge: true},
+      );
       return;
     }
 
@@ -1860,6 +2404,9 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
   const eggProgress = eggProgressFor(poi.category);
   const userRef = db.collection('users').doc(uid);
   let updatedPet: {id: string; stats: GrowthStats; level: number; stage: PetStage} | null = null;
+  let companionPetId = starterPetId;
+  let creditedEggId: string | null = null;
+  let appliedEggProgress = 0;
 
   await db.runTransaction(async (transaction) => {
     const duplicateSnap = await transaction.get(checkinRef);
@@ -1874,9 +2421,8 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
     }
     let activePetRef = userRef.collection('pets').doc(activePetId);
     const activePetSnap = await transaction.get(activePetRef);
-    const openEggs = await transaction.get(
-      userRef.collection('eggs').where('status', 'in', ['incubating', 'hatchable']).limit(3),
-    );
+    const eggsSnapshot = await transaction.get(userRef.collection('eggs'));
+    const petsSnapshot = await transaction.get(userRef.collection('pets'));
     const todayCheckins = await transaction.get(
       checkinsRef.where('createdAt', '>=', Timestamp.fromDate(dayStart)).limit(maxDailyCheckIns),
     );
@@ -1890,6 +2436,29 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       activePetRef = userRef.collection('pets').doc(starterPetId);
       setStarterUser(transaction, userRef, now);
     }
+    companionPetId = activePetId;
+
+    const storedActiveEggId = String(userSnap.data()?.activeEggId ?? '');
+    const openEgg = selectActiveEgg(eggsSnapshot.docs, storedActiveEggId);
+    const creditableEgg =
+      openEgg?.data.status === 'incubating' ? openEgg : null;
+    let nextActiveEggId: string | null = openEgg?.id ?? null;
+    let creditedEggRef: DocumentReference<DocumentData> | null =
+      creditableEgg?.ref ?? null;
+    let creditedEggData: EggDoc | null = creditableEgg?.data ?? null;
+
+    if (!creditedEggRef && needsStarterBootstrap) {
+      creditedEggId = starterEggId;
+      creditedEggRef = userRef.collection('eggs').doc(starterEggId);
+      creditedEggData = starterEggRuntimeDoc();
+      nextActiveEggId = starterEggId;
+    } else {
+      creditedEggId = creditableEgg?.id ?? null;
+      if (creditableEgg) {
+        nextActiveEggId = creditableEgg.id;
+      }
+    }
+    appliedEggProgress = creditedEggRef && creditedEggData ? eggProgress : 0;
 
     transaction.set(checkinRef, {
       poiId,
@@ -1900,76 +2469,96 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
       distanceMeters: distance,
       rewardApplied: true,
       reward,
-      eggProgress,
+      eggProgress: appliedEggProgress,
+      companionPetId,
+      creditedEggId,
       createdAt: now,
     });
 
-    if (activePetId && activePetRef) {
-      const pet = needsStarterBootstrap
-        ? starterPetRuntimeDoc()
-        : activePetSnap.data() as PetDoc;
-      const stats = addStats(pet.stats, reward);
-      const level = levelFor(stats);
-      const stage = stageFor(level, stats, pet.stage);
-      transaction.set(
-        activePetRef,
-        {
-          stats,
-          level,
-          stage,
-          lastInteractedAt: now,
+    const pet = needsStarterBootstrap
+      ? starterPetRuntimeDoc()
+      : activePetSnap.data() as PetDoc;
+    const stats = addStats(pet.stats, reward);
+    const level = levelFor(stats);
+    const stage = stageFor(level, stats, pet.stage);
+    const bondXp = Number(pet.bond?.xp ?? pet.stats.affinity) + reward.affinity;
+    transaction.set(
+      activePetRef,
+      {
+        stats,
+        level,
+        stage,
+        bond: {
+          xp: bondXp,
+          level: bondLevelFor(bondXp),
         },
-        {merge: true},
-      );
-      updatedPet = {id: activePetId, stats, level, stage};
-    }
+        lastInteractedAt: now,
+      },
+      {merge: true},
+    );
+    updatedPet = {id: activePetId, stats, level, stage};
 
-    for (const egg of openEggs.docs) {
-      const eggData = egg.data() as EggDoc;
-      if (eggData.status === 'hatchable') {
-        continue;
-      }
-      const progress = Math.min(eggData.requiredSteps, eggData.progress + eggProgress);
+    if (creditedEggRef && creditedEggData) {
+      const progress = Math.min(
+        creditedEggData.requiredSteps,
+        creditedEggData.progress + appliedEggProgress,
+      );
+      const imprints = Array.from(new Set([
+        ...(creditedEggData.imprints ?? []),
+        poi.category,
+      ]));
       transaction.set(
-        egg.ref,
+        creditedEggRef,
         {
           progress,
-          status: progress >= eggData.requiredSteps ? 'hatchable' : 'incubating',
+          status: progress >= creditedEggData.requiredSteps ? 'hatchable' : 'incubating',
+          incubationBondXp: Number(creditedEggData.incubationBondXp ?? 0) + 1,
+          imprints,
+          lastProgressAt: now,
         },
         {merge: true},
       );
     }
 
-    if (needsStarterBootstrap && openEggs.empty) {
-      const starterEgg = starterEggRuntimeDoc();
-      const progress = Math.min(starterEgg.requiredSteps, starterEgg.progress + eggProgress);
-      transaction.set(
-        userRef.collection('eggs').doc(starterEggId),
-        {
-          ...starterEggData(now),
-          progress,
-          status: progress >= starterEgg.requiredSteps ? 'hatchable' : 'incubating',
-        },
-        {merge: true},
-      );
-    }
-
-    if (!needsStarterBootstrap && openEggs.empty &&
+    const openEggCount = eggsSnapshot.docs.filter((egg) => {
+      const status = String(egg.data().status ?? '');
+      return status === 'incubating' || status === 'hatchable';
+    }).length;
+    if (!needsStarterBootstrap && openEggCount < maxStoredEggs &&
       (todayCheckins.empty || poi.category === 'history' || poi.category === 'festival')) {
-      const templateId = templateForCategory(poi.category, poi.regionId, poiId);
-      transaction.set(userRef.collection('eggs').doc(`egg-${templateId}-${now.toMillis()}`), {
+      const excludedTemplateIds = new Set([
+        ...petsSnapshot.docs.map((pet) => String(pet.data().templateId ?? '')),
+        ...eggsSnapshot.docs.map((egg) => String(egg.data().templateId ?? '')),
+      ]);
+      const templateId = templateForCategory(
+        poi.category,
+        poi.regionId,
+        poiId,
+        excludedTemplateIds,
+      );
+      const droppedEggId = `egg-${templateId}-${now.toMillis()}`;
+      transaction.set(userRef.collection('eggs').doc(droppedEggId), {
         templateId,
         originRegionId: poi.regionId,
         progress: 0,
         requiredSteps: 3500,
         status: 'incubating',
         createdAt: now,
+        originPoiId: poiId,
+        finderPetId: companionPetId,
+        incubationBondXp: 1,
+        imprints: [poi.category],
       });
+      if (!nextActiveEggId) {
+        nextActiveEggId = droppedEggId;
+      }
     }
 
     transaction.set(
       userRef,
       {
+        activePetId,
+        activeEggId: nextActiveEggId,
         lastCheckInAt: now,
         updatedAt: now,
       },
@@ -1977,13 +2566,20 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
     );
   });
 
-  return {
-    success: true,
-    distanceMeters: Math.round(distance),
-    reward,
-    eggProgress,
-    updatedPet,
-  };
+  {
+    // Keep the callable response field stable while returning only progress
+    // that was actually credited to the selected egg.
+    const eggProgress = appliedEggProgress;
+    return {
+      success: true,
+      distanceMeters: Math.round(distance),
+      reward,
+      eggProgress,
+      updatedPet,
+      companionPetId,
+      creditedEggId,
+    };
+  }
 });
 
 export const hatchEgg = onCall({region: functionRegion}, async (request) => {
@@ -1996,9 +2592,8 @@ export const hatchEgg = onCall({region: functionRegion}, async (request) => {
   const userRef = db.collection('users').doc(uid);
   const eggRef = userRef.collection('eggs').doc(eggId);
   const now = Timestamp.now();
-  let hatchedPetId = '';
 
-  await db.runTransaction(async (transaction) => {
+  return db.runTransaction(async (transaction) => {
     const eggSnap = await transaction.get(eggRef);
     if (!eggSnap.exists) {
       throw new HttpsError('not-found', 'Egg not found.');
@@ -2014,14 +2609,89 @@ export const hatchEgg = onCall({region: functionRegion}, async (request) => {
       throw new HttpsError('failed-precondition', 'Pet template not found.');
     }
 
-    hatchedPetId = `pet-${egg.templateId}-${now.toMillis()}`;
+    const userSnap = await transaction.get(userRef);
+    const matchingPets = await transaction.get(
+      userRef.collection('pets').where('templateId', '==', egg.templateId),
+    );
+    const eggsSnapshot = await transaction.get(userRef.collection('eggs'));
+    const remainingEggDocs = eggsSnapshot.docs.filter((doc) => doc.id !== eggId);
+    const nextActiveEgg = selectActiveEgg(
+      remainingEggDocs,
+      String(userSnap.data()?.activeEggId ?? ''),
+    );
+    const existingPet = [...matchingPets.docs]
+      .sort((left, right) => left.id.localeCompare(right.id))[0];
+
+    if (existingPet) {
+      const pet = existingPet.data() as PetDoc;
+      const stats = {
+        ...pet.stats,
+        affinity: pet.stats.affinity + 5,
+      };
+      const level = levelFor(stats);
+      const stage = stageFor(level, stats, pet.stage);
+      const reunionCount = Number(pet.reunionCount ?? 0) + 1;
+      const bondXp = Number(pet.bond?.xp ?? pet.stats.affinity) + 5;
+      const bond = {
+        xp: bondXp,
+        level: bondLevelFor(bondXp),
+      };
+      transaction.set(
+        existingPet.ref,
+        {
+          stats,
+          level,
+          stage,
+          bond,
+          reunionCount,
+          lastInteractedAt: now,
+        },
+        {merge: true},
+      );
+      transaction.delete(eggRef);
+      transaction.set(
+        userRef,
+        {
+          activeEggId: nextActiveEgg?.id ?? null,
+          updatedAt: now,
+        },
+        {merge: true},
+      );
+      return {
+        petId: existingPet.id,
+        reunion: true,
+        updatedPet: {
+          id: existingPet.id,
+          stats,
+          level,
+          stage,
+          bond,
+          reunionCount,
+        },
+      };
+    }
+
+    const hatchedPetId = `pet-${egg.templateId}-${now.toMillis()}`;
+    const initialBondXp = Math.max(10, 10 + Number(egg.incubationBondXp ?? 0));
+    const initialKnowledge = Math.max(5, Number(egg.imprints?.length ?? 0) * 2);
     transaction.set(userRef.collection('pets').doc(hatchedPetId), {
       templateId: egg.templateId,
       name: template.name,
       stage: 'baby',
       level: 1,
-      stats: {exp: 10, mood: 15, knowledge: 5, affinity: 10},
+      stats: {
+        exp: 10,
+        mood: 15,
+        knowledge: initialKnowledge,
+        affinity: initialBondXp,
+      },
       originRegionId: egg.originRegionId,
+      originEggId: eggId,
+      bond: {
+        xp: initialBondXp,
+        level: bondLevelFor(initialBondXp),
+      },
+      reunionCount: 0,
       hatchedAt: now,
       lastInteractedAt: null,
     });
@@ -2029,14 +2699,13 @@ export const hatchEgg = onCall({region: functionRegion}, async (request) => {
     transaction.set(
       userRef,
       {
-        activePetId: hatchedPetId,
+        activeEggId: nextActiveEgg?.id ?? null,
         updatedAt: now,
       },
       {merge: true},
     );
+    return {petId: hatchedPetId, reunion: false};
   });
-
-  return {petId: hatchedPetId};
 });
 
 export const applyStepProgress = onCall({region: functionRegion}, async (request) => {
@@ -2052,16 +2721,23 @@ export const applyStepProgress = onCall({region: functionRegion}, async (request
   const userRef = db.collection('users').doc(uid);
   const now = Timestamp.now();
   const dayKey = koreanDayKey(new Date());
+  const cursorRef = userRef.collection('stepSyncDays').doc(dayKey);
   let hatchableCount = 0;
   let appliedStepDelta = 0;
 
   await db.runTransaction(async (transaction) => {
     const userSnap = await transaction.get(userRef);
+    const cursorSnap = await transaction.get(cursorRef);
     const needsStarterBootstrap = !userSnap.exists;
     const userData = userSnap.data() ?? {};
-    const usedToday = userData.stepCreditDay === dayKey
+    const legacyUsedToday = userData.stepCreditDay === dayKey
       ? Number(userData.stepCreditToday ?? 0)
       : 0;
+    const cursorData = cursorSnap.data() ?? {};
+    const usedToday = Math.max(
+      legacyUsedToday,
+      Number(cursorData.creditedSteps ?? 0),
+    );
     const remainingToday = Math.max(0, maxDailyStepDelta - usedToday);
     if (remainingToday <= 0) {
       throw new HttpsError('failed-precondition', 'Daily step progress limit reached.');
@@ -2069,6 +2745,9 @@ export const applyStepProgress = onCall({region: functionRegion}, async (request
 
     appliedStepDelta = Math.min(requestedStepDelta, remainingToday);
     const eggs = await transaction.get(userRef.collection('eggs'));
+    const activeEgg = needsStarterBootstrap
+      ? null
+      : selectActiveEgg(eggs.docs, String(userData.activeEggId ?? ''));
 
     if (needsStarterBootstrap) {
       setStarterUser(transaction, userRef, now);
@@ -2106,9 +2785,25 @@ export const applyStepProgress = onCall({region: functionRegion}, async (request
       );
     }
 
+    const previousObservedSteps = Number(
+      cursorData.maxObservedCumulativeSteps ??
+      (cursorSnap.exists ? 0 : usedToday),
+    );
+    transaction.set(
+      cursorRef,
+      {
+        dayKey,
+        maxObservedCumulativeSteps: previousObservedSteps + appliedStepDelta,
+        creditedSteps: usedToday + appliedStepDelta,
+        updatedAt: now,
+        lastSource: 'applyStepProgress_v1',
+      },
+      {merge: true},
+    );
     transaction.set(
       userRef,
       {
+        activeEggId: needsStarterBootstrap ? starterEggId : activeEgg?.id ?? null,
         stepCreditDay: dayKey,
         stepCreditToday: usedToday + appliedStepDelta,
         updatedAt: now,
@@ -2120,17 +2815,329 @@ export const applyStepProgress = onCall({region: functionRegion}, async (request
   return {hatchableCount, appliedStepDelta};
 });
 
+export const syncStepsV2 = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const operationId = String(request.data?.operationId ?? '').trim();
+  const deviceId = String(request.data?.deviceId ?? '').trim();
+  const dayKey = String(request.data?.dayKey ?? '').trim();
+  const observedCumulativeSteps = Number(request.data?.observedCumulativeSteps);
+  const observedAtValue = request.data?.observedAt;
+  const observedAtMillis = typeof observedAtValue === 'number'
+    ? observedAtValue
+    : Date.parse(String(observedAtValue ?? ''));
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(operationId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'operationId must be 8-128 URL-safe characters.',
+    );
+  }
+  if (!/^[A-Za-z0-9_-]{8,128}$/.test(deviceId)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'deviceId must be 8-128 URL-safe characters.',
+    );
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+    throw new HttpsError('invalid-argument', 'dayKey must use YYYY-MM-DD.');
+  }
+  if (!Number.isInteger(observedCumulativeSteps) ||
+    observedCumulativeSteps < 0 ||
+    observedCumulativeSteps > 1_000_000) {
+    throw new HttpsError(
+      'invalid-argument',
+      'observedCumulativeSteps must be an integer between 0 and 1000000.',
+    );
+  }
+  if (!Number.isFinite(observedAtMillis)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'observedAt must be an ISO-8601 timestamp or epoch milliseconds.',
+    );
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const operationRef = userRef.collection('stepSyncOperations').doc(operationId);
+  const dayCursorRef = userRef.collection('stepSyncDays').doc(dayKey);
+  const deviceCursorRef = userRef.collection('stepSyncDevices').doc(deviceId);
+  const now = Timestamp.now();
+
+  return db.runTransaction(async (transaction): Promise<StepSyncResult> => {
+    const operationSnap = await transaction.get(operationRef);
+    if (operationSnap.exists) {
+      const operation = operationSnap.data() ?? {};
+      if (operation.dayKey !== dayKey ||
+        operation.deviceId !== deviceId ||
+        Number(operation.observedCumulativeSteps) !== observedCumulativeSteps ||
+        Number(operation.observedAtMillis) !== observedAtMillis) {
+        throw new HttpsError(
+          'already-exists',
+          'operationId was already used with a different payload.',
+        );
+      }
+      return operation.result as StepSyncResult;
+    }
+    const observedDate = new Date(observedAtMillis);
+    if (koreanDayKey(observedDate) !== dayKey) {
+      throw new HttpsError(
+        'invalid-argument',
+        'dayKey must match observedAt in Korean time.',
+      );
+    }
+    if (dayKey !== koreanDayKey(new Date()) ||
+      observedAtMillis > Date.now() + 5 * 60 * 1000) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Only current-day, non-future observations can be synced.',
+      );
+    }
+
+    const userSnap = await transaction.get(userRef);
+    const dayCursorSnap = await transaction.get(dayCursorRef);
+    const deviceCursorSnap = await transaction.get(deviceCursorRef);
+    const eggs = await transaction.get(userRef.collection('eggs'));
+    const pets = await transaction.get(userRef.collection('pets'));
+    const userData = userSnap.data() ?? {};
+    const dayCursorData = dayCursorSnap.data() ?? {};
+    const deviceCursorData = deviceCursorSnap.data() ?? {};
+    const legacyUsedToday = userData.stepCreditDay === dayKey
+      ? Number(userData.stepCreditToday ?? 0)
+      : 0;
+    const creditedToday = Math.max(
+      legacyUsedToday,
+      Number(dayCursorData.creditedSteps ?? 0),
+    );
+    const hasDeviceBaseline = deviceCursorSnap.exists &&
+      Number.isFinite(Number(deviceCursorData.lastObservedCumulativeSteps));
+    const previousObservedSteps = Number(
+      deviceCursorData.lastObservedCumulativeSteps ?? observedCumulativeSteps,
+    );
+    const previousObservedAtMillis = Number(
+      deviceCursorData.lastObservedAtMillis ?? -1,
+    );
+    const isNewerObservation =
+      !hasDeviceBaseline || observedAtMillis > previousObservedAtMillis;
+    const counterReset = hasDeviceBaseline &&
+      isNewerObservation &&
+      observedCumulativeSteps < previousObservedSteps;
+    const newlyObservedSteps = hasDeviceBaseline &&
+      isNewerObservation &&
+      !counterReset
+      ? Math.max(0, observedCumulativeSteps - previousObservedSteps)
+      : 0;
+    const remainingToday = Math.max(0, maxDailyStepDelta - creditedToday);
+    const appliedStepDelta = Math.min(newlyObservedSteps, remainingToday);
+
+    let targetEggId: string | null = null;
+    let targetEggRef: DocumentReference<DocumentData> | null = null;
+    let targetEggData: EggDoc | null = null;
+    const storedActiveEgg = selectActiveEgg(
+      eggs.docs,
+      String(userData.activeEggId ?? ''),
+    );
+    if (!storedActiveEgg && !userSnap.exists) {
+      targetEggId = starterEggId;
+      targetEggRef = userRef.collection('eggs').doc(starterEggId);
+      targetEggData = starterEggRuntimeDoc();
+    } else {
+      const activeEgg = storedActiveEgg;
+      const targetEgg =
+        activeEgg?.data.status === 'incubating' ? activeEgg : null;
+      targetEggId = targetEgg?.id ?? null;
+      targetEggRef = targetEgg?.ref ?? null;
+      targetEggData = targetEgg?.data ?? null;
+    }
+
+    const requestedCompanionPetId = String(
+      userData.activePetId ?? starterPetId,
+    ) || starterPetId;
+    const companionPetDoc = pets.docs.find(
+      (pet) => pet.id === requestedCompanionPetId,
+    );
+    const companionPetId = companionPetDoc?.id ?? starterPetId;
+    const companionPetRef = companionPetDoc?.ref ??
+      userRef.collection('pets').doc(starterPetId);
+    const companionPetData = companionPetDoc
+      ? companionPetDoc.data() as PetDoc
+      : starterPetRuntimeDoc();
+    const needsStarterBootstrap = !userSnap.exists || !companionPetDoc;
+    if (!targetEggRef && !storedActiveEgg && needsStarterBootstrap) {
+      targetEggId = starterEggId;
+      targetEggRef = userRef.collection('eggs').doc(starterEggId);
+      targetEggData = starterEggRuntimeDoc();
+    }
+
+    let hatchableCount = eggs.docs
+      .filter((egg) => egg.data().status === 'hatchable')
+      .length;
+
+    if (needsStarterBootstrap) {
+      setStarterUser(transaction, userRef, now);
+    }
+
+    if (targetEggRef && targetEggData && appliedStepDelta > 0) {
+      const progress = Math.min(
+        targetEggData.requiredSteps,
+        targetEggData.progress + appliedStepDelta,
+      );
+      const status =
+        progress >= targetEggData.requiredSteps ? 'hatchable' : 'incubating';
+      if (targetEggData.status !== 'hatchable' && status === 'hatchable') {
+        hatchableCount += 1;
+      }
+      transaction.set(
+        targetEggRef,
+        {
+          progress,
+          status,
+          incubationBondXp:
+            Number(targetEggData.incubationBondXp ?? 0) +
+            Math.max(1, Math.floor(appliedStepDelta / 500)),
+          lastProgressAt: now,
+        },
+        {merge: true},
+      );
+    }
+
+    const nextCreditedToday = creditedToday + appliedStepDelta;
+    const previousWalkSteps = companionPetData.walkStepDay === dayKey
+      ? Number(companionPetData.walkStepsToday ?? 0)
+      : 0;
+    const nextWalkSteps = previousWalkSteps + appliedStepDelta;
+    const previousMilestones = Math.floor(previousWalkSteps / 500);
+    const nextMilestones = Math.floor(nextWalkSteps / 500);
+    const awardedBondToday = companionPetData.walkBondDay === dayKey
+      ? Number(companionPetData.walkBondAwardedToday ?? 0)
+      : 0;
+    const bondReward = Math.min(
+      Math.max(0, 5 - awardedBondToday),
+      Math.max(0, nextMilestones - previousMilestones),
+    );
+    let updatedPet: UpdatedPetResult | null = null;
+    if (appliedStepDelta > 0) {
+      const stats = addStats(
+        companionPetData.stats,
+        {
+          exp: bondReward,
+          mood: bondReward,
+          knowledge: 0,
+          affinity: bondReward,
+        },
+      );
+      const level = levelFor(stats);
+      const stage = stageFor(
+        level,
+        stats,
+        companionPetData.stage,
+      );
+      const bondXp =
+        Number(companionPetData.bond?.xp ?? companionPetData.stats.affinity) +
+        bondReward;
+      transaction.set(
+        companionPetRef,
+        {
+          stats,
+          level,
+          stage,
+          bond: {
+            xp: bondXp,
+            level: bondLevelFor(bondXp),
+          },
+          walkStepDay: dayKey,
+          walkStepsToday: nextWalkSteps,
+          walkBondDay: dayKey,
+          walkBondAwardedToday: awardedBondToday + bondReward,
+          lastWalkedAt: now,
+          lastInteractedAt: now,
+        },
+        {merge: true},
+      );
+      updatedPet = {id: companionPetId, stats, level, stage};
+    }
+
+    const activeEggId = targetEggId ??
+      storedActiveEgg?.id ??
+      (needsStarterBootstrap ? starterEggId : null);
+    const result: StepSyncResult = {
+      success: true,
+      dayKey,
+      deviceId,
+      observedCumulativeSteps,
+      baselineInitialized: !hasDeviceBaseline,
+      counterReset,
+      appliedStepDelta,
+      hatchableCount,
+      creditedEggId:
+        appliedStepDelta > 0 && targetEggRef ? targetEggId : null,
+      companionPetId,
+      updatedPet,
+    };
+
+    transaction.set(
+      dayCursorRef,
+      {
+        dayKey,
+        creditedSteps: nextCreditedToday,
+        lastOperationId: operationId,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+    if (isNewerObservation) {
+      transaction.set(
+        deviceCursorRef,
+        {
+          deviceId,
+          lastObservedCumulativeSteps: observedCumulativeSteps,
+          lastObservedAt: Timestamp.fromMillis(observedAtMillis),
+          lastObservedAtMillis: observedAtMillis,
+          lastDayKey: dayKey,
+          updatedAt: now,
+        },
+        {merge: true},
+      );
+    }
+    transaction.set(
+      userRef,
+      {
+        activePetId: companionPetId,
+        activeEggId,
+        stepCreditDay: dayKey,
+        stepCreditToday: nextCreditedToday,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+    transaction.set(operationRef, {
+      type: 'step_sync_v2',
+      deviceId,
+      dayKey,
+      observedCumulativeSteps,
+      observedAt: Timestamp.fromMillis(observedAtMillis),
+      observedAtMillis,
+      result,
+      createdAt: now,
+    });
+    return result;
+  });
+});
+
 export const interactWithPet = onCall({region: functionRegion}, async (request) => {
   const uid = requireAuth(request.auth?.uid);
   const petId = String(request.data?.petId ?? '');
   const actionType = String(request.data?.actionType ?? '');
-  if (!petId || !['talk', 'feed'].includes(actionType)) {
+  const supportedActions: PetInteractionType[] = [
+    'talk',
+    'feed',
+    'play',
+    'clean',
+    'sleep',
+    'touch',
+  ];
+  if (!petId || !supportedActions.includes(actionType as PetInteractionType)) {
     throw new HttpsError('invalid-argument', 'petId and valid actionType are required.');
   }
 
-  const reward = actionType === 'talk'
-    ? {exp: 2, mood: 4, knowledge: 0, affinity: 1}
-    : {exp: 3, mood: 8, knowledge: 0, affinity: 2};
+  const reward = rewardForPetInteraction(actionType as PetInteractionType);
 
   const userRef = db.collection('users').doc(uid);
   const petRef = userRef.collection('pets').doc(petId);
@@ -2153,12 +3160,17 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
     const stats = addStats(pet.stats, reward);
     const level = levelFor(stats);
     const stage = stageFor(level, stats, pet.stage);
+    const bondXp = Number(pet.bond?.xp ?? pet.stats.affinity) + reward.affinity;
     transaction.set(
       petRef,
       {
         stats,
         level,
         stage,
+        bond: {
+          xp: bondXp,
+          level: bondLevelFor(bondXp),
+        },
         lastInteractedAt: FieldValue.serverTimestamp(),
       },
       {merge: true},
@@ -2203,6 +3215,49 @@ export const setActivePet = onCall({region: functionRegion}, async (request) => 
   return {activePetId: petId};
 });
 
+export const setActiveEgg = onCall({region: functionRegion}, async (request) => {
+  const uid = requireAuth(request.auth?.uid);
+  const eggId = String(request.data?.eggId ?? '').trim();
+  if (!eggId) {
+    throw new HttpsError('invalid-argument', 'eggId is required.');
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const eggRef = userRef.collection('eggs').doc(eggId);
+  const now = Timestamp.now();
+
+  await db.runTransaction(async (transaction) => {
+    const userSnap = await transaction.get(userRef);
+    const eggSnap = await transaction.get(eggRef);
+    const canBootstrapStarterEgg =
+      !userSnap.exists && !eggSnap.exists && eggId === starterEggId;
+    if (!eggSnap.exists && !canBootstrapStarterEgg) {
+      throw new HttpsError('not-found', 'Egg not found.');
+    }
+
+    const egg = canBootstrapStarterEgg
+      ? starterEggRuntimeDoc()
+      : eggSnap.data() as EggDoc;
+    if (egg.status !== 'incubating') {
+      throw new HttpsError('failed-precondition', 'Egg is not incubating.');
+    }
+
+    if (!userSnap.exists || !eggSnap.exists) {
+      setStarterUser(transaction, userRef, now);
+    }
+    transaction.set(
+      userRef,
+      {
+        activeEggId: eggId,
+        updatedAt: now,
+      },
+      {merge: true},
+    );
+  });
+
+  return {activeEggId: eggId};
+});
+
 function setStarterUser(
   transaction: Transaction,
   userRef: DocumentReference,
@@ -2210,6 +3265,7 @@ function setStarterUser(
 ): void {
   transaction.set(userRef, {
     activePetId: starterPetId,
+    activeEggId: starterEggId,
     createdAt: now,
     displayName: '대한민국 여행자',
     homeTheme: 'korea-basic',
@@ -2253,6 +3309,75 @@ function starterEggRuntimeDoc(): EggDoc {
     requiredSteps: 3500,
     status: 'incubating',
   };
+}
+
+function selectActiveEgg(
+  docs: readonly QueryDocumentSnapshot<DocumentData>[],
+  preferredId: string,
+): ResolvedEgg | null {
+  const candidates = docs
+    .map((doc) => ({
+      id: doc.id,
+      ref: doc.ref,
+      data: doc.data() as EggDoc,
+    }))
+    .filter((egg) =>
+      egg.data.status === 'incubating' || egg.data.status === 'hatchable');
+  const preferred = candidates.find((egg) => egg.id === preferredId);
+  if (preferred) {
+    return preferred;
+  }
+
+  candidates.sort((left, right) => {
+    const leftStatus = left.data.status === 'incubating' ? 0 : 1;
+    const rightStatus = right.data.status === 'incubating' ? 0 : 1;
+    if (leftStatus !== rightStatus) {
+      return leftStatus - rightStatus;
+    }
+    const leftRemaining = Math.max(
+      0,
+      Number(left.data.requiredSteps ?? 3500) - Number(left.data.progress ?? 0),
+    );
+    const rightRemaining = Math.max(
+      0,
+      Number(right.data.requiredSteps ?? 3500) - Number(right.data.progress ?? 0),
+    );
+    if (leftRemaining !== rightRemaining) {
+      return leftRemaining - rightRemaining;
+    }
+    return left.id.localeCompare(right.id);
+  });
+  return candidates[0] ?? null;
+}
+
+function bondLevelFor(xp: number): number {
+  if (xp >= 100) {
+    return 4;
+  }
+  if (xp >= 60) {
+    return 3;
+  }
+  if (xp >= 20) {
+    return 2;
+  }
+  return 1;
+}
+
+function rewardForPetInteraction(actionType: PetInteractionType): GrowthStats {
+  switch (actionType) {
+    case 'talk':
+      return {exp: 2, mood: 4, knowledge: 0, affinity: 1};
+    case 'feed':
+      return {exp: 3, mood: 8, knowledge: 0, affinity: 2};
+    case 'play':
+      return {exp: 3, mood: 6, knowledge: 0, affinity: 2};
+    case 'clean':
+      return {exp: 2, mood: 4, knowledge: 0, affinity: 1};
+    case 'sleep':
+      return {exp: 1, mood: 2, knowledge: 0, affinity: 1};
+    case 'touch':
+      return {exp: 1, mood: 3, knowledge: 0, affinity: 1};
+  }
 }
 
 function requireAuth(uid: string | undefined): string {
@@ -2313,8 +3438,14 @@ function templateForCategory(
   category: PoiCategory,
   regionId: string,
   poiId: string,
+  excludedTemplateIds: Set<string> = new Set(),
 ): string {
-  const regionalCategoryMatches = starterPetTemplateSeed.filter((template) =>
+  const availableTemplates = starterPetTemplateSeed.filter(
+    (template) => !excludedTemplateIds.has(template.id),
+  );
+  const candidates =
+    availableTemplates.length > 0 ? availableTemplates : starterPetTemplateSeed;
+  const regionalCategoryMatches = candidates.filter((template) =>
     template.regionId === regionId && template.primaryCategory === category,
   );
   if (regionalCategoryMatches.length > 0) {
@@ -2323,20 +3454,20 @@ function templateForCategory(
     ].id;
   }
 
-  const regionalMatches = starterPetTemplateSeed.filter((template) =>
+  const regionalMatches = candidates.filter((template) =>
     template.regionId === regionId,
   );
   if (regionalMatches.length > 0) {
     return regionalMatches[stableTemplateIndex(poiId, regionalMatches.length)].id;
   }
 
-  const categoryMatches = starterPetTemplateSeed.filter((template) =>
+  const categoryMatches = candidates.filter((template) =>
     template.primaryCategory === category,
   );
   if (categoryMatches.length > 0) {
     return categoryMatches[stableTemplateIndex(poiId, categoryMatches.length)].id;
   }
-  return 'wave-naru';
+  return candidates[stableTemplateIndex(poiId, candidates.length)].id;
 }
 
 function stableTemplateIndex(value: string, length: number): number {

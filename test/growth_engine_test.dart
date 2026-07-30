@@ -78,7 +78,7 @@ void main() {
     final names = starterPetTemplates.map((template) => template.name).toSet();
     expect(names, hasLength(starterPetTemplates.length));
     expect(characterDialogueProfiles, hasLength(starterPetTemplates.length));
-    expect(starterDialogueSeed, hasLength(777));
+    expect(starterDialogueSeed, hasLength(1197));
 
     for (final template in starterPetTemplates) {
       final profile = characterDialogueProfiles.singleWhere(

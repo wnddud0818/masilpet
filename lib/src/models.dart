@@ -5,6 +5,8 @@ const dailyCheckInLimit = 20;
 const dailyCareRoutineTarget = 4;
 const dailyCareRewardPoints = 30;
 const dailyFeedCareLimit = 3;
+const maxStoredEggs = 5;
+const dailyPetTalkLimit = 5;
 
 enum PoiCategory {
   nature,
@@ -60,6 +62,203 @@ enum PetStage {
   baby,
   grown,
   evolved,
+}
+
+enum PetBondLevel {
+  unfamiliar,
+  walkingCompanion,
+  bestFriend,
+  kindredSpirit,
+}
+
+extension PetBondLevelLabel on PetBondLevel {
+  String get label => switch (this) {
+        PetBondLevel.unfamiliar => '낯선 사이',
+        PetBondLevel.walkingCompanion => '산책 동료',
+        PetBondLevel.bestFriend => '단짝',
+        PetBondLevel.kindredSpirit => '마음이 통한 사이',
+      };
+}
+
+enum EggRevealStage {
+  quiet,
+  stirring,
+  silhouette,
+  personalityHint,
+  ready,
+}
+
+extension EggRevealStageLabel on EggRevealStage {
+  String get label => switch (this) {
+        EggRevealStage.quiet => '아직 조용하지만 따뜻한 기운이 느껴져요.',
+        EggRevealStage.stirring => '알 안에서 작은 박자가 들리기 시작했어요.',
+        EggRevealStage.silhouette => '빛에 비추면 작은 실루엣이 보여요.',
+        EggRevealStage.personalityHint => '곧 만날 친구의 성격이 조금씩 느껴져요.',
+        EggRevealStage.ready => '안에서 힘찬 인사가 들려요. 이제 만날 수 있어요!',
+      };
+}
+
+enum PetFood {
+  homeMeal,
+  fishSnack,
+  fruit,
+  vegetable,
+  regionalTreat,
+}
+
+extension PetFoodLabel on PetFood {
+  String get label => switch (this) {
+        PetFood.homeMeal => '따뜻한 집밥',
+        PetFood.fishSnack => '바삭 생선 간식',
+        PetFood.fruit => '제철 과일',
+        PetFood.vegetable => '아삭 채소',
+        PetFood.regionalTreat => '지역 특산 간식',
+      };
+
+  String get shortLabel => switch (this) {
+        PetFood.homeMeal => '집밥',
+        PetFood.fishSnack => '생선',
+        PetFood.fruit => '과일',
+        PetFood.vegetable => '채소',
+        PetFood.regionalTreat => '특산 간식',
+      };
+}
+
+enum PetTouch {
+  head,
+  cheek,
+  paw,
+  tail,
+  hug,
+}
+
+extension PetTouchLabel on PetTouch {
+  String get label => switch (this) {
+        PetTouch.head => '머리 쓰다듬기',
+        PetTouch.cheek => '볼 문지르기',
+        PetTouch.paw => '발 인사',
+        PetTouch.tail => '꼬리 톡',
+        PetTouch.hug => '꼭 안아주기',
+      };
+}
+
+enum PetPersonality {
+  foodie,
+  tidy,
+  sleepy,
+  curious,
+  shy,
+  affectionate,
+}
+
+extension PetPersonalityLabel on PetPersonality {
+  String get label => switch (this) {
+        PetPersonality.foodie => '먹보',
+        PetPersonality.tidy => '깔끔이',
+        PetPersonality.sleepy => '잠꾸러기',
+        PetPersonality.curious => '호기심쟁이',
+        PetPersonality.shy => '수줍음쟁이',
+        PetPersonality.affectionate => '애교쟁이',
+      };
+
+  String get description => switch (this) {
+        PetPersonality.foodie => '새로운 먹을거리를 가장 먼저 찾아요.',
+        PetPersonality.tidy => '깨끗한 방과 목욕 시간을 좋아해요.',
+        PetPersonality.sleepy => '포근하게 쉬면 활력을 빨리 되찾아요.',
+        PetPersonality.curious => '처음 가는 장소와 긴 산책을 좋아해요.',
+        PetPersonality.shy => '낯선 곳에서는 천천히 마음을 열어요.',
+        PetPersonality.affectionate => '쓰다듬기와 대화로 금세 행복해져요.',
+      };
+}
+
+enum PetAilment {
+  none,
+  tummyAche,
+  itchy,
+  exhausted,
+}
+
+extension PetAilmentLabel on PetAilment {
+  String get label => switch (this) {
+        PetAilment.none => '건강해요',
+        PetAilment.tummyAche => '배가 더부룩해요',
+        PetAilment.itchy => '몸이 간지러워요',
+        PetAilment.exhausted => '많이 지쳤어요',
+      };
+}
+
+enum PetGrowthTendency {
+  balanced,
+  explorer,
+  gourmet,
+  scholar,
+  affectionate,
+  elegant,
+}
+
+extension PetGrowthTendencyLabel on PetGrowthTendency {
+  String get label => switch (this) {
+        PetGrowthTendency.balanced => '차분한 동행형',
+        PetGrowthTendency.explorer => '용감한 탐험가형',
+        PetGrowthTendency.gourmet => '행복한 미식가형',
+        PetGrowthTendency.scholar => '호기심 많은 학자형',
+        PetGrowthTendency.affectionate => '다정한 애교형',
+        PetGrowthTendency.elegant => '반짝이는 우아형',
+      };
+}
+
+enum PetNeed {
+  content,
+  hungry,
+  dirty,
+  tired,
+  bored,
+  potty,
+  sick,
+  sleeping,
+  wantsWalk,
+}
+
+extension PetNeedLabel on PetNeed {
+  String get title => switch (this) {
+        PetNeed.content => '지금은 아주 편안해요',
+        PetNeed.hungry => '밥그릇을 자꾸 쳐다봐요',
+        PetNeed.dirty => '몸을 털며 씻고 싶어 해요',
+        PetNeed.tired => '포근한 자리를 찾고 있어요',
+        PetNeed.bored => '장난감을 물고 기다려요',
+        PetNeed.potty => '주변을 말끔히 치워 주세요',
+        PetNeed.sick => '오늘은 조금 살펴봐 주세요',
+        PetNeed.sleeping => '지금 꿈꾸고 있어요',
+        PetNeed.wantsWalk => '현관 앞에서 산책을 기다려요',
+      };
+
+  String get actionLabel => switch (this) {
+        PetNeed.hungry => '밥 주기',
+        PetNeed.dirty => '씻기기',
+        PetNeed.tired => '재우기',
+        PetNeed.bored => '놀아주기',
+        PetNeed.potty => '치워주기',
+        PetNeed.sick => '돌봐주기',
+        PetNeed.sleeping => '깨우기',
+        PetNeed.wantsWalk => '산책 나가기',
+        PetNeed.content => '쓰다듬기',
+      };
+}
+
+class PetMemory {
+  const PetMemory({
+    required this.id,
+    required this.title,
+    required this.detail,
+    required this.createdAt,
+    this.category,
+  });
+
+  final String id;
+  final String title;
+  final String detail;
+  final DateTime createdAt;
+  final PoiCategory? category;
 }
 
 extension PetStageLabel on PetStage {
@@ -201,18 +400,54 @@ class PetCareState {
     int satiety = 72,
     int cleanliness = 76,
     int vitality = 74,
+    int happiness = 72,
     required this.updatedAt,
     DateTime? dailyCountDay,
     int feedCountToday = 0,
     int playCountToday = 0,
     int cleanCountToday = 0,
+    int talkCountToday = 0,
+    int petCountToday = 0,
+    int bondedDays = 0,
+    this.lastBondedDay,
+    int wasteCount = 0,
+    DateTime? lastWasteAt,
+    this.isSleeping = false,
+    this.sleepStartedAt,
+    this.ailment = PetAilment.none,
+    this.ailmentUntil,
+    this.lastFood,
+    int sameFoodStreak = 0,
+    int walkStepsToday = 0,
+    DateTime? walkDay,
+    int adventureScore = 0,
+    int gourmetScore = 0,
+    int knowledgeScore = 0,
+    int affectionScore = 0,
+    int eleganceScore = 0,
+    List<PetMemory> memories = const [],
   })  : satiety = _boundedCareValue(satiety),
         cleanliness = _boundedCareValue(cleanliness),
         vitality = _boundedCareValue(vitality),
+        happiness = _boundedCareValue(happiness),
         dailyCountDay = dailyCountDay ?? updatedAt,
         feedCountToday = math.max(0, feedCountToday),
         playCountToday = math.max(0, playCountToday),
-        cleanCountToday = math.max(0, cleanCountToday);
+        cleanCountToday = math.max(0, cleanCountToday),
+        talkCountToday = math.max(0, talkCountToday),
+        petCountToday = math.max(0, petCountToday),
+        bondedDays = math.max(0, bondedDays),
+        wasteCount = wasteCount.clamp(0, 3).toInt(),
+        lastWasteAt = lastWasteAt ?? updatedAt,
+        sameFoodStreak = math.max(0, sameFoodStreak),
+        walkStepsToday = math.max(0, walkStepsToday),
+        walkDay = walkDay ?? updatedAt,
+        adventureScore = math.max(0, adventureScore),
+        gourmetScore = math.max(0, gourmetScore),
+        knowledgeScore = math.max(0, knowledgeScore),
+        affectionScore = math.max(0, affectionScore),
+        eleganceScore = math.max(0, eleganceScore),
+        memories = List.unmodifiable(memories.take(24));
 
   factory PetCareState.initial(DateTime now) {
     return PetCareState(updatedAt: now, dailyCountDay: now);
@@ -221,35 +456,131 @@ class PetCareState {
   final int satiety;
   final int cleanliness;
   final int vitality;
+  final int happiness;
   final DateTime updatedAt;
   final DateTime dailyCountDay;
   final int feedCountToday;
   final int playCountToday;
   final int cleanCountToday;
+  final int talkCountToday;
+  final int petCountToday;
+  final int bondedDays;
+  final DateTime? lastBondedDay;
+  final int wasteCount;
+  final DateTime lastWasteAt;
+  final bool isSleeping;
+  final DateTime? sleepStartedAt;
+  final PetAilment ailment;
+  final DateTime? ailmentUntil;
+  final PetFood? lastFood;
+  final int sameFoodStreak;
+  final int walkStepsToday;
+  final DateTime walkDay;
+  final int adventureScore;
+  final int gourmetScore;
+  final int knowledgeScore;
+  final int affectionScore;
+  final int eleganceScore;
+  final List<PetMemory> memories;
 
   double get overallRatio {
-    return (satiety + cleanliness + vitality) / 300;
+    return (satiety + cleanliness + vitality + happiness) / 400;
+  }
+
+  PetGrowthTendency get growthTendency {
+    final scores = <PetGrowthTendency, int>{
+      PetGrowthTendency.explorer: adventureScore,
+      PetGrowthTendency.gourmet: gourmetScore,
+      PetGrowthTendency.scholar: knowledgeScore,
+      PetGrowthTendency.affectionate: affectionScore,
+      PetGrowthTendency.elegant: eleganceScore,
+    };
+    final best = scores.entries.reduce(
+      (left, right) => right.value > left.value ? right : left,
+    );
+    return best.value < 5 ? PetGrowthTendency.balanced : best.key;
+  }
+
+  String get conditionLabel {
+    if (isSleeping) {
+      return '꿈꾸는 중';
+    }
+    if (ailment != PetAilment.none) {
+      return ailment.label;
+    }
+    if (overallRatio >= 0.82 && wasteCount == 0) {
+      return '반짝반짝 건강해요';
+    }
+    return '평온해요';
   }
 
   PetCareState copyWith({
     int? satiety,
     int? cleanliness,
     int? vitality,
+    int? happiness,
     DateTime? updatedAt,
     DateTime? dailyCountDay,
     int? feedCountToday,
     int? playCountToday,
     int? cleanCountToday,
+    int? talkCountToday,
+    int? petCountToday,
+    int? bondedDays,
+    DateTime? lastBondedDay,
+    bool clearLastBondedDay = false,
+    int? wasteCount,
+    DateTime? lastWasteAt,
+    bool? isSleeping,
+    DateTime? sleepStartedAt,
+    bool clearSleepStartedAt = false,
+    PetAilment? ailment,
+    DateTime? ailmentUntil,
+    bool clearAilmentUntil = false,
+    PetFood? lastFood,
+    int? sameFoodStreak,
+    int? walkStepsToday,
+    DateTime? walkDay,
+    int? adventureScore,
+    int? gourmetScore,
+    int? knowledgeScore,
+    int? affectionScore,
+    int? eleganceScore,
+    List<PetMemory>? memories,
   }) {
     return PetCareState(
       satiety: satiety ?? this.satiety,
       cleanliness: cleanliness ?? this.cleanliness,
       vitality: vitality ?? this.vitality,
+      happiness: happiness ?? this.happiness,
       updatedAt: updatedAt ?? this.updatedAt,
       dailyCountDay: dailyCountDay ?? this.dailyCountDay,
       feedCountToday: feedCountToday ?? this.feedCountToday,
       playCountToday: playCountToday ?? this.playCountToday,
       cleanCountToday: cleanCountToday ?? this.cleanCountToday,
+      talkCountToday: talkCountToday ?? this.talkCountToday,
+      petCountToday: petCountToday ?? this.petCountToday,
+      bondedDays: bondedDays ?? this.bondedDays,
+      lastBondedDay:
+          clearLastBondedDay ? null : lastBondedDay ?? this.lastBondedDay,
+      wasteCount: wasteCount ?? this.wasteCount,
+      lastWasteAt: lastWasteAt ?? this.lastWasteAt,
+      isSleeping: isSleeping ?? this.isSleeping,
+      sleepStartedAt:
+          clearSleepStartedAt ? null : sleepStartedAt ?? this.sleepStartedAt,
+      ailment: ailment ?? this.ailment,
+      ailmentUntil:
+          clearAilmentUntil ? null : ailmentUntil ?? this.ailmentUntil,
+      lastFood: lastFood ?? this.lastFood,
+      sameFoodStreak: sameFoodStreak ?? this.sameFoodStreak,
+      walkStepsToday: walkStepsToday ?? this.walkStepsToday,
+      walkDay: walkDay ?? this.walkDay,
+      adventureScore: adventureScore ?? this.adventureScore,
+      gourmetScore: gourmetScore ?? this.gourmetScore,
+      knowledgeScore: knowledgeScore ?? this.knowledgeScore,
+      affectionScore: affectionScore ?? this.affectionScore,
+      eleganceScore: eleganceScore ?? this.eleganceScore,
+      memories: memories ?? this.memories,
     );
   }
 }
@@ -364,6 +695,8 @@ class Pet {
     required this.originRegionId,
     required this.hatchedAt,
     required this.lastInteractedAt,
+    this.originEggId,
+    this.reunionCount = 0,
   });
 
   final String id;
@@ -375,6 +708,21 @@ class Pet {
   final String originRegionId;
   final DateTime hatchedAt;
   final DateTime? lastInteractedAt;
+  final String? originEggId;
+  final int reunionCount;
+
+  PetBondLevel get bondLevel {
+    if (stats.affinity >= 100) {
+      return PetBondLevel.kindredSpirit;
+    }
+    if (stats.affinity >= 60) {
+      return PetBondLevel.bestFriend;
+    }
+    if (stats.affinity >= 20) {
+      return PetBondLevel.walkingCompanion;
+    }
+    return PetBondLevel.unfamiliar;
+  }
 
   Pet copyWith({
     String? name,
@@ -382,6 +730,8 @@ class Pet {
     int? level,
     GrowthStats? stats,
     DateTime? lastInteractedAt,
+    String? originEggId,
+    int? reunionCount,
   }) {
     return Pet(
       id: id,
@@ -393,6 +743,8 @@ class Pet {
       originRegionId: originRegionId,
       hatchedAt: hatchedAt,
       lastInteractedAt: lastInteractedAt ?? this.lastInteractedAt,
+      originEggId: originEggId ?? this.originEggId,
+      reunionCount: reunionCount ?? this.reunionCount,
     );
   }
 }
@@ -406,6 +758,10 @@ class Egg {
     required this.requiredSteps,
     required this.status,
     required this.createdAt,
+    this.originPoiId,
+    this.finderPetId,
+    this.incubationBondXp = 0,
+    this.imprints = const [],
   });
 
   final String id;
@@ -415,6 +771,10 @@ class Egg {
   final int requiredSteps;
   final EggStatus status;
   final DateTime createdAt;
+  final String? originPoiId;
+  final String? finderPetId;
+  final int incubationBondXp;
+  final List<PoiCategory> imprints;
 
   double get progressRatio {
     if (requiredSteps == 0) {
@@ -423,9 +783,27 @@ class Egg {
     return (progress / requiredSteps).clamp(0.0, 1.0).toDouble();
   }
 
+  EggRevealStage get revealStage {
+    if (status == EggStatus.hatchable || progressRatio >= 1) {
+      return EggRevealStage.ready;
+    }
+    if (progressRatio >= 0.75) {
+      return EggRevealStage.personalityHint;
+    }
+    if (progressRatio >= 0.5) {
+      return EggRevealStage.silhouette;
+    }
+    if (progressRatio >= 0.25) {
+      return EggRevealStage.stirring;
+    }
+    return EggRevealStage.quiet;
+  }
+
   Egg copyWith({
     int? progress,
     EggStatus? status,
+    int? incubationBondXp,
+    List<PoiCategory>? imprints,
   }) {
     return Egg(
       id: id,
@@ -435,8 +813,22 @@ class Egg {
       requiredSteps: requiredSteps,
       status: status ?? this.status,
       createdAt: createdAt,
+      originPoiId: originPoiId,
+      finderPetId: finderPetId,
+      incubationBondXp: incubationBondXp ?? this.incubationBondXp,
+      imprints: imprints ?? this.imprints,
     );
   }
+}
+
+class HatchOutcome {
+  const HatchOutcome({
+    required this.petId,
+    required this.reunion,
+  });
+
+  final String petId;
+  final bool reunion;
 }
 
 class CheckIn {
@@ -449,6 +841,8 @@ class CheckIn {
     required this.distanceMeters,
     required this.rewardApplied,
     this.reward,
+    this.companionPetId,
+    this.creditedEggId,
   });
 
   final String id;
@@ -459,6 +853,8 @@ class CheckIn {
   final double distanceMeters;
   final bool rewardApplied;
   final CheckInReward? reward;
+  final String? companionPetId;
+  final String? creditedEggId;
 }
 
 class CheckInReward {

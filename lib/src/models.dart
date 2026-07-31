@@ -332,6 +332,38 @@ class Region {
   final bool pilotEnabled;
 }
 
+/// TourAPI 대분류(cat1)에서 유도한 장소 성향.
+/// 어디를 다녔는지가 마실펫 성격에 반영되는 기준이다.
+enum PoiTendency {
+  explorer,
+  gourmet,
+  scholar,
+  affectionate,
+  elegant,
+  balanced,
+}
+
+extension PoiTendencyLabel on PoiTendency {
+  String get label => switch (this) {
+        PoiTendency.explorer => '탐험',
+        PoiTendency.gourmet => '미식',
+        PoiTendency.scholar => '학습',
+        PoiTendency.affectionate => '교감',
+        PoiTendency.elegant => '우아',
+        PoiTendency.balanced => '균형',
+      };
+
+  /// 이 장소를 방문했을 때 자라나는 펫 성향.
+  PetGrowthTendency get growthTendency => switch (this) {
+        PoiTendency.explorer => PetGrowthTendency.explorer,
+        PoiTendency.gourmet => PetGrowthTendency.gourmet,
+        PoiTendency.scholar => PetGrowthTendency.scholar,
+        PoiTendency.affectionate => PetGrowthTendency.affectionate,
+        PoiTendency.elegant => PetGrowthTendency.elegant,
+        PoiTendency.balanced => PetGrowthTendency.balanced,
+      };
+}
+
 class Poi {
   const Poi({
     required this.id,
@@ -341,6 +373,14 @@ class Poi {
     required this.category,
     required this.coordinates,
     required this.shortDescription,
+    this.tendency = PoiTendency.balanced,
+    this.address,
+    this.imageUrl,
+    this.tel,
+    this.openTime,
+    this.restDate,
+    this.signatureMenu,
+    this.petFriendlyGuide,
   });
 
   final String id;
@@ -350,6 +390,24 @@ class Poi {
   final PoiCategory category;
   final Coordinates coordinates;
   final String shortDescription;
+  final PoiTendency tendency;
+
+  /// 아래는 TourAPI 응답에서 채워지며, 시드 데이터에서는 비어 있다.
+  final String? address;
+  final String? imageUrl;
+  final String? tel;
+  final String? openTime;
+  final String? restDate;
+  final String? signatureMenu;
+
+  /// 반려동물 동반여행 안내. 활용신청 승인 후에만 채워진다.
+  final String? petFriendlyGuide;
+
+  bool get isPetFriendly => (petFriendlyGuide ?? '').trim().isNotEmpty;
+
+  /// 휴무일 정보가 있으면 체크인 전에 안내할 수 있다.
+  bool get hasVisitInfo =>
+      (openTime ?? '').trim().isNotEmpty || (restDate ?? '').trim().isNotEmpty;
 }
 
 class GrowthStats {

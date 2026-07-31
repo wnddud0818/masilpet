@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory = $true)]
   [string]$Uid,
-  [ValidateSet("seedStarterRegionData", "syncKoreaPois", "syncBusanPois")]
+  [ValidateSet("seedStarterRegionData", "syncKoreaPois", "syncBusanPois", "syncWalkingCourses")]
   [string]$FunctionName = "seedStarterRegionData",
   [string]$ProjectId = "masilpet-8ef37",
   [string]$Region = "asia-northeast3",

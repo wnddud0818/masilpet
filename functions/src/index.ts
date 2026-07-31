@@ -43,6 +43,16 @@ const maxStepDeltaPerCall = 3000;
 const maxDailyStepDelta = 12000;
 const maxStoredEggs = 5;
 const tourApiKey = defineSecret('TOUR_API_KEY');
+const tourApiBaseUrl = 'https://apis.data.go.kr/B551011';
+const tourApiTimeoutMs = 10000;
+const tourApiMaxRetries = 2;
+const tourApiRetryBaseDelayMs = 250;
+// 경기도가 4,600여 건으로 가장 많다. 100건 × 60페이지면 전 지역을 덮는다.
+const tourApiMaxPagesPerArea = 60;
+const defaultMaxItemsPerArea = 5000;
+// detailIntro2는 POI 1건당 1회 호출이라 일일 트래픽을 빠르게 소모한다.
+const defaultDetailEnrichLimit = 0;
+const maxDetailEnrichLimit = 500;
 const starterPetId = 'pet-starter-busan-paranguri';
 const starterEggId = 'egg-harbor-maru';
 
@@ -54,6 +64,15 @@ type PoiCategory =
   | 'history'
   | 'shopping'
   | 'other';
+
+/** 마실펫 성향 5종. TourAPI 대분류(cat1)에서 유도한다. */
+type PoiTendency =
+  | 'explorer'
+  | 'gourmet'
+  | 'scholar'
+  | 'affectionate'
+  | 'elegant'
+  | 'balanced';
 
 type GrowthStats = {
   exp: number;
@@ -69,6 +88,31 @@ type PoiDoc = {
   lat: number;
   lng: number;
   tourApiContentId?: string;
+  tendency?: PoiTendency;
+  contentTypeId?: string;
+  cat1?: string;
+  cat2?: string;
+  cat3?: string;
+  address?: string;
+  imageUrl?: string;
+  thumbnailUrl?: string;
+  tel?: string;
+  sigunguCode?: string;
+  sourceModifiedTime?: string;
+  openTime?: string;
+  restDate?: string;
+  parking?: string;
+  signatureMenu?: string;
+  petFriendly?: PoiPetInfo;
+};
+
+/** 반려동물 동반여행 정보. detailPetTour2 승인 시에만 채워진다. */
+type PoiPetInfo = {
+  accompanyType?: string;
+  guide?: string;
+  availableFacility?: string;
+  rentalItems?: string;
+  precautions?: string;
 };
 
 type PetStage = 'baby' | 'grown' | 'evolved';
@@ -2281,62 +2325,237 @@ export const deleteUserProgress = onCall({region: functionRegion}, async (reques
   return {success: true};
 });
 
-export const syncKoreaPois = onCall({region: functionRegion, secrets: [tourApiKey]}, async (request) => {
-  requireOperator(request.auth?.uid, request.auth?.token);
+export const syncKoreaPois = onCall(
+  {
+    region: functionRegion,
+    secrets: [tourApiKey],
+    timeoutSeconds: 540,
+    memory: '512MiB',
+  },
+  async (request) => {
+    requireOperator(request.auth?.uid, request.auth?.token);
 
-  const serviceKey = tourApiKey.value();
-  if (!serviceKey) {
-    throw new HttpsError('failed-precondition', 'TOUR_API_KEY is not configured.');
-  }
-
-  const requestedArea = String(request.data?.areaCode ?? request.data?.regionId ?? '').trim();
-  const targetRegions = requestedArea
-    ? tourAreaRegions.filter((region) => region.areaCode === requestedArea || region.id === requestedArea)
-    : tourAreaRegions;
-  if (targetRegions.length === 0) {
-    throw new HttpsError('invalid-argument', 'Unknown TourAPI areaCode or regionId.');
-  }
-
-  const rowsPerArea = rowsPerAreaFromValue(request.data?.numOfRows);
-  const pending: PendingBatch = {batch: db.batch(), writeCount: 0};
-  const syncedByRegion: Record<string, number> = {};
-  let count = 0;
-
-  for (const region of targetRegions) {
-    const items = await fetchTourAreaItems(serviceKey, region.areaCode, rowsPerArea);
-    let regionCount = 0;
-
-    for (const item of items) {
-      if (!item.contentid || !item.title || !item.mapx || !item.mapy) {
-        continue;
-      }
-      const poiRef = db.collection('pois').doc(`tourapi-${item.contentid}`);
-      pending.batch.set(
-        poiRef,
-        {
-          tourApiContentId: item.contentid,
-          title: item.title,
-          regionId: region.id,
-          category: mapTourCategory(item.cat1, item.contenttypeid),
-          lat: Number(item.mapy),
-          lng: Number(item.mapx),
-          sourceUpdatedAt: FieldValue.serverTimestamp(),
-        },
-        {merge: true},
-      );
-      pending.writeCount += 1;
-      await commitBatchIfFull(pending);
-      count += 1;
-      regionCount += 1;
+    const serviceKey = tourApiKey.value();
+    if (!serviceKey) {
+      throw new HttpsError('failed-precondition', 'TOUR_API_KEY is not configured.');
     }
 
-    syncedByRegion[region.id] = regionCount;
+    const requestedArea = String(request.data?.areaCode ?? request.data?.regionId ?? '').trim();
+    const targetRegions = requestedArea
+      ? tourAreaRegions.filter((region) => region.areaCode === requestedArea || region.id === requestedArea)
+      : tourAreaRegions;
+    if (targetRegions.length === 0) {
+      throw new HttpsError('invalid-argument', 'Unknown TourAPI areaCode or regionId.');
+    }
+
+    const rowsPerArea = rowsPerAreaFromValue(request.data?.numOfRows);
+    const maxItemsPerArea = maxItemsPerAreaFromValue(request.data?.maxItemsPerArea);
+    const forceRewrite = request.data?.force === true;
+    const enrichBudget = detailEnrichLimitFromValue(request.data?.enrichDetails);
+
+    const pending: PendingBatch = {batch: db.batch(), writeCount: 0};
+    const syncedByRegion: Record<string, number> = {};
+    const capabilities: TourCapabilityReport = {
+      detailIntro: enrichBudget > 0 ? 'pending' : 'disabled',
+      petTour: enrichBudget > 0 ? 'pending' : 'disabled',
+    };
+    let remainingEnrich = enrichBudget;
+    let fetched = 0;
+    let written = 0;
+    let skipped = 0;
+    let enriched = 0;
+
+    for (const region of targetRegions) {
+      const items = await fetchTourAreaItems(
+        serviceKey,
+        region.areaCode,
+        rowsPerArea,
+        maxItemsPerArea,
+      );
+      const knownModifiedTimes = await readKnownPoiModifiedTimes(region.id);
+      let regionWrites = 0;
+
+      for (const item of items) {
+        if (!item.contentid || !item.title || !item.mapx || !item.mapy) {
+          continue;
+        }
+        const lat = Number(item.mapy);
+        const lng = Number(item.mapx);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          continue;
+        }
+        fetched += 1;
+
+        const docId = `tourapi-${item.contentid}`;
+        const modifiedTime = item.modifiedtime?.trim() ?? '';
+        // TourAPI가 수정시각을 그대로 주므로 변경분만 기록한다.
+        const unchanged =
+          !forceRewrite &&
+          modifiedTime !== '' &&
+          knownModifiedTimes.get(docId) === modifiedTime;
+        if (unchanged) {
+          skipped += 1;
+          continue;
+        }
+
+        const poiDoc: Record<string, unknown> = {
+          tourApiContentId: item.contentid,
+          title: item.title.trim(),
+          regionId: region.id,
+          category: mapTourCategory(item.cat1, item.contenttypeid),
+          tendency: mapTourTendency(item.cat1, item.contenttypeid),
+          contentTypeId: item.contenttypeid ?? '',
+          lat,
+          lng,
+          sourceUpdatedAt: FieldValue.serverTimestamp(),
+        };
+        assignIfPresent(poiDoc, 'cat1', item.cat1);
+        assignIfPresent(poiDoc, 'cat2', item.cat2);
+        assignIfPresent(poiDoc, 'cat3', item.cat3);
+        assignIfPresent(poiDoc, 'address', joinAddress(item.addr1, item.addr2));
+        assignIfPresent(poiDoc, 'imageUrl', toSecureImageUrl(item.firstimage));
+        assignIfPresent(poiDoc, 'thumbnailUrl', toSecureImageUrl(item.firstimage2));
+        assignIfPresent(poiDoc, 'tel', item.tel);
+        assignIfPresent(poiDoc, 'sigunguCode', item.sigungucode);
+        assignIfPresent(poiDoc, 'sourceModifiedTime', modifiedTime);
+
+        if (remainingEnrich > 0) {
+          const detail = await enrichPoiFromTourApi(
+            serviceKey,
+            item.contentid,
+            item.contenttypeid ?? '',
+            capabilities,
+          );
+          if (detail.attempted) {
+            remainingEnrich -= 1;
+          }
+          if (detail.applied) {
+            enriched += 1;
+            Object.assign(poiDoc, detail.fields);
+          }
+        }
+
+        pending.batch.set(db.collection('pois').doc(docId), poiDoc, {merge: true});
+        pending.writeCount += 1;
+        await commitBatchIfFull(pending);
+        written += 1;
+        regionWrites += 1;
+      }
+
+      syncedByRegion[region.id] = regionWrites;
+    }
+
+    await commitRemainingBatch(pending);
+    if (capabilities.detailIntro === 'pending') {
+      capabilities.detailIntro = 'disabled';
+    }
+    if (capabilities.petTour === 'pending') {
+      capabilities.petTour = 'disabled';
+    }
+
+    logger.info('Synced Korea POIs', {
+      fetched,
+      written,
+      skipped,
+      enriched,
+      regions: targetRegions.length,
+      capabilities,
+    });
+
+    return {
+      // 기존 호출부 호환을 위해 count는 기록한 문서 수를 유지한다.
+      count: written,
+      fetched,
+      written,
+      skipped,
+      enriched,
+      regionCount: targetRegions.length,
+      rowsPerArea,
+      maxItemsPerArea,
+      syncedByRegion,
+      capabilities,
+    };
+  },
+);
+
+/** 지역 내 기존 POI의 수정시각만 읽어 증분 동기화 기준으로 삼는다. */
+async function readKnownPoiModifiedTimes(regionId: string): Promise<Map<string, string>> {
+  const snapshot = await db
+    .collection('pois')
+    .where('regionId', '==', regionId)
+    .select('sourceModifiedTime')
+    .get();
+
+  const modifiedTimes = new Map<string, string>();
+  for (const doc of snapshot.docs) {
+    const value = doc.get('sourceModifiedTime');
+    if (typeof value === 'string' && value !== '') {
+      modifiedTimes.set(doc.id, value);
+    }
+  }
+  return modifiedTimes;
+}
+
+/**
+ * detailIntro2(승인 완료)와 detailPetTour2(승인 대기)로 POI를 보강한다.
+ * 미승인 오퍼레이션은 첫 403에서 비활성 처리하고 이후 호출하지 않는다.
+ */
+async function enrichPoiFromTourApi(
+  serviceKey: string,
+  contentId: string,
+  contentTypeId: string,
+  capabilities: TourCapabilityReport,
+): Promise<{attempted: boolean; applied: boolean; fields: Record<string, unknown>}> {
+  const fields: Record<string, unknown> = {};
+  let attempted = false;
+  let applied = false;
+
+  if (capabilities.detailIntro !== 'forbidden' && contentTypeId !== '') {
+    attempted = true;
+    try {
+      const intro = await fetchTourDetailIntro(serviceKey, contentId, contentTypeId);
+      capabilities.detailIntro = 'ok';
+      if (intro) {
+        assignIfPresent(fields, 'openTime', intro.openTime);
+        assignIfPresent(fields, 'restDate', intro.restDate);
+        assignIfPresent(fields, 'parking', intro.parking);
+        assignIfPresent(fields, 'signatureMenu', intro.signatureMenu);
+        if (intro.inquiryTel) {
+          fields.tel = intro.inquiryTel;
+        }
+        applied = Object.keys(fields).length > 0;
+      }
+    } catch (error) {
+      if (error instanceof TourApiForbiddenError) {
+        capabilities.detailIntro = 'forbidden';
+        logger.warn('detailIntro2 is not approved; skipping enrichment.');
+      } else {
+        logger.warn('detailIntro2 enrichment failed', {contentId, error: String(error)});
+      }
+    }
   }
 
-  await commitRemainingBatch(pending);
-  logger.info('Synced Korea POIs', {count, regions: targetRegions.length});
-  return {count, regionCount: targetRegions.length, rowsPerArea, syncedByRegion};
-});
+  if (capabilities.petTour !== 'forbidden') {
+    try {
+      const petInfo = await fetchTourPetInfo(serviceKey, contentId);
+      capabilities.petTour = 'ok';
+      if (petInfo) {
+        fields.petFriendly = petInfo;
+        applied = true;
+      }
+    } catch (error) {
+      if (error instanceof TourApiForbiddenError) {
+        // 활용신청 승인 전에는 정상 동작이다. 승인되면 자동으로 채워진다.
+        capabilities.petTour = 'forbidden';
+        logger.info('detailPetTour2 is not approved yet; pet data will fill in once approved.');
+      } else {
+        logger.warn('detailPetTour2 lookup failed', {contentId, error: String(error)});
+      }
+    }
+  }
+
+  return {attempted, applied, fields};
+}
 
 export const syncBusanPois = syncKoreaPois;
 
@@ -2361,7 +2580,7 @@ export const getNearbyPois = onCall({region: functionRegion}, async (request) =>
   const pois = snapshot.docs
     .map((doc) => ({id: doc.id, ...(doc.data() as PoiDoc)}))
     .map((poi) => ({
-      ...poi,
+      ...toNearbyPoiPayload(poi),
       distanceMeters: distanceMeters(lat, lng, poi.lat, poi.lng),
     }))
     .sort((left, right) => left.distanceMeters - right.distanceMeters)
@@ -2369,6 +2588,36 @@ export const getNearbyPois = onCall({region: functionRegion}, async (request) =>
 
   return {pois};
 });
+
+/**
+ * 클라이언트로 내보낼 필드만 추린다.
+ * Firestore Timestamp가 그대로 직렬화되는 것을 막고 응답 크기를 줄인다.
+ */
+function toNearbyPoiPayload(poi: PoiDoc & {id: string}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    id: poi.id,
+    title: poi.title,
+    regionId: poi.regionId,
+    category: poi.category,
+    lat: poi.lat,
+    lng: poi.lng,
+  };
+  assignIfPresent(payload, 'tourApiContentId', poi.tourApiContentId);
+  assignIfPresent(payload, 'tendency', poi.tendency);
+  assignIfPresent(payload, 'contentTypeId', poi.contentTypeId);
+  assignIfPresent(payload, 'address', poi.address);
+  assignIfPresent(payload, 'imageUrl', poi.imageUrl);
+  assignIfPresent(payload, 'thumbnailUrl', poi.thumbnailUrl);
+  assignIfPresent(payload, 'tel', poi.tel);
+  assignIfPresent(payload, 'openTime', poi.openTime);
+  assignIfPresent(payload, 'restDate', poi.restDate);
+  assignIfPresent(payload, 'parking', poi.parking);
+  assignIfPresent(payload, 'signatureMenu', poi.signatureMenu);
+  if (poi.petFriendly && Object.keys(poi.petFriendly).length > 0) {
+    payload.petFriendly = poi.petFriendly;
+  }
+  return payload;
+}
 
 export const attemptCheckIn = onCall({region: functionRegion}, async (request) => {
   const uid = requireAuth(request.auth?.uid);
@@ -3569,27 +3818,381 @@ function rowsPerAreaFromValue(value: unknown): number {
   return Math.min(100, Math.max(1, Math.trunc(parsed)));
 }
 
-async function fetchTourAreaItems(
+function maxItemsPerAreaFromValue(value: unknown): number {
+  const parsed = Number(value ?? defaultMaxItemsPerArea);
+  if (!Number.isFinite(parsed)) {
+    return defaultMaxItemsPerArea;
+  }
+  return Math.min(defaultMaxItemsPerArea, Math.max(1, Math.trunc(parsed)));
+}
+
+function detailEnrichLimitFromValue(value: unknown): number {
+  const parsed = Number(value ?? defaultDetailEnrichLimit);
+  if (!Number.isFinite(parsed)) {
+    return defaultDetailEnrichLimit;
+  }
+  return Math.min(maxDetailEnrichLimit, Math.max(0, Math.trunc(parsed)));
+}
+
+/** 빈 문자열을 Firestore에 쓰지 않도록 값이 있을 때만 대입한다. */
+function assignIfPresent(
+  target: Record<string, unknown>,
+  key: string,
+  value: string | undefined,
+): void {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    target[key] = trimmed;
+  }
+}
+
+/**
+ * TourAPI 이미지 URL은 http로 내려온다.
+ * Android cleartext 차단과 iOS ATS에 걸리므로 https로 올린다.
+ */
+function toSecureImageUrl(url?: string): string | undefined {
+  const trimmed = url?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  return trimmed.startsWith('http://')
+    ? `https://${trimmed.slice('http://'.length)}`
+    : trimmed;
+}
+
+function joinAddress(addr1?: string, addr2?: string): string | undefined {
+  const primary = addr1?.trim() ?? '';
+  const secondary = addr2?.trim() ?? '';
+  const joined = `${primary} ${secondary}`.trim();
+  return joined === '' ? undefined : joined;
+}
+
+type TourCapabilityStatus = 'pending' | 'ok' | 'forbidden' | 'disabled';
+
+type TourCapabilityReport = {
+  detailIntro: TourCapabilityStatus;
+  petTour: TourCapabilityStatus;
+};
+
+/**
+ * 반려동물 동반여행 정보를 조회한다.
+ * 활용신청 승인 전에는 403이 떨어지며 호출부에서 건너뛴다.
+ */
+async function fetchTourPetInfo(
   serviceKey: string,
-  areaCode: string,
-  rowsPerArea: number,
-): Promise<TourApiItem[]> {
-  const url = new URL('https://apis.data.go.kr/B551011/KorService2/areaBasedList2');
+  contentId: string,
+): Promise<PoiPetInfo | null> {
+  const body = await callTourApi(serviceKey, 'KorPetTourService2/detailPetTour2', {
+    contentId,
+  });
+  const item = normalizeTourApiItems<TourPetItem>(body)[0];
+  if (!item) {
+    return null;
+  }
+
+  const petInfo: PoiPetInfo = {};
+  assignIfPresent(petInfo as Record<string, unknown>, 'accompanyType', item.acmpyTypeCd);
+  assignIfPresent(petInfo as Record<string, unknown>, 'guide', item.petTursmInfo);
+  assignIfPresent(petInfo as Record<string, unknown>, 'availableFacility', item.relaPosesFclty);
+  assignIfPresent(petInfo as Record<string, unknown>, 'rentalItems', item.relaFrnshPrdlst);
+  assignIfPresent(
+    petInfo as Record<string, unknown>,
+    'precautions',
+    firstFilledValue(item.acmpyNeedMtr, item.relaAcdntRiskMtr),
+  );
+
+  return Object.keys(petInfo).length > 0 ? petInfo : null;
+}
+
+/**
+ * 두루누비 걷기여행길 코스를 동기화한다.
+ * 걸음 수 목표를 실제 코스 거리와 연결하기 위한 데이터다.
+ * 활용신청 승인 전에는 403이므로 빈 결과로 정상 종료한다.
+ */
+export const syncWalkingCourses = onCall(
+  {
+    region: functionRegion,
+    secrets: [tourApiKey],
+    timeoutSeconds: 300,
+    memory: '512MiB',
+  },
+  async (request) => {
+    requireOperator(request.auth?.uid, request.auth?.token);
+
+    const serviceKey = tourApiKey.value();
+    if (!serviceKey) {
+      throw new HttpsError('failed-precondition', 'TOUR_API_KEY is not configured.');
+    }
+
+    const rowsPerPage = rowsPerAreaFromValue(request.data?.numOfRows);
+    const maxCourses = maxItemsPerAreaFromValue(request.data?.maxCourses);
+    const pending: PendingBatch = {batch: db.batch(), writeCount: 0};
+    let written = 0;
+    let pageNo = 1;
+
+    try {
+      while (written < maxCourses && pageNo <= tourApiMaxPagesPerArea) {
+        const body = await callTourApi(serviceKey, 'Durunubi/courseList', {
+          numOfRows: rowsPerPage,
+          pageNo,
+        });
+        const courses = normalizeTourApiItems<DurunubiCourseItem>(body);
+        if (courses.length === 0) {
+          break;
+        }
+
+        for (const course of courses) {
+          const courseId = course.crsIdx?.trim();
+          const name = course.crsKorNm?.trim();
+          if (!courseId || !name) {
+            continue;
+          }
+
+          const distanceKm = Number(course.crsDstnc);
+          const courseDoc: Record<string, unknown> = {
+            courseId,
+            title: name,
+            sourceUpdatedAt: FieldValue.serverTimestamp(),
+          };
+          if (Number.isFinite(distanceKm) && distanceKm > 0) {
+            courseDoc.distanceKm = distanceKm;
+            // 성인 평균 보폭 0.7m 기준으로 목표 걸음 수를 환산한다.
+            courseDoc.estimatedSteps = Math.round((distanceKm * 1000) / 0.7);
+          }
+          assignIfPresent(courseDoc, 'routeId', course.routeIdx);
+          assignIfPresent(courseDoc, 'requiredTime', course.crsTotlRqrmHour);
+          assignIfPresent(courseDoc, 'level', course.crsLevel);
+          assignIfPresent(courseDoc, 'summary', firstFilledValue(course.crsSummary, course.crsContents));
+          assignIfPresent(courseDoc, 'sigun', course.sigun);
+          assignIfPresent(courseDoc, 'gpxPath', course.gpxpath);
+
+          pending.batch.set(
+            db.collection('walkingCourses').doc(`durunubi-${courseId}`),
+            courseDoc,
+            {merge: true},
+          );
+          pending.writeCount += 1;
+          await commitBatchIfFull(pending);
+          written += 1;
+          if (written >= maxCourses) {
+            break;
+          }
+        }
+        pageNo += 1;
+      }
+    } catch (error) {
+      if (error instanceof TourApiForbiddenError) {
+        await commitRemainingBatch(pending);
+        logger.info('Durunubi is not approved yet; walking course sync skipped.');
+        return {count: written, status: 'forbidden', approved: false};
+      }
+      throw error;
+    }
+
+    await commitRemainingBatch(pending);
+    logger.info('Synced walking courses', {count: written});
+    return {count: written, status: 'ok', approved: true};
+  },
+);
+
+/**
+ * TourAPI는 미승인 오퍼레이션에 HTTP 403 text/plain을 반환한다.
+ * 활용신청 여부에 따라 기능을 건너뛸 수 있도록 별도 오류로 구분한다.
+ */
+class TourApiForbiddenError extends Error {
+  constructor(readonly operation: string) {
+    super(`TourAPI operation is not approved for this service key: ${operation}`);
+    this.name = 'TourApiForbiddenError';
+  }
+}
+
+/** 재시도해도 결과가 달라지지 않는 오류(잘못된 파라미터, 키 미등록 등). */
+class TourApiPermanentError extends Error {
+  constructor(readonly operation: string, message: string) {
+    super(`TourAPI ${operation} failed: ${message}`);
+    this.name = 'TourApiPermanentError';
+  }
+}
+
+function tourApiDelay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function requestTourApi(
+  url: URL,
+  operation: string,
+): Promise<TourApiBody | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), tourApiTimeoutMs);
+  try {
+    const response = await fetch(url, {signal: controller.signal});
+    const text = await response.text();
+
+    if (response.status === 403) {
+      throw new TourApiForbiddenError(operation);
+    }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    let payload: TourApiResponse;
+    try {
+      payload = JSON.parse(text) as TourApiResponse;
+    } catch {
+      // 게이트웨이 오류는 XML 또는 평문으로 내려온다.
+      if (/NOT_REGISTERED|ACCESS_DENIED|SERVICE ACCESS DENIED/i.test(text)) {
+        throw new TourApiForbiddenError(operation);
+      }
+      throw new TourApiPermanentError(
+        operation,
+        `non-JSON response: ${text.slice(0, 120)}`,
+      );
+    }
+
+    const resultCode = payload.response?.header?.resultCode ?? '';
+    if (resultCode && resultCode !== '0000') {
+      const resultMsg = payload.response?.header?.resultMsg ?? 'unknown';
+      throw new TourApiPermanentError(operation, `${resultCode} ${resultMsg}`);
+    }
+
+    return payload.response?.body ?? null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * TourAPI 공통 호출기. 타임아웃·지수 백오프 재시도를 적용하고
+ * 미승인(403)과 영구 오류는 재시도하지 않는다.
+ */
+async function callTourApi(
+  serviceKey: string,
+  operation: string,
+  params: Record<string, string | number>,
+): Promise<TourApiBody | null> {
+  const url = new URL(`${tourApiBaseUrl}/${operation}`);
   url.searchParams.set('serviceKey', serviceKey);
   url.searchParams.set('MobileOS', 'ETC');
   url.searchParams.set('MobileApp', 'MasilPet');
   url.searchParams.set('_type', 'json');
-  url.searchParams.set('areaCode', areaCode);
-  url.searchParams.set('numOfRows', String(rowsPerArea));
-  url.searchParams.set('pageNo', '1');
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new HttpsError('unavailable', `TourAPI request failed: ${response.status}`);
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value));
   }
 
-  const payload = (await response.json()) as TourApiResponse;
-  return normalizeTourApiItems(payload);
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= tourApiMaxRetries; attempt += 1) {
+    if (attempt > 0) {
+      await tourApiDelay(tourApiRetryBaseDelayMs * 2 ** (attempt - 1));
+    }
+    try {
+      return await requestTourApi(url, operation);
+    } catch (error) {
+      if (
+        error instanceof TourApiForbiddenError ||
+        error instanceof TourApiPermanentError
+      ) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw new HttpsError(
+    'unavailable',
+    `TourAPI ${operation} failed after ${tourApiMaxRetries + 1} attempts: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`,
+  );
+}
+
+/** areaBasedList2를 totalCount까지 페이지네이션하며 수집한다. */
+async function fetchTourAreaItems(
+  serviceKey: string,
+  areaCode: string,
+  rowsPerPage: number,
+  maxItems: number,
+): Promise<TourApiItem[]> {
+  const collected: TourApiItem[] = [];
+  const seenContentIds = new Set<string>();
+  let totalCount = Number.POSITIVE_INFINITY;
+  let pageNo = 1;
+
+  while (collected.length < maxItems && pageNo <= tourApiMaxPagesPerArea) {
+    const body = await callTourApi(serviceKey, 'KorService2/areaBasedList2', {
+      areaCode,
+      numOfRows: rowsPerPage,
+      pageNo,
+      // 제목순은 동기화 중 데이터가 바뀌어도 페이지가 밀리지 않는다.
+      arrange: 'A',
+    });
+    if (!body) {
+      break;
+    }
+
+    const reportedTotal = Number(body.totalCount);
+    if (Number.isFinite(reportedTotal)) {
+      totalCount = reportedTotal;
+    }
+
+    const items = normalizeTourApiItems(body);
+    if (items.length === 0) {
+      break;
+    }
+
+    for (const item of items) {
+      if (!item.contentid || seenContentIds.has(item.contentid)) {
+        continue;
+      }
+      seenContentIds.add(item.contentid);
+      collected.push(item);
+    }
+
+    if (seenContentIds.size >= totalCount) {
+      break;
+    }
+    pageNo += 1;
+  }
+
+  return collected.slice(0, maxItems);
+}
+
+/**
+ * detailIntro2로 영업시간·휴무일·대표메뉴를 보강한다.
+ * 콘텐츠 타입마다 필드명이 달라 공통 형태로 정규화한다.
+ */
+async function fetchTourDetailIntro(
+  serviceKey: string,
+  contentId: string,
+  contentTypeId: string,
+): Promise<TourDetailIntro | null> {
+  const body = await callTourApi(serviceKey, 'KorService2/detailIntro2', {
+    contentId,
+    contentTypeId,
+  });
+  const item = normalizeTourApiItems<TourIntroItem>(body)[0];
+  if (!item) {
+    return null;
+  }
+
+  const intro: TourDetailIntro = {
+    openTime: firstFilledValue(item.usetime, item.opentimefood, item.opentime),
+    restDate: firstFilledValue(item.restdate, item.restdatefood, item.restdateshopping),
+    parking: firstFilledValue(item.parking, item.parkingfood, item.parkingshopping),
+    inquiryTel: firstFilledValue(item.infocenter, item.infocenterfood, item.infocentershopping),
+    signatureMenu: firstFilledValue(item.firstmenu, item.treatmenu),
+  };
+
+  return Object.values(intro).some((value) => value !== undefined) ? intro : null;
+}
+
+function firstFilledValue(...values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+  return undefined;
 }
 
 function nearestTourAreaRegion(lat: number, lng: number): RegionSeed {
@@ -3629,22 +4232,68 @@ function mapTourCategory(cat1?: string, contentTypeId?: string): PoiCategory {
   return 'other';
 }
 
-function normalizeTourApiItems(payload: TourApiResponse): TourApiItem[] {
-  const items = payload.response?.body?.items?.item;
+/**
+ * TourAPI 대분류(cat1)를 마실펫 성향으로 환산한다.
+ * 어디를 다녔는지가 펫 성격을 만드는 규칙의 기준값이다.
+ * A01 자연 / A02 인문·문화 / A03 레포츠 / A04 쇼핑 / A05 음식
+ */
+function mapTourTendency(cat1?: string, contentTypeId?: string): PoiTendency {
+  switch (cat1) {
+  case 'A01':
+    return 'explorer';
+  case 'A03':
+    return 'explorer';
+  case 'A05':
+    return 'gourmet';
+  case 'A04':
+    return 'elegant';
+  case 'A02':
+    // 축제·공연·행사는 함께 즐기는 경험이라 애교 성향으로 본다.
+    return contentTypeId === '15' ? 'affectionate' : 'scholar';
+  default:
+    break;
+  }
+
+  if (contentTypeId === '39') {
+    return 'gourmet';
+  }
+  if (contentTypeId === '38') {
+    return 'elegant';
+  }
+  if (contentTypeId === '15') {
+    return 'affectionate';
+  }
+  if (contentTypeId === '14') {
+    return 'scholar';
+  }
+  return 'balanced';
+}
+
+function normalizeTourApiItems<T = TourApiItem>(body: TourApiBody | null): T[] {
+  const items = body?.items?.item;
   if (!items) {
     return [];
   }
-  return Array.isArray(items) ? items : [items];
+  return (Array.isArray(items) ? items : [items]) as T[];
 }
 
 type TourApiResponse = {
   response?: {
-    body?: {
-      items?: {
-        item?: TourApiItem[] | TourApiItem;
-      };
+    header?: {
+      resultCode?: string;
+      resultMsg?: string;
     };
+    body?: TourApiBody;
   };
+};
+
+type TourApiBody = {
+  items?: {
+    item?: unknown[] | unknown;
+  };
+  numOfRows?: number | string;
+  pageNo?: number | string;
+  totalCount?: number | string;
 };
 
 type TourApiItem = {
@@ -3652,6 +4301,73 @@ type TourApiItem = {
   contenttypeid?: string;
   title?: string;
   cat1?: string;
+  cat2?: string;
+  cat3?: string;
+  addr1?: string;
+  addr2?: string;
+  tel?: string;
+  zipcode?: string;
+  firstimage?: string;
+  firstimage2?: string;
+  areacode?: string;
+  sigungucode?: string;
+  modifiedtime?: string;
   mapx?: string;
   mapy?: string;
+};
+
+/** detailIntro2는 콘텐츠 타입별로 필드명이 다르다. */
+type TourIntroItem = {
+  contentid?: string;
+  contenttypeid?: string;
+  usetime?: string;
+  opentime?: string;
+  opentimefood?: string;
+  restdate?: string;
+  restdatefood?: string;
+  restdateshopping?: string;
+  parking?: string;
+  parkingfood?: string;
+  parkingshopping?: string;
+  infocenter?: string;
+  infocenterfood?: string;
+  infocentershopping?: string;
+  firstmenu?: string;
+  treatmenu?: string;
+};
+
+type TourDetailIntro = {
+  openTime?: string;
+  restDate?: string;
+  parking?: string;
+  inquiryTel?: string;
+  signatureMenu?: string;
+};
+
+/** 반려동물 동반여행(detailPetTour2) 응답. 활용신청 승인 시에만 채워진다. */
+type TourPetItem = {
+  contentid?: string;
+  acmpyTypeCd?: string;
+  petTursmInfo?: string;
+  relaAcdntRiskMtr?: string;
+  acmpyPsblCpam?: string;
+  relaPosesFclty?: string;
+  relaFrnshPrdlst?: string;
+  etcAcmpyInfo?: string;
+  relaPurcPrdlst?: string;
+  acmpyNeedMtr?: string;
+};
+
+/** 두루누비(Durunubi) 걷기여행길 코스 응답. */
+type DurunubiCourseItem = {
+  routeIdx?: string;
+  crsIdx?: string;
+  crsKorNm?: string;
+  crsDstnc?: string;
+  crsTotlRqrmHour?: string;
+  crsLevel?: string;
+  crsContents?: string;
+  crsSummary?: string;
+  sigun?: string;
+  gpxpath?: string;
 };

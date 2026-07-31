@@ -482,13 +482,31 @@ class CareEngine {
     final isKnowledge = poi.category == PoiCategory.culture ||
         poi.category == PoiCategory.history;
     final isFood = poi.category == PoiCategory.food;
+    // TourAPI 대분류에서 온 장소 성향만큼 해당 성향이 더 자란다.
+    final tendencyBonus = firstVisit ? 4 : 2;
+    int bonusFor(PoiTendency tendency) =>
+        poi.tendency == tendency ? tendencyBonus : 0;
+    // 반려동물 동반 가능 장소는 함께 간 경험이라 교감이 크게 오른다.
+    final petFriendlyBonus = poi.isPetFriendly ? (firstVisit ? 5 : 3) : 0;
+
     return _markBonded(
         current.copyWith(
           happiness: current.happiness + (firstVisit ? 10 : 5),
           vitality: current.vitality + 3,
-          adventureScore: current.adventureScore + (firstVisit ? 4 : 2),
-          knowledgeScore: current.knowledgeScore + (isKnowledge ? 4 : 1),
-          gourmetScore: current.gourmetScore + (isFood ? 3 : 0),
+          adventureScore: current.adventureScore +
+              (firstVisit ? 4 : 2) +
+              bonusFor(PoiTendency.explorer),
+          knowledgeScore: current.knowledgeScore +
+              (isKnowledge ? 4 : 1) +
+              bonusFor(PoiTendency.scholar),
+          gourmetScore: current.gourmetScore +
+              (isFood ? 3 : 0) +
+              bonusFor(PoiTendency.gourmet),
+          affectionScore: current.affectionScore +
+              bonusFor(PoiTendency.affectionate) +
+              petFriendlyBonus,
+          eleganceScore:
+              current.eleganceScore + bonusFor(PoiTendency.elegant),
           updatedAt: now,
           memories: _withMemory(
             current.memories,
@@ -496,7 +514,7 @@ class CareEngine {
               id: 'checkin-${poi.id}-${now.microsecondsSinceEpoch}',
               title:
                   firstVisit ? '${poi.title}에 처음 간 날' : '${poi.title}에 다시 간 날',
-              detail: '${poi.category.label} 장소의 냄새와 풍경을 수첩에 남겼어요.',
+              detail: _checkInMemoryDetail(poi),
               createdAt: now,
               category: poi.category,
             ),
@@ -512,6 +530,22 @@ class CareEngine {
       bondedDays: care.bondedDays + (bondedToday ? 0 : 1),
       lastBondedDay: now,
     );
+  }
+
+  /// 관광공사 상세 정보가 있으면 수첩에 실제 내용을 남긴다.
+  String _checkInMemoryDetail(Poi poi) {
+    final menu = poi.signatureMenu?.trim();
+    if (menu != null && menu.isNotEmpty) {
+      return '$menu 냄새를 맡고 수첩에 적어 뒀어요.';
+    }
+    if (poi.isPetFriendly) {
+      return '함께 들어갈 수 있는 곳이라 더 오래 머물렀어요.';
+    }
+    final address = poi.address?.trim();
+    if (address != null && address.isNotEmpty) {
+      return '$address의 풍경을 수첩에 남겼어요.';
+    }
+    return '${poi.category.label} 장소의 냄새와 풍경을 수첩에 남겼어요.';
   }
 
   List<PetMemory> _withMemory(

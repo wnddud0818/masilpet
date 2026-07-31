@@ -52,11 +52,52 @@ powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
 ```
 
 TourAPI 최신 장소를 반영해야 할 때는 같은 방식으로 `syncKoreaPois`를 호출한다.
+전 지역을 `totalCount`까지 페이지네이션하며 수집하고, `modifiedtime`이 그대로인 장소는 기록하지 않는다.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
   -Uid "OPERATOR_UID" `
   -FunctionName syncKoreaPois
+```
+
+`-DataJson`으로 동작을 조절할 수 있다.
+
+| 파라미터 | 기본값 | 설명 |
+| --- | --- | --- |
+| `areaCode` / `regionId` | 전체 | 특정 시도만 동기화 |
+| `numOfRows` | 100 | 페이지당 건수(최대 100) |
+| `maxItemsPerArea` | 5000 | 시도별 수집 상한 |
+| `force` | false | 수정시각이 같아도 다시 기록 |
+| `enrichDetails` | 0 | `detailIntro2`로 영업정보를 보강할 POI 수(최대 500) |
+
+`enrichDetails`는 POI 1건당 API 1회를 더 쓴다. 일일 트래픽 한도를 고려해 필요한 만큼만 지정한다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
+  -Uid "OPERATOR_UID" `
+  -FunctionName syncKoreaPois `
+  -DataJson '{"areaCode":"1","enrichDetails":100}'
+```
+
+응답의 `capabilities`는 오퍼레이션별 활용신청 상태를 알려준다.
+`forbidden`이면 해당 데이터만 비어 있을 뿐 동기화 자체는 정상 완료된 것이다.
+
+### 활용신청이 필요한 오퍼레이션
+
+현재 서비스 키로 승인된 것은 `areaBasedList2`와 `detailIntro2` 두 가지다.
+아래는 코드가 이미 대응하고 있어 활용신청이 승인되면 별도 배포 없이 채워진다.
+
+| 오퍼레이션 | 쓰이는 곳 | 미승인 시 동작 |
+| --- | --- | --- |
+| `KorPetTourService2/detailPetTour2` | POI의 반려동물 동반 정보 | `petFriendly` 필드가 비고 배지가 표시되지 않음 |
+| `Durunubi/courseList` | `syncWalkingCourses`의 걷기여행길 | `{status:"forbidden"}`으로 정상 종료 |
+
+두루누비 코스는 승인 후 아래로 적재한다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run_operator_callable.ps1 `
+  -Uid "OPERATOR_UID" `
+  -FunctionName syncWalkingCourses
 ```
 
 ## 장애 대응

@@ -1070,9 +1070,34 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       regionId: remote.regionId,
       category: remote.category,
       coordinates: remote.coordinates,
-      shortDescription:
-          '현재 위치에서 ${remote.distanceMeters.round()}m 거리에 있는 ${remote.category.label} 장소예요.',
+      shortDescription: _remotePoiDescription(remote),
+      tendency: remote.tendency,
+      address: remote.address,
+      imageUrl: remote.imageUrl,
+      tel: remote.tel,
+      openTime: remote.openTime,
+      restDate: remote.restDate,
+      signatureMenu: remote.signatureMenu,
+      petFriendlyGuide: remote.petFriendlyGuide,
     );
+  }
+
+  /// 관광공사 데이터가 있으면 거리 안내 대신 실제 정보를 보여준다.
+  String _remotePoiDescription(RemotePoi remote) {
+    final distance = '현재 위치에서 ${remote.distanceMeters.round()}m';
+    final menu = remote.signatureMenu?.trim();
+    if (menu != null && menu.isNotEmpty) {
+      return '$distance · 대표 메뉴는 $menu예요.';
+    }
+    final openTime = remote.openTime?.trim();
+    if (openTime != null && openTime.isNotEmpty) {
+      return '$distance · 이용 시간 $openTime';
+    }
+    final address = remote.address?.trim();
+    if (address != null && address.isNotEmpty) {
+      return '$distance · $address';
+    }
+    return '$distance 거리에 있는 ${remote.category.label} 장소예요.';
   }
 
   Future<void> ensureRemoteUserBootstrap() async {

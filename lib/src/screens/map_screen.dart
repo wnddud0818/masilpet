@@ -699,6 +699,14 @@ class _CheckInHero extends ConsumerWidget {
               focus.poi.shortDescription,
               style: MasilPetType.bodySmall.copyWith(height: 1.65),
             ),
+            if (focus.poi.imageUrl != null) ...[
+              const SizedBox(height: MasilPetSpacing.md),
+              _PoiPhoto(url: focus.poi.imageUrl!),
+            ],
+            if (focus.poi.hasVisitInfo || focus.poi.isPetFriendly) ...[
+              const SizedBox(height: MasilPetSpacing.md),
+              _PoiInfoStrip(poi: focus.poi),
+            ],
             const SizedBox(height: MasilPetSpacing.lg),
             _PetAside(
               template: template,
@@ -731,6 +739,14 @@ class _CheckInHero extends ConsumerWidget {
             focus.poi.shortDescription,
             style: MasilPetType.bodySmall.copyWith(height: 1.65),
           ),
+          if (focus.poi.imageUrl != null) ...[
+            const SizedBox(height: MasilPetSpacing.md),
+            _PoiPhoto(url: focus.poi.imageUrl!),
+          ],
+          if (focus.poi.hasVisitInfo || focus.poi.isPetFriendly) ...[
+            const SizedBox(height: MasilPetSpacing.md),
+            _PoiInfoStrip(poi: focus.poi),
+          ],
           const SizedBox(height: MasilPetSpacing.lg),
           _PetAside(
             template: template,
@@ -1064,6 +1080,10 @@ class _RouteStepCard extends StatelessWidget {
                       height: 1.6,
                     ),
                   ),
+                  if (poi.hasVisitInfo || poi.isPetFriendly) ...[
+                    const SizedBox(height: 8),
+                    _PoiInfoStrip(poi: poi, showAddress: false),
+                  ],
                   if (!stamped && inRange) ...[
                     const SizedBox(height: 10),
                     Align(
@@ -1079,6 +1099,122 @@ class _RouteStepCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 관광공사 대표 이미지. 로드에 실패하면 조용히 자리를 비운다.
+class _PoiPhoto extends StatelessWidget {
+  const _PoiPhoto({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: MasilPetRadii.tightBorder,
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          excludeFromSemantics: true,
+          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+          frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+            if (wasSynchronouslyLoaded || frame != null) {
+              return child;
+            }
+            return const ColoredBox(color: MasilPetPalette.outlineSoft);
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// TourAPI에서 받아온 방문 정보. 값이 없는 항목은 그리지 않는다.
+class _PoiInfoStrip extends StatelessWidget {
+  const _PoiInfoStrip({required this.poi, this.showAddress = true});
+
+  final Poi poi;
+  final bool showAddress;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <Widget>[
+      if ((poi.openTime ?? '').trim().isNotEmpty)
+        _infoRow('이용', poi.openTime!.trim()),
+      if ((poi.restDate ?? '').trim().isNotEmpty)
+        _infoRow('휴무', poi.restDate!.trim()),
+      if (showAddress && (poi.address ?? '').trim().isNotEmpty)
+        _infoRow('주소', poi.address!.trim()),
+    ];
+
+    final badges = <Widget>[
+      if (poi.tendency != PoiTendency.balanced)
+        _badge('${poi.tendency.label} 성향'),
+      if (poi.isPetFriendly)
+        _badge('펫 동반 가능', color: MasilPetPalette.forest),
+    ];
+
+    if (rows.isEmpty && badges.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (badges.isNotEmpty)
+          Wrap(spacing: 6, runSpacing: 6, children: badges),
+        if (badges.isNotEmpty && rows.isNotEmpty) const SizedBox(height: 8),
+        ...rows,
+      ],
+    );
+  }
+
+  Widget _badge(String label, {Color color = MasilPetPalette.stamp}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 1),
+        borderRadius: MasilPetRadii.tightBorder,
+      ),
+      child: Text(
+        label,
+        style: MasilPetType.metaMono.copyWith(fontSize: 11, color: color),
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 34,
+            child: Text(
+              label,
+              style: MasilPetType.metaMono.copyWith(
+                fontSize: 11.5,
+                color: MasilPetPalette.stamp,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: MasilPetType.bodySmall.copyWith(
+                fontSize: 12.5,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

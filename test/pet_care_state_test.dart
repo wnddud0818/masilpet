@@ -165,6 +165,64 @@ void main() {
     expect(care.adventureScore, 4);
   });
 
+  test('TourAPI 장소 성향이 같은 이름의 펫 성향 점수를 올린다', () {
+    final now = DateTime(2026, 7, 14, 12);
+    Poi poiWith(PoiTendency tendency, {String? petGuide}) => Poi(
+          id: 'poi-${tendency.name}',
+          tourApiContentId: '1234567',
+          title: '테스트 장소',
+          regionId: 'seoul',
+          category: PoiCategory.other,
+          coordinates: const Coordinates(latitude: 37.5, longitude: 127.0),
+          shortDescription: '테스트용 장소',
+          tendency: tendency,
+          petFriendlyGuide: petGuide,
+        );
+
+    // 쇼핑(A04)은 우아 성향으로, 체크인만으로 도달할 수 있어야 한다.
+    final elegant = engine.afterCheckIn(
+      PetCareState(updatedAt: now),
+      now,
+      poi: poiWith(PoiTendency.elegant),
+      firstVisit: true,
+    );
+    expect(elegant.eleganceScore, 4);
+    expect(elegant.adventureScore, 4);
+
+    // 반려동물 동반 가능 장소는 교감 보너스가 더 붙는다.
+    final together = engine.afterCheckIn(
+      PetCareState(updatedAt: now),
+      now,
+      poi: poiWith(PoiTendency.affectionate, petGuide: '동반 가능'),
+      firstVisit: true,
+    );
+    expect(together.affectionScore, 9);
+    expect(together.memories.single.detail, contains('함께 들어갈 수 있는'));
+  });
+
+  test('대표 메뉴가 있으면 수첩에 그대로 남는다', () {
+    final now = DateTime(2026, 7, 14, 12);
+    final care = engine.afterCheckIn(
+      PetCareState(updatedAt: now),
+      now,
+      poi: Poi(
+        id: 'tourapi-2871024',
+        tourApiContentId: '2871024',
+        title: '가나돈까스의집',
+        regionId: 'seoul',
+        category: PoiCategory.food,
+        coordinates: const Coordinates(latitude: 37.5099, longitude: 127.0377),
+        shortDescription: '테스트용 음식점',
+        tendency: PoiTendency.gourmet,
+        signatureMenu: '돈까스',
+      ),
+      firstVisit: true,
+    );
+
+    expect(care.gourmetScore, 7);
+    expect(care.memories.single.detail, contains('돈까스'));
+  });
+
   test('pets staying home lose needs more slowly', () {
     final now = DateTime(2026, 7, 14, 9);
     final care = PetCareState(updatedAt: now);

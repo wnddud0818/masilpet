@@ -23,7 +23,8 @@ type CallableName =
   | 'setActiveEgg'
   | 'seedStarterRegionData'
   | 'syncKoreaPois'
-  | 'syncBusanPois';
+  | 'syncBusanPois'
+  | 'syncWalkingCourses';
 
 type CallableExport = {
   run(request: {
@@ -51,6 +52,7 @@ const callableNames = new Set<CallableName>([
   'seedStarterRegionData',
   'syncKoreaPois',
   'syncBusanPois',
+  'syncWalkingCourses',
 ]);
 
 let backendPromise: Promise<BackendModule> | undefined;

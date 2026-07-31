@@ -390,6 +390,14 @@ class RemotePoi {
     required this.category,
     required this.coordinates,
     required this.distanceMeters,
+    this.tendency = PoiTendency.balanced,
+    this.address,
+    this.imageUrl,
+    this.tel,
+    this.openTime,
+    this.restDate,
+    this.signatureMenu,
+    this.petFriendlyGuide,
   });
 
   factory RemotePoi.fromMap(Map<String, dynamic> map) {
@@ -420,6 +428,14 @@ class RemotePoi {
         longitude: longitude,
       ),
       distanceMeters: _doubleFromValue(map['distanceMeters']) ?? 0,
+      tendency: _tendencyFromName(_stringFromValue(map['tendency'])),
+      address: _optionalStringFromValue(map['address']),
+      imageUrl: _optionalStringFromValue(map['imageUrl']),
+      tel: _optionalStringFromValue(map['tel']),
+      openTime: _optionalStringFromValue(map['openTime']),
+      restDate: _optionalStringFromValue(map['restDate']),
+      signatureMenu: _optionalStringFromValue(map['signatureMenu']),
+      petFriendlyGuide: _petFriendlyGuideFromValue(map['petFriendly']),
     );
   }
 
@@ -430,6 +446,43 @@ class RemotePoi {
   final PoiCategory category;
   final Coordinates coordinates;
   final double distanceMeters;
+  final PoiTendency tendency;
+  final String? address;
+  final String? imageUrl;
+  final String? tel;
+  final String? openTime;
+  final String? restDate;
+  final String? signatureMenu;
+  final String? petFriendlyGuide;
+}
+
+PoiTendency _tendencyFromName(String name) {
+  for (final tendency in PoiTendency.values) {
+    if (tendency.name == name) {
+      return tendency;
+    }
+  }
+  return PoiTendency.balanced;
+}
+
+String? _optionalStringFromValue(Object? value) {
+  final text = _stringFromValue(value).trim();
+  return text.isEmpty ? null : text;
+}
+
+/// detailPetTour2 승인 전에는 이 값이 비어 있어 안내 문구가 표시되지 않는다.
+String? _petFriendlyGuideFromValue(Object? value) {
+  if (value is! Map) {
+    return null;
+  }
+  final petInfo = _mapFromValue(value);
+  for (final key in const ['guide', 'accompanyType', 'availableFacility']) {
+    final text = _optionalStringFromValue(petInfo[key]);
+    if (text != null) {
+      return text;
+    }
+  }
+  return null;
 }
 
 String _tourApiContentIdFromMap(Map<String, dynamic> map, String id) {

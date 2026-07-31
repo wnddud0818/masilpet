@@ -1727,6 +1727,174 @@ class _ShakeLoopState extends State<ShakeLoop>
   }
 }
 
+// ────────────────────────────────────────────────────────────────  glyphs ──
+
+/// The five navigation marks, in table-of-contents order.
+enum PaperGlyphKind {
+  /// 지도 — a stamp pin.
+  map,
+
+  /// 하우스 — a gabled house.
+  house,
+
+  /// 마실펫 — a paw print.
+  pet,
+
+  /// 도감 — an open book.
+  dex,
+
+  /// 기록 — a stamped circle.
+  record,
+}
+
+/// A pen-drawn navigation mark.
+///
+/// The shell carries no Material icons on purpose, so navigation gets these
+/// instead: single ink strokes, bowed slightly off true the way a pen line
+/// never runs perfectly straight.
+class PaperGlyph extends StatelessWidget {
+  const PaperGlyph({
+    super.key,
+    required this.kind,
+    this.size = 18,
+    this.color = MasilPetPalette.ink,
+  });
+
+  final PaperGlyphKind kind;
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.square(
+      dimension: size,
+      child: CustomPaint(
+        painter: _PaperGlyphPainter(kind: kind, color: color),
+      ),
+    );
+  }
+}
+
+class _PaperGlyphPainter extends CustomPainter {
+  const _PaperGlyphPainter({required this.kind, required this.color});
+
+  final PaperGlyphKind kind;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    if (s <= 0) {
+      return;
+    }
+
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      // Thin enough to stay a line at 16px, thick enough to read at 28px.
+      ..strokeWidth = (s * 0.085).clamp(1.2, 2.2)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    /// Glyphs are authored on a unit square so one set of coordinates serves
+    /// every size.
+    Offset p(double x, double y) => Offset(x * s, y * s);
+
+    /// Joins points with a slight outward bow instead of straight segments.
+    Path pen(List<Offset> points, {double bow = 0.02}) {
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (var i = 1; i < points.length; i++) {
+        final from = points[i - 1];
+        final to = points[i];
+        final delta = to - from;
+        final length = delta.distance;
+        final mid = (from + to) / 2;
+        final offset = length == 0
+            ? Offset.zero
+            : Offset(-delta.dy, delta.dx) / length * (bow * s);
+        path.quadraticBezierTo(
+          mid.dx + offset.dx,
+          mid.dy + offset.dy,
+          to.dx,
+          to.dy,
+        );
+      }
+      return path;
+    }
+
+    void oval(Offset center, double width, double height) {
+      canvas.drawOval(
+        Rect.fromCenter(center: center, width: width * s, height: height * s),
+        fill,
+      );
+    }
+
+    switch (kind) {
+      case PaperGlyphKind.map:
+        // Head and point overlap, the way a pin reads at a glance.
+        canvas.drawCircle(p(0.5, 0.4), 0.3 * s, stroke);
+        canvas.drawPath(pen([p(0.26, 0.62), p(0.5, 0.95), p(0.74, 0.62)]),
+            stroke);
+        canvas.drawCircle(p(0.5, 0.4), 0.095 * s, fill);
+      case PaperGlyphKind.house:
+        canvas.drawPath(pen([p(0.1, 0.47), p(0.5, 0.13), p(0.9, 0.47)]), stroke);
+        canvas.drawPath(
+          pen([p(0.21, 0.42), p(0.21, 0.89), p(0.79, 0.89), p(0.79, 0.42)]),
+          stroke,
+        );
+        canvas.drawPath(
+          pen([p(0.42, 0.89), p(0.42, 0.65), p(0.58, 0.65), p(0.58, 0.89)]),
+          stroke,
+        );
+      case PaperGlyphKind.pet:
+        // Solid pads — outlined toes turn to mush below 20px.
+        oval(p(0.5, 0.73), 0.52, 0.42);
+        oval(p(0.17, 0.43), 0.19, 0.25);
+        oval(p(0.39, 0.27), 0.2, 0.27);
+        oval(p(0.61, 0.27), 0.2, 0.27);
+        oval(p(0.83, 0.43), 0.19, 0.25);
+      case PaperGlyphKind.dex:
+        canvas.drawPath(pen([p(0.5, 0.27), p(0.5, 0.86)], bow: 0), stroke);
+        canvas.drawPath(
+          pen([
+            p(0.5, 0.27),
+            p(0.28, 0.16),
+            p(0.09, 0.21),
+            p(0.09, 0.74),
+            p(0.3, 0.71),
+            p(0.5, 0.86),
+          ]),
+          stroke,
+        );
+        canvas.drawPath(
+          pen([
+            p(0.5, 0.27),
+            p(0.72, 0.16),
+            p(0.91, 0.21),
+            p(0.91, 0.74),
+            p(0.7, 0.71),
+            p(0.5, 0.86),
+          ], bow: -0.02),
+          stroke,
+        );
+      case PaperGlyphKind.record:
+        canvas.drawCircle(p(0.5, 0.5), 0.38 * s, stroke);
+        canvas.drawPath(
+          pen([p(0.3, 0.52), p(0.44, 0.67), p(0.71, 0.34)]),
+          stroke,
+        );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PaperGlyphPainter oldDelegate) {
+    return oldDelegate.kind != kind || oldDelegate.color != color;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────  grain ──
 
 /// The paper grain laid over the whole app (`mix-blend-mode: multiply`).

@@ -1,15 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:masilpet/src/widgets/paper_kit.dart';
 import 'package:masilpet/src/widgets/paper_shell.dart';
 
 /// The five home tabs, every one carrying a badge so the badge geometry is
 /// covered too.
 const _items = [
-  PaperNavItem(label: '지도', number: '01', tooltip: '지도 탭', badge: '2'),
-  PaperNavItem(label: '하우스', number: '02', tooltip: '하우스 탭', badge: '1'),
-  PaperNavItem(label: '마실펫', number: '03', tooltip: '마실펫 탭', badge: '3'),
-  PaperNavItem(label: '도감', number: '04', tooltip: '도감 탭', badge: '36'),
-  PaperNavItem(label: '기록', number: '05', tooltip: '기록 탭', badge: '12'),
+  PaperNavItem(
+    label: '지도',
+    number: '01',
+    glyph: PaperGlyphKind.map,
+    tooltip: '지도 탭',
+    badge: '2',
+  ),
+  PaperNavItem(
+    label: '하우스',
+    number: '02',
+    glyph: PaperGlyphKind.house,
+    tooltip: '하우스 탭',
+    badge: '1',
+  ),
+  PaperNavItem(
+    label: '마실펫',
+    number: '03',
+    glyph: PaperGlyphKind.pet,
+    tooltip: '마실펫 탭',
+    badge: '3',
+  ),
+  PaperNavItem(
+    label: '도감',
+    number: '04',
+    glyph: PaperGlyphKind.dex,
+    tooltip: '도감 탭',
+    badge: '36',
+  ),
+  PaperNavItem(
+    label: '기록',
+    number: '05',
+    glyph: PaperGlyphKind.record,
+    tooltip: '기록 탭',
+    badge: '12',
+  ),
 ];
 
 Future<void> _pumpTabBar(WidgetTester tester, Size size) async {

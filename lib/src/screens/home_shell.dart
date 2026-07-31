@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models.dart';
 import '../services.dart';
 import '../state.dart';
+import '../widgets/paper_kit.dart';
 import '../widgets/paper_shell.dart';
 import 'dex_screen.dart';
 import 'house_screen.dart';
@@ -132,24 +133,28 @@ List<PaperNavItem> _homeNavItems(MasilPetState state) {
     PaperNavItem(
       label: '지도',
       number: '01',
+      glyph: PaperGlyphKind.map,
       tooltip: _mapNavTooltip(state),
       badge: _mapNavBadge(state),
     ),
     PaperNavItem(
       label: '하우스',
       number: '02',
+      glyph: PaperGlyphKind.house,
       tooltip: _houseNavTooltip(state),
       badge: _houseNavBadge(state),
     ),
     PaperNavItem(
       label: '마실펫',
       number: '03',
+      glyph: PaperGlyphKind.pet,
       tooltip: talksLeft == 0 ? '마실펫 탭: 오늘 대화 완료' : '마실펫 탭: 대화 $talksLeft회 가능',
       badge: talksLeft == 0 ? null : '$talksLeft',
     ),
     PaperNavItem(
       label: '도감',
       number: '04',
+      glyph: PaperGlyphKind.dex,
       tooltip: undiscoveredCount == 0
           ? '도감 탭: 전국 도감 완성'
           : '도감 탭: 미발견 $undiscoveredCount종',
@@ -158,6 +163,7 @@ List<PaperNavItem> _homeNavItems(MasilPetState state) {
     PaperNavItem(
       label: '기록',
       number: '05',
+      glyph: PaperGlyphKind.record,
       tooltip: streak == 0 ? '기록 탭: 첫 산책을 기다리는 중' : '기록 탭: $streak일 연속 산책',
       badge: streak == 0 ? null : '$streak',
     ),

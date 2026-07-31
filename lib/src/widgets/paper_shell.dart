@@ -18,12 +18,14 @@ class PaperNavItem {
   const PaperNavItem({
     required this.label,
     required this.number,
+    required this.glyph,
     required this.tooltip,
     this.badge,
   });
 
   final String label;
   final String number;
+  final PaperGlyphKind glyph;
   final String tooltip;
   final String? badge;
 }
@@ -251,15 +253,15 @@ class _PaperTab extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 5,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: active ? MasilPetPalette.stamp : null,
-                    ),
+                  PaperGlyph(
+                    kind: item.glyph,
+                    size: 19,
+                    // The glyph carries the selected state now, so it takes the
+                    // stamp red the old marker dot used to own.
+                    color:
+                        active ? MasilPetPalette.stamp : MasilPetPalette.faint,
                   ),
-                  const SizedBox(height: 5),
+                  const SizedBox(height: 3),
                   Text(
                     item.label,
                     maxLines: 1,
@@ -430,7 +432,15 @@ class _RailItem extends StatelessWidget {
                       : MasilPetPalette.muted.withValues(alpha: 0.55),
                 ),
               ),
-              const SizedBox(width: 11),
+              const SizedBox(width: 9),
+              PaperGlyph(
+                kind: item.glyph,
+                size: 17,
+                color: active
+                    ? MasilPetPalette.stampTint
+                    : MasilPetPalette.faint,
+              ),
+              const SizedBox(width: 9),
               Expanded(
                 child: Text(
                   item.label,

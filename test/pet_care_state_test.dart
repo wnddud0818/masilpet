@@ -109,6 +109,47 @@ void main() {
     expect(cleaned.cleanliness, greaterThan(waiting.cleanliness));
   });
 
+  test('resting at home does not stockpile waste for the next care action', () {
+    final startedAt = DateTime(2026, 7, 14, 9);
+    final later = startedAt.add(const Duration(hours: 30));
+    final care = PetCareState(updatedAt: startedAt);
+
+    // 마당에서 쉬는 동안에는 배설물도 질병도 생기지 않는다.
+    final resting = engine.resolve(care, later, stayingHome: true);
+    expect(resting.wasteCount, 0);
+    expect(resting.ailment, PetAilment.none);
+
+    // 그 상태 그대로 돌봄을 해줘도 밀린 시간이 한꺼번에 터지지 않아야 한다.
+    final fed = engine.afterFeed(resting, later);
+    expect(fed.wasteCount, lessThanOrEqualTo(1));
+    expect(fed.ailment, isNot(PetAilment.itchy));
+
+    final touched = engine.afterTouch(
+      resting,
+      later,
+      touch: PetTouch.head,
+      preferredTouch: PetTouch.head,
+    );
+    expect(touched.wasteCount, 0);
+    expect(touched.ailment, PetAilment.none);
+
+    // 반대로 함께 다니는 펫은 예전처럼 배설물이 쌓인다.
+    final walking = engine.resolve(care, later);
+    expect(walking.wasteCount, 3);
+  });
+
+  test('care actions resolve idempotently for an already resolved state', () {
+    final startedAt = DateTime(2026, 7, 14, 9);
+    final later = startedAt.add(const Duration(hours: 20));
+    final resolved = engine.resolve(PetCareState(updatedAt: startedAt), later);
+
+    final twice = engine.resolve(resolved, later);
+    expect(twice.wasteCount, resolved.wasteCount);
+    expect(twice.satiety, resolved.satiety);
+    expect(twice.vitality, resolved.vitality);
+    expect(twice.ailment, resolved.ailment);
+  });
+
   test('food preferences, repeated meals, touch, and walking shape a pet', () {
     final now = DateTime(2026, 7, 14, 12);
     final template = starterPetTemplates.first;

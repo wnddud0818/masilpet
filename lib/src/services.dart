@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -165,7 +166,10 @@ class CareEngine {
       happiness:
           stayingHome ? math.max(55, resolvedHappiness) : resolvedHappiness,
       wasteCount: nextWaste,
-      lastWasteAt: generatedWaste > 0 ? now : care.lastWasteAt,
+      // 집에서 쉬는 동안에는 배설물이 생기지 않으므로 기준 시각도 함께 밀어준다.
+      // 그러지 않으면 쉬는 내내 시간이 빚처럼 쌓였다가, 돌봄 액션이
+      // 보호 없이 다시 resolve 하는 순간 한꺼번에 터진다.
+      lastWasteAt: generatedWaste > 0 || stayingHome ? now : care.lastWasteAt,
       ailment: ailment,
       ailmentUntil: ailmentUntil,
       clearAilmentUntil: ailmentUntil == null,
@@ -734,6 +738,9 @@ class DeviceStepService {
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
+  /// iOS에서 첫 걸음 이벤트를 기다려 실제 접근 가능 여부를 확인하는 시간.
+  static const motionProbeTimeout = Duration(seconds: 5);
+
   Future<Stream<int>> openStepCountStream() async {
     if (!isSupported) {
       throw const StepTrackingUnavailableException(
@@ -741,14 +748,30 @@ class DeviceStepService {
       );
     }
 
-    final permission = await Permission.activityRecognition.request();
-    if (!permission.isGranted) {
-      throw const StepTrackingUnavailableException(
-        '걸음 수를 연결하려면 동작 및 피트니스 권한이 필요해요.',
-      );
+    // Permission.activityRecognition은 Android 10+ 전용이다. iOS에서는 항상
+    // granted로 떨어지므로, 권한 여부를 센서 응답으로 직접 확인한다.
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final permission = await Permission.activityRecognition.request();
+      if (!permission.isGranted) {
+        throw const StepTrackingUnavailableException(
+          '걸음 수를 연결하려면 동작 및 피트니스 권한이 필요해요.',
+        );
+      }
     }
 
-    return Pedometer.stepCountStream.map((event) => event.steps);
+    final stream = Pedometer.stepCountStream.map((event) => event.steps);
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        await stream.first.timeout(motionProbeTimeout);
+      } on TimeoutException {
+        // 아직 걸음 이벤트가 없을 뿐 접근은 허용된 상태라 그대로 진행한다.
+      } on Object {
+        throw const StepTrackingUnavailableException(
+          '걸음 수를 연결하려면 동작 및 피트니스 권한이 필요해요.',
+        );
+      }
+    }
+    return stream;
   }
 }
 

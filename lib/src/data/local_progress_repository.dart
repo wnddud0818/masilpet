@@ -45,6 +45,9 @@ class SharedPreferencesLocalProgressRepository
       if (decoded is! Map<String, dynamic>) {
         return null;
       }
+      if (!LocalProgressSnapshot.isReadableVersion(decoded)) {
+        return null;
+      }
       return LocalProgressSnapshot.fromMap(decoded);
     } on Object {
       return null;
@@ -144,7 +147,20 @@ class LocalProgressSnapshot {
     this.carePoints = 0,
     this.dailyCareRewardClaimKey,
     this.stepSyncDeviceId = '',
+    this.deviceStepsWaiting = 0,
+    this.stepTrackingActive = false,
   });
+
+  /// 이 빌드가 읽고 쓸 수 있는 저장 포맷 버전. 더 새로운 버전이 저장돼 있으면
+  /// (예: 최신 빌드를 쓰다 이전 빌드로 되돌아온 경우) 잘못 해석하는 대신
+  /// 무시하고 서버 진행도에서 다시 받아온다.
+  static const supportedVersion = 5;
+
+  /// 저장된 스냅샷을 이 빌드가 안전하게 읽을 수 있는지 확인한다.
+  static bool isReadableVersion(Map<String, dynamic> map) {
+    final version = _intFromValue(map['version']) ?? 1;
+    return version <= supportedVersion;
+  }
 
   factory LocalProgressSnapshot.fromMap(Map<String, dynamic> map) {
     final dailyCareRewardClaimKey =
@@ -173,6 +189,8 @@ class LocalProgressSnapshot {
       dailyCareRewardClaimKey:
           dailyCareRewardClaimKey.isEmpty ? null : dailyCareRewardClaimKey,
       stepSyncDeviceId: _stringFromValue(map['stepSyncDeviceId']),
+      deviceStepsWaiting: _intFromValue(map['deviceStepsWaiting']) ?? 0,
+      stepTrackingActive: map['stepTrackingActive'] == true,
     );
   }
 
@@ -193,10 +211,12 @@ class LocalProgressSnapshot {
   final int carePoints;
   final String? dailyCareRewardClaimKey;
   final String stepSyncDeviceId;
+  final int deviceStepsWaiting;
+  final bool stepTrackingActive;
 
   Map<String, dynamic> toMap() {
     return {
-      'version': 4,
+      'version': supportedVersion,
       'onboardingComplete': onboardingComplete,
       'pois': pois.map(_poiToMap).toList(),
       'pets': pets.map(_petToMap).toList(),
@@ -217,6 +237,8 @@ class LocalProgressSnapshot {
       'carePoints': carePoints,
       'dailyCareRewardClaimKey': dailyCareRewardClaimKey,
       'stepSyncDeviceId': stepSyncDeviceId,
+      'deviceStepsWaiting': deviceStepsWaiting,
+      'stepTrackingActive': stepTrackingActive,
     };
   }
 }

@@ -577,6 +577,7 @@ class RemoteStepProgressResult {
     this.updatedPet,
     this.baselineInitialized = false,
     this.counterReset = false,
+    this.dailyLimitReached = false,
   });
 
   factory RemoteStepProgressResult.fromMap(Map<String, dynamic> map) {
@@ -592,6 +593,7 @@ class RemoteStepProgressResult {
           : null,
       baselineInitialized: map['baselineInitialized'] == true,
       counterReset: map['counterReset'] == true,
+      dailyLimitReached: map['dailyLimitReached'] == true,
     );
   }
 
@@ -602,6 +604,9 @@ class RemoteStepProgressResult {
   final RemotePetUpdate? updatedPet;
   final bool baselineInitialized;
   final bool counterReset;
+
+  /// 새 걸음이 있었지만 오늘 반영 상한에 걸려 하나도 적립되지 않은 경우.
+  final bool dailyLimitReached;
 }
 
 class RemotePetInteractionResult {

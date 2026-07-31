@@ -161,6 +161,7 @@ type StepSyncResult = {
   observedCumulativeSteps: number;
   baselineInitialized: boolean;
   counterReset: boolean;
+  dailyLimitReached: boolean;
   appliedStepDelta: number;
   hatchableCount: number;
   creditedEggId: string | null;
@@ -175,7 +176,14 @@ type UpdatedPetResult = {
   stage: PetStage;
 };
 
-type PetInteractionType = 'talk' | 'feed' | 'play' | 'clean' | 'sleep' | 'touch';
+type PetInteractionType =
+  | 'talk'
+  | 'feed'
+  | 'play'
+  | 'clean'
+  | 'sleep'
+  | 'touch'
+  | 'tidy';
 
 type RegionDoc = {
   name: string;
@@ -2756,17 +2764,30 @@ export const attemptCheckIn = onCall({region: functionRegion}, async (request) =
         ...(creditedEggData.imprints ?? []),
         poi.category,
       ]));
+      const creditedStatus =
+        progress >= creditedEggData.requiredSteps ? 'hatchable' : 'incubating';
       transaction.set(
         creditedEggRef,
         {
           progress,
-          status: progress >= creditedEggData.requiredSteps ? 'hatchable' : 'incubating',
+          status: creditedStatus,
           incubationBondXp: Number(creditedEggData.incubationBondXp ?? 0) + 1,
           imprints,
           lastProgressAt: now,
         },
         {merge: true},
       );
+      // 이번 체크인으로 부화 준비를 마쳤다면, 아직 품고 있는 다른 알로 바로
+      // 넘겨준다. 그러지 않으면 다음 걸음이 어떤 알에도 쌓이지 않는다.
+      if (creditedStatus === 'hatchable') {
+        const stillIncubating = selectActiveEgg(
+          eggsSnapshot.docs.filter((doc) => doc.id !== creditedEggId),
+          '',
+        );
+        if (stillIncubating?.data.status === 'incubating') {
+          nextActiveEggId = stillIncubating.id;
+        }
+      }
     }
 
     const openEggCount = eggsSnapshot.docs.filter((egg) => {
@@ -3313,6 +3334,9 @@ export const syncStepsV2 = onCall({region: functionRegion}, async (request) => {
       observedCumulativeSteps,
       baselineInitialized: !hasDeviceBaseline,
       counterReset,
+      // 새 걸음은 있는데 오늘 상한 때문에 하나도 못 실었다면 클라이언트가
+      // 무의미한 재시도를 멈추고 정확한 안내를 띄울 수 있게 알려준다.
+      dailyLimitReached: newlyObservedSteps > 0 && remainingToday <= 0,
       appliedStepDelta,
       hatchableCount,
       creditedEggId:
@@ -3381,6 +3405,7 @@ export const interactWithPet = onCall({region: functionRegion}, async (request) 
     'clean',
     'sleep',
     'touch',
+    'tidy',
   ];
   if (!petId || !supportedActions.includes(actionType as PetInteractionType)) {
     throw new HttpsError('invalid-argument', 'petId and valid actionType are required.');
@@ -3572,17 +3597,8 @@ function selectActiveEgg(
     }))
     .filter((egg) =>
       egg.data.status === 'incubating' || egg.data.status === 'hatchable');
-  const preferred = candidates.find((egg) => egg.id === preferredId);
-  if (preferred) {
-    return preferred;
-  }
 
-  candidates.sort((left, right) => {
-    const leftStatus = left.data.status === 'incubating' ? 0 : 1;
-    const rightStatus = right.data.status === 'incubating' ? 0 : 1;
-    if (leftStatus !== rightStatus) {
-      return leftStatus - rightStatus;
-    }
+  const byRemainingThenId = (left: ResolvedEgg, right: ResolvedEgg): number => {
     const leftRemaining = Math.max(
       0,
       Number(left.data.requiredSteps ?? 3500) - Number(left.data.progress ?? 0),
@@ -3595,8 +3611,26 @@ function selectActiveEgg(
       return leftRemaining - rightRemaining;
     }
     return left.id.localeCompare(right.id);
-  });
-  return candidates[0] ?? null;
+  };
+
+  // 걸음과 체크인은 부화 중인 알에만 쌓인다. 이미 부화 준비를 마친 알이
+  // 선택돼 있으면 진행도가 통째로 버려지므로, 품고 있는 알을 먼저 고른다.
+  const incubating = candidates
+    .filter((egg) => egg.data.status === 'incubating')
+    .sort(byRemainingThenId);
+  const preferredIncubating = incubating.find((egg) => egg.id === preferredId);
+  if (preferredIncubating) {
+    return preferredIncubating;
+  }
+  if (incubating.length > 0) {
+    return incubating[0];
+  }
+
+  const hatchable = candidates
+    .filter((egg) => egg.data.status === 'hatchable')
+    .sort(byRemainingThenId);
+  const preferredHatchable = hatchable.find((egg) => egg.id === preferredId);
+  return preferredHatchable ?? hatchable[0] ?? null;
 }
 
 function bondLevelFor(xp: number): number {
@@ -3626,6 +3660,9 @@ function rewardForPetInteraction(actionType: PetInteractionType): GrowthStats {
       return {exp: 1, mood: 2, knowledge: 0, affinity: 1};
     case 'touch':
       return {exp: 1, mood: 3, knowledge: 0, affinity: 1};
+    // 목욕('clean')과 달리 주변 배설물을 치우는 행동이다.
+    case 'tidy':
+      return {exp: 2, mood: 3, knowledge: 0, affinity: 1};
   }
 }
 

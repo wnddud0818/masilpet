@@ -106,9 +106,10 @@ class _DailyLimitStepBackend
 void main() {
   group('active egg selection', () {
     test('부화 준비를 마친 알보다 아직 품고 있는 알을 먼저 고른다', () {
-      final ready = _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
-      final incubating =
-          _egg(id: 'egg-incubating', status: EggStatus.incubating, progress: 100);
+      final ready =
+          _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
+      final incubating = _egg(
+          id: 'egg-incubating', status: EggStatus.incubating, progress: 100);
 
       // 준비된 알이 선택돼 있어도 품고 있는 알로 넘어간다.
       expect(
@@ -124,8 +125,10 @@ void main() {
     });
 
     test('같은 상태라면 부화가 가장 가까운 알을 고르고 선택은 존중한다', () {
-      final far = _egg(id: 'egg-far', status: EggStatus.incubating, progress: 100);
-      final near = _egg(id: 'egg-near', status: EggStatus.incubating, progress: 3000);
+      final far =
+          _egg(id: 'egg-far', status: EggStatus.incubating, progress: 100);
+      final near =
+          _egg(id: 'egg-near', status: EggStatus.incubating, progress: 3000);
 
       expect(MasilPetState.selectActiveEgg([far, near], '')?.id, near.id);
       expect(MasilPetState.selectActiveEgg([far, near], far.id)?.id, far.id);
@@ -133,9 +136,10 @@ void main() {
 
     test('부화 준비를 마친 알이 골라져 있어도 걸음은 품고 있는 알에 쌓인다', () async {
       final controller = _controller();
-      final ready = _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
-      final incubating =
-          _egg(id: 'egg-incubating', status: EggStatus.incubating, progress: 100);
+      final ready =
+          _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
+      final incubating = _egg(
+          id: 'egg-incubating', status: EggStatus.incubating, progress: 100);
       controller.state = controller.state.copyWith(
         eggs: [ready, incubating],
         activeEggId: ready.id,
@@ -145,7 +149,9 @@ void main() {
 
       expect(controller.state.activeEggId, incubating.id);
       expect(
-        controller.state.eggs.singleWhere((egg) => egg.id == incubating.id).progress,
+        controller.state.eggs
+            .singleWhere((egg) => egg.id == incubating.id)
+            .progress,
         350,
       );
       expect(
@@ -158,7 +164,8 @@ void main() {
 
     test('부화해도 이미 품고 있던 다른 알의 선택은 유지된다', () async {
       final controller = _controller();
-      final ready = _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
+      final ready =
+          _egg(id: 'egg-ready', status: EggStatus.hatchable, progress: 3500);
       final keeping =
           _egg(id: 'egg-keeping', status: EggStatus.incubating, progress: 100);
       final closer =

@@ -1836,11 +1836,12 @@ class _PaperGlyphPainter extends CustomPainter {
       case PaperGlyphKind.map:
         // Head and point overlap, the way a pin reads at a glance.
         canvas.drawCircle(p(0.5, 0.4), 0.3 * s, stroke);
-        canvas.drawPath(pen([p(0.26, 0.62), p(0.5, 0.95), p(0.74, 0.62)]),
-            stroke);
+        canvas.drawPath(
+            pen([p(0.26, 0.62), p(0.5, 0.95), p(0.74, 0.62)]), stroke);
         canvas.drawCircle(p(0.5, 0.4), 0.095 * s, fill);
       case PaperGlyphKind.house:
-        canvas.drawPath(pen([p(0.1, 0.47), p(0.5, 0.13), p(0.9, 0.47)]), stroke);
+        canvas.drawPath(
+            pen([p(0.1, 0.47), p(0.5, 0.13), p(0.9, 0.47)]), stroke);
         canvas.drawPath(
           pen([p(0.21, 0.42), p(0.21, 0.89), p(0.79, 0.89), p(0.79, 0.42)]),
           stroke,

@@ -436,9 +436,8 @@ class _RailItem extends StatelessWidget {
               PaperGlyph(
                 kind: item.glyph,
                 size: 17,
-                color: active
-                    ? MasilPetPalette.stampTint
-                    : MasilPetPalette.faint,
+                color:
+                    active ? MasilPetPalette.stampTint : MasilPetPalette.faint,
               ),
               const SizedBox(width: 9),
               Expanded(

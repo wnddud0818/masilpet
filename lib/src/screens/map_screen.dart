@@ -1154,8 +1154,7 @@ class _PoiInfoStrip extends StatelessWidget {
     final badges = <Widget>[
       if (poi.tendency != PoiTendency.balanced)
         _badge('${poi.tendency.label} 성향'),
-      if (poi.isPetFriendly)
-        _badge('펫 동반 가능', color: MasilPetPalette.forest),
+      if (poi.isPetFriendly) _badge('펫 동반 가능', color: MasilPetPalette.forest),
     ];
 
     if (rows.isEmpty && badges.isEmpty) {

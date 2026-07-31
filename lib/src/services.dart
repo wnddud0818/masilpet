@@ -509,8 +509,7 @@ class CareEngine {
           affectionScore: current.affectionScore +
               bonusFor(PoiTendency.affectionate) +
               petFriendlyBonus,
-          eleganceScore:
-              current.eleganceScore + bonusFor(PoiTendency.elegant),
+          eleganceScore: current.eleganceScore + bonusFor(PoiTendency.elegant),
           updatedAt: now,
           memories: _withMemory(
             current.memories,

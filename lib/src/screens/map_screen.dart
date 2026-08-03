@@ -18,6 +18,9 @@ import '../widgets/status_banner.dart';
 final Uri _openStreetMapCopyrightUri =
     Uri.parse('https://www.openstreetmap.org/copyright');
 
+/// Close enough to read street names, wide enough to hold a few 산책지.
+const _initialZoom = 12.7;
+
 /// 지도: where you are, what is within stamping distance, and the walk that
 /// gets you to the next one.
 class MapScreen extends ConsumerStatefulWidget {
@@ -40,7 +43,52 @@ class _MapScreenState extends ConsumerState<MapScreen> {
     final focus = _heroFocus(state);
     final nearby = _visibleNearbyPois(state);
 
+    return RefreshIndicator(
+      // Pulling the page down is the gesture people already try when a map
+      // looks stale, so it does what 위치 새로고침 does.
+      onRefresh: controller.useDeviceLocation,
+      color: MasilPetPalette.stamp,
+      backgroundColor: MasilPetPalette.paper,
+      child: _MapBody(state: state, focus: focus, nearby: nearby),
+    );
+  }
+
+  /// The stamp animation belongs to the moment of verification, so it fires on
+  /// the frame where today's count goes up.
+  void _watchForNewStamp(int count) {
+    final previous = _lastCheckInCount;
+    _lastCheckInCount = count;
+    if (previous == null || count <= previous) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        showStampOverlay(context, dateLabel: _stampDateLabel(DateTime.now()));
+      }
+    });
+  }
+}
+
+class _MapBody extends ConsumerWidget {
+  const _MapBody({
+    required this.state,
+    required this.focus,
+    required this.nearby,
+  });
+
+  final MasilPetState state;
+  final _HeroFocus? focus;
+  final List<Poi> nearby;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.read(masilPetControllerProvider.notifier);
+    final focus = this.focus;
+
     return CustomScrollView(
+      // The shell owns this page's scroller so re-tapping 지도 returns to the
+      // map itself.
+      primary: true,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,
@@ -94,21 +142,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
       ],
     );
   }
-
-  /// The stamp animation belongs to the moment of verification, so it fires on
-  /// the frame where today's count goes up.
-  void _watchForNewStamp(int count) {
-    final previous = _lastCheckInCount;
-    _lastCheckInCount = count;
-    if (previous == null || count <= previous) {
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        showStampOverlay(context, dateLabel: _stampDateLabel(DateTime.now()));
-      }
-    });
-  }
 }
 
 // ────────────────────────────────────────────────────────────────── the map ──
@@ -125,6 +158,10 @@ class _PaperMapFrame extends ConsumerStatefulWidget {
 }
 
 class _PaperMapFrameState extends ConsumerState<_PaperMapFrame> {
+  /// Panning is easy; finding your way back is not. The controller exists so
+  /// the "지금 여기" button can put the pin back under your thumb.
+  final _mapController = MapController();
+
   String? _selectedPoiId;
 
   @override
@@ -134,6 +171,22 @@ class _PaperMapFrameState extends ConsumerState<_PaperMapFrame> {
     if (selectedPoiId != null &&
         !widget.state.pois.any((poi) => poi.id == selectedPoiId)) {
       _selectedPoiId = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  /// Recentres without changing how far in you are zoomed.
+  void _recenter(LatLng point) {
+    try {
+      _mapController.move(point, _mapController.camera.zoom);
+    } on Object {
+      // The camera only exists once the map has laid out. If a press somehow
+      // beats that, there is no view to recentre yet.
     }
   }
 
@@ -164,9 +217,10 @@ class _PaperMapFrameState extends ConsumerState<_PaperMapFrame> {
                         '${state.currentLocation.latitude.toStringAsFixed(6)},'
                         '${state.currentLocation.longitude.toStringAsFixed(6)}',
                       ),
+                      mapController: _mapController,
                       options: MapOptions(
                         initialCenter: currentPoint,
-                        initialZoom: 12.7,
+                        initialZoom: _initialZoom,
                         backgroundColor: MasilPetPalette.canvas,
                         interactionOptions: const InteractionOptions(
                           flags: InteractiveFlag.drag |
@@ -237,6 +291,15 @@ class _PaperMapFrameState extends ConsumerState<_PaperMapFrame> {
                       top: 11,
                       child: _MapNote(
                         '${state.region.name} · 산책지 ${state.pois.length}곳',
+                      ),
+                    ),
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: _MapControlButton(
+                        label: '지금 여기',
+                        semanticLabel: '지도를 현재 위치로 되돌리기',
+                        onTap: () => _recenter(currentPoint),
                       ),
                     ),
                     Positioned(
@@ -433,6 +496,54 @@ class _MapNote extends StatelessWidget {
       child: Text(
         text,
         style: MasilPetType.microMono.copyWith(letterSpacing: 1.14),
+      ),
+    );
+  }
+}
+
+/// A note-shaped control resting on the map: same paper chrome as `_MapNote`,
+/// but you can press it.
+class _MapControlButton extends StatelessWidget {
+  const _MapControlButton({
+    required this.label,
+    required this.semanticLabel,
+    required this.onTap,
+  });
+
+  final String label;
+  final String semanticLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: ExcludeSemantics(
+        child: Material(
+          color: MasilPetPalette.paper.withValues(alpha: 0.9),
+          borderRadius: MasilPetRadii.tightBorder,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: MasilPetRadii.tightBorder,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 32),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                border: Border.all(color: MasilPetPalette.outline),
+                borderRadius: MasilPetRadii.tightBorder,
+              ),
+              child: Text(
+                label,
+                style: MasilPetType.microMono.copyWith(
+                  letterSpacing: 1.14,
+                  color: MasilPetPalette.stamp,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

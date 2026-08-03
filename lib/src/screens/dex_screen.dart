@@ -21,11 +21,23 @@ class DexScreen extends ConsumerStatefulWidget {
   ConsumerState<DexScreen> createState() => _DexScreenState();
 }
 
-class _DexScreenState extends ConsumerState<DexScreen> {
-  static const _allRegions = 'korea';
+/// The pseudo-region that means "the whole book".
+const _allRegions = 'korea';
 
+class _DexScreenState extends ConsumerState<DexScreen> {
   String _regionId = _allRegions;
   _DexDiscoveryFilter _discoveryFilter = _DexDiscoveryFilter.all;
+  String _query = '';
+
+  bool get _hasQuery => _query.trim().isNotEmpty;
+
+  void _resetFilters() {
+    setState(() {
+      _regionId = _allRegions;
+      _discoveryFilter = _DexDiscoveryFilter.all;
+      _query = '';
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +56,7 @@ class _DexScreenState extends ConsumerState<DexScreen> {
       _regionId = _allRegions;
     }
 
+    final query = _query.trim();
     final entries = state.templates.where((template) {
       final isDiscovered = discovered.contains(template.id);
       final matchesRegion =
@@ -53,16 +66,21 @@ class _DexScreenState extends ConsumerState<DexScreen> {
         _DexDiscoveryFilter.discovered => isDiscovered,
         _DexDiscoveryFilter.undiscovered => !isDiscovered,
       };
-      return matchesRegion && matchesDiscovery;
+      return matchesRegion &&
+          matchesDiscovery &&
+          _matchesQuery(template, isDiscovered, query);
     }).toList(growable: false);
 
     return CustomScrollView(
+      // The shell owns this page's scroller so re-tapping 도감 returns to the
+      // album cover.
+      primary: true,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,
           sliver: ResponsiveSliverList(
             children: [
-              _DexSummaryCard(state: state),
+              _DexSummaryCard(state: state, regionId: _regionId),
               const SizedBox(height: MasilPetSpacing.lg),
               FilterPillRow<String>(
                 values: regionIds,
@@ -77,17 +95,28 @@ class _DexScreenState extends ConsumerState<DexScreen> {
                 selected: _discoveryFilter,
                 onSelected: (value) => setState(() => _discoveryFilter = value),
               ),
+              const SizedBox(height: MasilPetSpacing.sm),
+              PaperSearchField(
+                label: '찾기',
+                hintText: '이름 · 지역 · 즐겨 찾는 곳',
+                value: _query,
+                onChanged: (value) => setState(() => _query = value),
+              ),
+              if (_hasQuery) ...[
+                const SizedBox(height: MasilPetSpacing.xs),
+                _DexSearchNote(count: entries.length),
+              ],
               const SizedBox(height: MasilPetSpacing.lg),
               if (entries.isEmpty)
                 EmptyStateCard(
                   note: '비어 있어요',
-                  title: '조건에 맞는 스티커가 없어요',
-                  body: '다른 지역이나 발견 상태를 골라 앨범을 다시 살펴보세요.',
+                  title: _hasQuery ? '찾는 이름이 앨범에 없어요' : '조건에 맞는 스티커가 없어요',
+                  body: _hasQuery
+                      ? '아직 만나지 못한 마실펫은 찾을 수 없어요. '
+                          '다른 이름이나 지역으로 다시 찾아보세요.'
+                      : '다른 지역이나 발견 상태를 골라 앨범을 다시 살펴보세요.',
                   actionLabel: '필터 초기화',
-                  onAction: () => setState(() {
-                    _regionId = _allRegions;
-                    _discoveryFilter = _DexDiscoveryFilter.all;
-                  }),
+                  onAction: _resetFilters,
                 )
               else
                 _DexGrid(
@@ -165,11 +194,66 @@ String _discoveryFilterLabel(_DexDiscoveryFilter filter) {
   };
 }
 
+/// A page you have not written yet cannot be read back, so an undiscovered
+/// sticker never answers a search — its name and region are still hidden.
+bool _matchesQuery(PetTemplate template, bool discovered, String query) {
+  if (query.isEmpty) {
+    return true;
+  }
+  if (!discovered) {
+    return false;
+  }
+
+  // Only fields the album actually shows, so a hit is always explainable.
+  final needle = query.toLowerCase();
+  return [
+    template.name,
+    shortRegionLabelForId(template.regionId),
+    regionNameForId(template.regionId),
+    template.primaryCategory.label,
+  ].any((field) => field.toLowerCase().contains(needle));
+}
+
+/// Why a search can come up short even when the album is not.
+class _DexSearchNote extends StatelessWidget {
+  const _DexSearchNote({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      count == 0 ? '발견한 마실펫 중에는 없어요' : '발견한 마실펫 $count종을 찾았어요',
+      style: MasilPetType.caption,
+    );
+  }
+}
+
+/// `부산 3 / 5종 발견` — how one region's page is filling up.
+String _regionTally(MasilPetState state, String regionId) {
+  final discovered = state.discoveredTemplateIds;
+  var found = 0;
+  var total = 0;
+  for (final template in state.templates) {
+    if (template.regionId != regionId) {
+      continue;
+    }
+    total++;
+    if (discovered.contains(template.id)) {
+      found++;
+    }
+  }
+  return '${shortRegionLabelForId(regionId)} $found / $total종 발견';
+}
+
 /// The album cover: how many of the nation's pets are pressed into the book.
 class _DexSummaryCard extends StatelessWidget {
-  const _DexSummaryCard({required this.state});
+  const _DexSummaryCard({required this.state, required this.regionId});
 
   final MasilPetState state;
+
+  /// `korea` for the whole book, otherwise the region being read.
+  final String regionId;
 
   @override
   Widget build(BuildContext context) {
@@ -215,6 +299,15 @@ class _DexSummaryCard extends StatelessWidget {
                   color: MasilPetPalette.forest,
                   height: 8,
                 ),
+                // Reading one region's page should say how that page is doing,
+                // not just the book as a whole.
+                if (regionId != _allRegions) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _regionTally(state, regionId),
+                    style: MasilPetType.caption,
+                  ),
+                ],
               ],
             ),
           ),

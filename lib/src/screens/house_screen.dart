@@ -31,6 +31,9 @@ class HouseScreen extends ConsumerWidget {
     final justHatched = _recentlyHatchedPet(state);
 
     return CustomScrollView(
+      // The shell owns this page's scroller so re-tapping 하우스 returns to
+      // the yard.
+      primary: true,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,
@@ -52,10 +55,12 @@ class HouseScreen extends ConsumerWidget {
                 const SizedBox(height: MasilPetSpacing.xl),
               ],
               if (nextEgg == null)
-                const EmptyStateCard(
+                EmptyStateCard(
                   note: '알이 없어요',
                   title: '부화할 알이 없어요',
                   body: '지도에서 도장을 찍으면 새 알이 수첩에 들어와요.',
+                  actionLabel: '지도에서 알 찾기',
+                  onAction: state.isBusy ? null : () => controller.setTab(0),
                 )
               else
                 _EggHeroCard(
@@ -948,6 +953,9 @@ Future<void> _hatchAndChooseCompanion(
   if (pet == null) {
     return;
   }
+  // A shell cracking is the loop's other loud moment, so it gets the same
+  // weight in the hand that a stamp does.
+  MasilPetHaptics.stamp();
   final template = controller.templateFor(pet.templateId);
   final walkTogether = await showModalBottomSheet<bool>(
     context: context,

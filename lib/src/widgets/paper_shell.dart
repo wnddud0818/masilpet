@@ -238,7 +238,10 @@ class _PaperTab extends StatelessWidget {
       selected: active,
       label: item.tooltip,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          MasilPetHaptics.select();
+          onTap();
+        },
         borderRadius: MasilPetRadii.tightBorder,
         child: Stack(
           clipBehavior: Clip.none,
@@ -422,7 +425,10 @@ class _RailItem extends StatelessWidget {
       selected: active,
       label: item.tooltip,
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          MasilPetHaptics.select();
+          onTap();
+        },
         borderRadius: MasilPetRadii.smallBorder,
         hoverColor: active ? Colors.transparent : MasilPetPalette.hover,
         child: Container(

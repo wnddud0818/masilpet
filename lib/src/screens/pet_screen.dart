@@ -33,6 +33,9 @@ class PetScreen extends ConsumerWidget {
     final need = pet == null ? null : controller.currentNeedFor(pet);
 
     return CustomScrollView(
+      // The shell owns this page's scroller so re-tapping 마실펫 returns to
+      // the stage.
+      primary: true,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,
@@ -249,6 +252,12 @@ class _PetStage extends StatelessWidget {
     final emotion = _stageEmotion(state.fieldActivity, care);
     final excited = emotion == 'excited';
     final message = _friendlyPetMessage(state, pet);
+    final onTouch = this.onTouch;
+    // Touching a friend should answer in the hand, not only on screen.
+    void touch(PetTouch kind) {
+      MasilPetHaptics.touch();
+      onTouch!(kind);
+    }
 
     return PaperCard.frame(
       child: DecoratedBox(
@@ -298,18 +307,16 @@ class _PetStage extends StatelessWidget {
                       button: onTalk != null,
                       label: '${pet.name} 쓰다듬기',
                       child: GestureDetector(
-                        onTap: onTouch == null
-                            ? null
-                            : () => onTouch!(PetTouch.head),
+                        onTap:
+                            onTouch == null ? null : () => touch(PetTouch.head),
                         onDoubleTap: onTouch == null
                             ? null
-                            : () => onTouch!(PetTouch.cheek),
-                        onLongPress: onTouch == null
-                            ? null
-                            : () => onTouch!(PetTouch.hug),
+                            : () => touch(PetTouch.cheek),
+                        onLongPress:
+                            onTouch == null ? null : () => touch(PetTouch.hug),
                         onHorizontalDragEnd: onTouch == null
                             ? null
-                            : (details) => onTouch!(
+                            : (details) => touch(
                                   details.primaryVelocity != null &&
                                           details.primaryVelocity! < 0
                                       ? PetTouch.paw

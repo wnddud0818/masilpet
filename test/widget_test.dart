@@ -136,6 +136,8 @@ void _verifyLocationAt(MasilPetController controller, Poi poi) {
   );
 }
 
+String _two(int value) => value.toString().padLeft(2, '0');
+
 CheckIn _checkIn({
   required Poi poi,
   DateTime? at,
@@ -232,6 +234,79 @@ void main() {
     final ctaBottom = tester.getBottomLeft(cta).dy;
     expect(ctaBottom, lessThanOrEqualTo(_narrowPhone.height));
     expect(find.text('건너뛰기'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding walks back a step without completing',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    // Page one has nothing behind it: 이전 holds its space but is not a
+    // control, so 건너뛰기 never shifts as the story moves.
+    expect(find.text('이전').hitTestable(), findsNothing);
+    final skipSeat = tester.getRect(find.text('건너뛰기'));
+
+    await tester.tap(find.text('해랑이 만나기'));
+    await _settle(tester);
+    expect(find.text('세 걸음이면 충분해'), findsOneWidget);
+    expect(tester.getRect(find.text('건너뛰기')), skipSeat);
+
+    await tester.tap(find.text('이전'));
+    await _settle(tester);
+
+    expect(find.text('안녕! 나 해랑이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
+    expect(find.text('이전').hitTestable(), findsNothing);
+    expect(controller.state.onboardingComplete, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding dots jump back to a page already read',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.text('해랑이 만나기'));
+    await _settle(tester);
+    await tester.tap(find.text('좋아, 알겠어'));
+    await _settle(tester);
+    expect(find.text('어디를 걷는지\n알아야 도장을 찍어'), findsOneWidget);
+
+    // Only the pages behind the reader are controls.
+    expect(_semanticsLabel('1단계로 돌아가기'), findsOneWidget);
+    expect(_semanticsLabel('3단계로 돌아가기'), findsNothing);
+
+    await tester.tap(_semanticsLabel('1단계로 돌아가기'));
+    await _settle(tester);
+
+    expect(find.text('안녕! 나 해랑이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
+    expect(controller.state.onboardingComplete, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('onboarding system back walks the story instead of leaving',
+      (WidgetTester tester) async {
+    final controller = _controller();
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const OnboardingScreen()));
+    await _settle(tester);
+
+    await tester.tap(find.text('해랑이 만나기'));
+    await _settle(tester);
+    expect(find.text('세 걸음이면 충분해'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+
+    expect(find.text('안녕! 나 해랑이야.\n여기서 계속 너 기다리고 있었어.'), findsOneWidget);
+    expect(controller.state.onboardingComplete, isFalse);
     expect(tester.takeException(), isNull);
   });
 
@@ -338,6 +413,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('re-tapping the open tab returns that page to its masthead',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(1);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          masilPetControllerProvider.overrideWith((ref) => controller),
+        ],
+        child: MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: const HomeShell(),
+        ),
+      ),
+    );
+    await _settle(tester);
+
+    final petScrollable = find
+        .descendant(
+          of: find.byType(PetScreen),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+
+    await tester.drag(petScrollable, const Offset(0, -420));
+    await _settle(tester);
+
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(petScrollable).position;
+    expect(position().pixels, greaterThan(0));
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(PaperTabBar),
+        matching: find.text('마실펫'),
+      ),
+    );
+    await _settle(tester);
+
+    expect(position().pixels, 0);
+    // The tab did not change, so the shell is still on 마실펫.
+    expect(controller.state.selectedTab, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('home shell header names the page and the day',
       (WidgetTester tester) async {
@@ -644,6 +765,59 @@ void main() {
     await tester.tap(refresh);
     await _settle(tester);
 
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map recentres on the walker after the map is panned away',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    final map = tester.widget<FlutterMap>(find.byType(FlutterMap));
+    final mapController = map.mapController!;
+    final home = mapController.camera.center;
+
+    // Sideways, so the gesture goes to the map instead of the page scroll.
+    await tester.drag(find.byType(FlutterMap), const Offset(-120, 0));
+    await _settle(tester);
+    expect(mapController.camera.center.longitude, isNot(home.longitude));
+
+    await tester.tap(_semanticsLabel('지도를 현재 위치로 되돌리기'));
+    await _settle(tester);
+
+    expect(mapController.camera.center.latitude, closeTo(home.latitude, 1e-6));
+    expect(
+      mapController.camera.center.longitude,
+      closeTo(home.longitude, 1e-6),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map page pulls down to re-read the location',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    expect(find.byType(RefreshIndicator), findsOneWidget);
+    final before = controller.state.statusMessage;
+
+    await tester.fling(
+      find.byType(CustomScrollView),
+      const Offset(0, 320),
+      1200,
+    );
+    await _settle(tester);
+
+    // There is no location platform under `flutter_test`, so the pull lands on
+    // the same note the button produces — what matters is that the gesture
+    // asked for a fresh reading at all.
+    expect(controller.state.statusMessage, isNot(before));
     expect(tester.takeException(), isNull);
   });
 
@@ -1384,6 +1558,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('house empty egg state sends you back to the map',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(2);
+    controller.state = controller.state.copyWith(eggs: const []);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
+    await _settle(tester);
+
+    final action = find.text('지도에서 알 찾기');
+    expect(action, findsOneWidget);
+    await tester.ensureVisible(action);
+    await tester.pump();
+    await tester.tap(action);
+    await _settle(tester);
+
+    expect(controller.state.selectedTab, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   // ───────────────────────────────────────────────────────────────────── dex ──
 
   testWidgets('dex screen summarizes collection progress',
@@ -1556,6 +1750,92 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('dex search narrows the album to pets already met',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    // Before searching: the starter plus a page full of blank stickers.
+    expect(find.text('해랑'), findsOneWidget);
+    expect(find.text('미발견'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), '해랑');
+    await _settle(tester);
+
+    expect(find.text('발견한 마실펫 1종을 찾았어요'), findsOneWidget);
+    // The sticker, plus the query echoed back by the field itself.
+    expect(find.text('해랑'), findsNWidgets(2));
+    // A sticker you have not earned cannot answer a search, so the only
+    // '미발견' left on the page is the filter pill itself.
+    expect(find.text('미발견'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex search field fits a narrow phone',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _narrowPhone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    await tester.enterText(find.byType(TextField), '해랑');
+    await _settle(tester);
+
+    final clear = find.text('지우기');
+    expect(clear, findsOneWidget);
+    expect(tester.getRect(clear).right, lessThanOrEqualTo(_narrowPhone.width));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex search that matches nothing explains why',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    await tester.enterText(find.byType(TextField), '없는이름');
+    await _settle(tester);
+
+    expect(find.text('발견한 마실펫 중에는 없어요'), findsOneWidget);
+    expect(find.text('찾는 이름이 앨범에 없어요'), findsOneWidget);
+
+    await tester.tap(find.text('지우기'));
+    await _settle(tester);
+
+    expect(find.text('찾는 이름이 앨범에 없어요'), findsNothing);
+    expect(find.text('해랑'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dex region filter reports that region\'s own tally',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(3);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const DexScreen()));
+    await _settle(tester);
+
+    final starterRegionId = starterCompanionTemplate().regionId;
+    final regionLabel = shortRegionLabelForId(starterRegionId);
+    expect(find.textContaining('$regionLabel 1 / '), findsNothing);
+
+    // 부산 sits well down the horizontally scrolling pill row on a phone.
+    final pill = find.text(regionLabel).first;
+    await tester.ensureVisible(pill);
+    await _settle(tester);
+    await tester.tap(pill);
+    await _settle(tester);
+
+    expect(find.textContaining('$regionLabel 1 / '), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   // ───────────────────────────────────────────────────────────────── profile ──
 
   testWidgets('profile passport shows the streak and this month\'s grid',
@@ -1616,6 +1896,151 @@ void main() {
     expect(find.text('2곳'), findsOneWidget);
     expect(find.text('누적 체크인'), findsOneWidget);
     expect(find.text('2회'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile passport pages back to an earlier month',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    final now = DateTime.now();
+    final lastMonth = DateTime(now.year, now.month - 1, 12, 10);
+    controller.state = controller.state.copyWith(
+      checkIns: [_checkIn(poi: starterPoiSeed.first, at: lastMonth)],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    // This month is still blank; the stamp sits on the page before it.
+    expect(
+      find.text('WALKING PASSPORT · ${now.year}.${_two(now.month)}'),
+      findsOneWidget,
+    );
+    expect(find.text('도장 0일'), findsOneWidget);
+
+    await tester.tap(find.text('‹ ${lastMonth.month}월'));
+    await _settle(tester);
+
+    expect(
+      find.text(
+        'WALKING PASSPORT · ${lastMonth.year}.${_two(lastMonth.month)}',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('1일 걸었어요'), findsOneWidget);
+    expect(find.text('도장 1일'), findsOneWidget);
+
+    final stamped = tester
+        .widgetList<PassportDay>(find.byType(PassportDay))
+        .where((day) => day.stamped)
+        .toList();
+    expect(stamped, hasLength(1));
+    expect(stamped.single.day, 12);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile passport cannot page past the first or latest stamp',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [_checkIn(poi: starterPoiSeed.first)],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final now = DateTime.now();
+    final previous = DateTime(now.year, now.month - 1);
+    final next = DateTime(now.year, now.month + 1);
+
+    // The only stamp is in this month, so both page corners are dead.
+    final back = tester.widget<MonoButton>(
+      find.ancestor(
+        of: find.text('‹ ${previous.month}월'),
+        matching: find.byType(MonoButton),
+      ),
+    );
+    final forward = tester.widget<MonoButton>(
+      find.ancestor(
+        of: find.text('${next.month}월 ›'),
+        matching: find.byType(MonoButton),
+      ),
+    );
+    expect(back.onPressed, isNull);
+    expect(forward.onPressed, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile recent walks open the whole trail in a sheet',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    final now = DateTime.now();
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        for (var index = 0; index < 6; index++)
+          _checkIn(
+            poi: starterPoiSeed[index],
+            at: now.subtract(Duration(hours: index + 1)),
+          ),
+      ],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    // The page keeps five; the sixth is only reachable through the sheet.
+    final oldest = starterPoiSeed[5].title;
+    expect(find.text(oldest), findsNothing);
+
+    await tester.tap(find.text('전체 6회'));
+    await _settle(tester);
+
+    expect(find.text('산책 기록'), findsOneWidget);
+    expect(find.text(oldest), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile recent walks stay inline when the trail is short',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    controller.state = controller.state.copyWith(
+      checkIns: [_checkIn(poi: starterPoiSeed.first)],
+    );
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    expect(find.textContaining('전체 '), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('profile passport stepper fits a narrow phone',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(4);
+    final now = DateTime.now();
+    controller.state = controller.state.copyWith(
+      checkIns: [
+        _checkIn(
+          poi: starterPoiSeed.first,
+          at: DateTime(now.year, now.month - 1, 28, 9),
+        ),
+      ],
+    );
+    _sizeView(tester, _narrowPhone);
+
+    await tester.pumpWidget(_hostScreen(controller, const ProfileScreen()));
+    await _settle(tester);
+
+    final stepper = find.text('도장 0일');
+    expect(stepper, findsOneWidget);
+    expect(
+      tester.getRect(stepper).right,
+      lessThanOrEqualTo(_narrowPhone.width),
+    );
     expect(tester.takeException(), isNull);
   });
 

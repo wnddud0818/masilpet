@@ -28,6 +28,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     complete();
   }
 
+  /// Walking the story backwards, from the dock button, a dot, or the system
+  /// back gesture. Page 0 has nowhere to go, so it stays put.
+  void _goTo(int step) {
+    final target = step.clamp(0, _stepCount - 1);
+    if (target == _step) {
+      return;
+    }
+    setState(() => _step = target);
+  }
+
   @override
   Widget build(BuildContext context) {
     final (
@@ -59,79 +69,91 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       '허용하고 시작하기',
     ];
 
-    return Scaffold(
-      backgroundColor: MasilPetPalette.canvas,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: Column(
-                    children: [
-                      // The story scrolls; the dock never leaves the screen, so
-                      // the primary action is reachable on short displays.
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return SingleChildScrollView(
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  minHeight: constraints.maxHeight,
-                                ),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(26, 34, 26, 8),
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Padding(
-                                        padding: EdgeInsets.only(top: 14),
-                                        child: BrandMark(),
-                                      ),
-                                      const SizedBox(
-                                        height: MasilPetSpacing.xxl,
-                                      ),
-                                      _OnboardingStep(
-                                        key: ValueKey(_step),
-                                        step: _step,
-                                        template: template,
-                                        petName: petName,
-                                        templateCount: templates.length,
-                                        localOnlyNote: localOnlyNote,
-                                      ),
-                                      const SizedBox(
-                                        height: MasilPetSpacing.md,
-                                      ),
-                                    ],
+    return PopScope(
+      // The story owns the back gesture until the reader is on page one; only
+      // then does back mean "leave the app".
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _goTo(_step - 1);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: MasilPetPalette.canvas,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: SafeArea(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Column(
+                      children: [
+                        // The story scrolls; the dock never leaves the screen,
+                        // so the primary action is reachable on short displays.
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return SingleChildScrollView(
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: constraints.maxHeight,
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        26, 34, 26, 8),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Padding(
+                                          padding: EdgeInsets.only(top: 14),
+                                          child: BrandMark(),
+                                        ),
+                                        const SizedBox(
+                                          height: MasilPetSpacing.xxl,
+                                        ),
+                                        _OnboardingStep(
+                                          key: ValueKey(_step),
+                                          step: _step,
+                                          template: template,
+                                          petName: petName,
+                                          templateCount: templates.length,
+                                          localOnlyNote: localOnlyNote,
+                                        ),
+                                        const SizedBox(
+                                          height: MasilPetSpacing.md,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(26, 0, 26, 20),
-                        child: _OnboardingDock(
-                          step: _step,
-                          stepCount: _stepCount,
-                          ctaLabel: ctaLabels[_step],
-                          isBusy: isBusy,
-                          onNext: () => _next(controller.completeOnboarding),
-                          onSkip: controller.completeOnboarding,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(26, 0, 26, 20),
+                          child: _OnboardingDock(
+                            step: _step,
+                            stepCount: _stepCount,
+                            ctaLabel: ctaLabels[_step],
+                            isBusy: isBusy,
+                            onNext: () => _next(controller.completeOnboarding),
+                            onBack: _step == 0 ? null : () => _goTo(_step - 1),
+                            onStepSelected: _goTo,
+                            onSkip: controller.completeOnboarding,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const Positioned.fill(child: GrainOverlay()),
-        ],
+            const Positioned.fill(child: GrainOverlay()),
+          ],
+        ),
       ),
     );
   }
@@ -458,6 +480,8 @@ class _OnboardingDock extends StatelessWidget {
     required this.ctaLabel,
     required this.isBusy,
     required this.onNext,
+    required this.onBack,
+    required this.onStepSelected,
     required this.onSkip,
   });
 
@@ -466,17 +490,27 @@ class _OnboardingDock extends StatelessWidget {
   final String ctaLabel;
   final bool isBusy;
   final VoidCallback onNext;
+
+  /// Null on the first page, where there is nothing behind to go back to.
+  final VoidCallback? onBack;
+  final ValueChanged<int> onStepSelected;
   final VoidCallback onSkip;
 
   @override
   Widget build(BuildContext context) {
+    final onBack = this.onBack;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 400),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          StepDots(count: stepCount, index: step),
-          const SizedBox(height: MasilPetSpacing.lg),
+          StepDots(
+            count: stepCount,
+            index: step,
+            onSelected: isBusy ? null : onStepSelected,
+          ),
+          const SizedBox(height: MasilPetSpacing.sm),
           PaperButton(
             label: ctaLabel,
             onPressed: isBusy ? null : onNext,
@@ -485,15 +519,41 @@ class _OnboardingDock extends StatelessWidget {
               vertical: 17,
             ),
           ),
-          TextButton(
-            onPressed: isBusy ? null : onSkip,
-            child: Text(
-              '건너뛰기',
-              style: MasilPetType.bodySmall.copyWith(
-                fontSize: 13,
-                color: MasilPetPalette.mutedWarm,
+          // 이전과 건너뛰기는 같은 줄에 둔다. 첫 장에서는 이전이 자리만
+          // 지키고 사라져, 줄 높이도 건너뛰기 위치도 흔들리지 않는다.
+          Row(
+            children: [
+              Expanded(
+                child: Visibility(
+                  visible: onBack != null,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: TextButton(
+                    onPressed: isBusy ? null : onBack,
+                    child: Text(
+                      '이전',
+                      style: MasilPetType.bodySmall.copyWith(
+                        fontSize: 13,
+                        color: MasilPetPalette.mutedWarm,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              Expanded(
+                child: TextButton(
+                  onPressed: isBusy ? null : onSkip,
+                  child: Text(
+                    '건너뛰기',
+                    style: MasilPetType.bodySmall.copyWith(
+                      fontSize: 13,
+                      color: MasilPetPalette.mutedWarm,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

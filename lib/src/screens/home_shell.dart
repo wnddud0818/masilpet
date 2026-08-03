@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models.dart';
 import '../services.dart';
 import '../state.dart';
+import '../theme.dart';
 import '../widgets/paper_kit.dart';
 import '../widgets/paper_shell.dart';
 import 'dex_screen.dart';
@@ -12,7 +13,7 @@ import 'map_screen.dart';
 import 'pet_screen.dart';
 import 'profile_screen.dart';
 
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   /// Navigation reads like a table of contents, so the order is fixed by the
@@ -28,11 +29,52 @@ class HomeShell extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(masilPetControllerProvider);
-    final controller = ref.read(masilPetControllerProvider.notifier);
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
 
-    final navigationIndex = _navigationOrder.indexOf(state.selectedTab);
+class _HomeShellState extends ConsumerState<HomeShell> {
+  /// One controller per tab, handed down as each page's primary scroller so
+  /// the shell can send a page back to its masthead without the screens
+  /// having to know about the navigation at all.
+  late final List<ScrollController> _scrollControllers = List.generate(
+    HomeShell._screens.length,
+    (_) => ScrollController(),
+  );
+
+  @override
+  void dispose() {
+    for (final controller in _scrollControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Tapping the tab you are already reading takes the page back to the top —
+  /// the shortcut every long notebook page wants.
+  void _onSelected(int navigationIndex, int currentTab) {
+    final tab = HomeShell._navigationOrder[navigationIndex];
+    if (tab != currentTab) {
+      ref.read(masilPetControllerProvider.notifier).setTab(tab);
+      return;
+    }
+
+    final controller = _scrollControllers[tab];
+    if (!controller.hasClients || controller.offset <= 0) {
+      return;
+    }
+    controller.animateTo(
+      0,
+      duration: MasilPetMotion.standard,
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(masilPetControllerProvider);
+
+    final navigationIndex =
+        HomeShell._navigationOrder.indexOf(state.selectedTab);
     final activeIndex = navigationIndex < 0 ? 0 : navigationIndex;
     final page = _homePages(state)[activeIndex];
     final streak = state.currentVisitStreakDays;
@@ -43,16 +85,18 @@ class HomeShell extends ConsumerWidget {
       note: page.note,
       items: _homeNavItems(state),
       activeIndex: activeIndex,
-      onSelected: (index) => controller.setTab(_navigationOrder[index]),
+      onSelected: (index) => _onSelected(index, state.selectedTab),
       railFooterLabel: '연속 산책',
       railFooterValue: streak == 0 ? '첫 걸음' : '$streak일째',
-      body: const _HomeTabStack(),
+      body: _HomeTabStack(scrollControllers: _scrollControllers),
     );
   }
 }
 
 class _HomeTabStack extends ConsumerWidget {
-  const _HomeTabStack();
+  const _HomeTabStack({required this.scrollControllers});
+
+  final List<ScrollController> scrollControllers;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,7 +110,10 @@ class _HomeTabStack extends ConsumerWidget {
         for (final (index, screen) in HomeShell._screens.indexed)
           TickerMode(
             enabled: index == tab,
-            child: screen,
+            child: PrimaryScrollController(
+              controller: scrollControllers[index],
+              child: screen,
+            ),
           ),
       ],
     );

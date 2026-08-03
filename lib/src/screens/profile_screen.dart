@@ -26,6 +26,9 @@ class ProfileScreen extends ConsumerWidget {
     final onlineActionEnabled = state.firebaseReady && !state.isBusy;
 
     return CustomScrollView(
+      // The shell owns this page's scroller so re-tapping 기록 returns to the
+      // passport spread.
+      primary: true,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,
@@ -128,18 +131,43 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-/// The passport spread: this month's days, stamped where you walked.
-class _PassportCard extends StatelessWidget {
+/// The passport spread: a month of days, stamped where you walked. The month
+/// turns like a page, back as far as the first stamp in the book.
+class _PassportCard extends StatefulWidget {
   const _PassportCard({required this.state});
 
   final MasilPetState state;
 
   @override
+  State<_PassportCard> createState() => _PassportCardState();
+}
+
+class _PassportCardState extends State<_PassportCard> {
+  /// 0 is this month; every step back is one month earlier.
+  int _monthOffset = 0;
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final now = DateTime.now();
-    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-    final stampedDays = _stampedDaysThisMonth(state, now);
+    final earliest = _earliestCheckInMonth(state);
+
+    // Never page past the first stamp, and never into a month that has not
+    // happened yet. Clamping on read keeps the view honest even when the
+    // history shrinks underneath it, as a progress reset does.
+    final minOffset = earliest == null
+        ? 0
+        : (earliest.year - now.year) * 12 + (earliest.month - now.month);
+    final offset = _monthOffset.clamp(minOffset, 0);
+
+    final viewed = DateTime(now.year, now.month + offset);
+    final isThisMonth = offset == 0;
+    final daysInMonth = DateTime(viewed.year, viewed.month + 1, 0).day;
+    final stampedDays = _stampedDaysInMonth(state, viewed);
     final streak = state.currentVisitStreakDays;
+
+    final canGoBack = offset > minOffset;
+    final canGoForward = offset < 0;
 
     return PaperCard.stamped(
       child: Column(
@@ -154,11 +182,13 @@ class _PassportCard extends StatelessWidget {
                   children: [
                     Eyebrow(
                       'WALKING PASSPORT · '
-                      '${now.year}.${_twoDigits(now.month)}',
+                      '${viewed.year}.${_twoDigits(viewed.month)}',
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      streak == 0 ? '오늘 첫 도장' : '$streak일 연속 산책',
+                      isThisMonth
+                          ? (streak == 0 ? '오늘 첫 도장' : '$streak일 연속 산책')
+                          : '${stampedDays.length}일 걸었어요',
                       style: MasilPetType.heroTitle.copyWith(
                         fontSize: 26,
                         letterSpacing: -0.52,
@@ -171,7 +201,9 @@ class _PassportCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: HandNote(
-                  streak >= 3 ? '잘하고 있어!' : '한 걸음부터',
+                  isThisMonth
+                      ? (streak >= 3 ? '잘하고 있어!' : '한 걸음부터')
+                      : '${viewed.month}월의 기록',
                   fontSize: 22,
                   textAlign: TextAlign.right,
                 ),
@@ -183,8 +215,69 @@ class _PassportCard extends StatelessWidget {
             daysInMonth: daysInMonth,
             stampedDays: stampedDays,
           ),
+          const SizedBox(height: MasilPetSpacing.lg),
+          const DashedRule(),
+          const SizedBox(height: MasilPetSpacing.sm),
+          _PassportMonthStepper(
+            viewed: viewed,
+            stampedCount: stampedDays.length,
+            onBack: canGoBack
+                ? () => setState(() => _monthOffset = offset - 1)
+                : null,
+            onForward: canGoForward
+                ? () => setState(() => _monthOffset = offset + 1)
+                : null,
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// The two page corners of the passport, with the month's tally between them.
+class _PassportMonthStepper extends StatelessWidget {
+  const _PassportMonthStepper({
+    required this.viewed,
+    required this.stampedCount,
+    required this.onBack,
+    required this.onForward,
+  });
+
+  final DateTime viewed;
+  final int stampedCount;
+  final VoidCallback? onBack;
+  final VoidCallback? onForward;
+
+  @override
+  Widget build(BuildContext context) {
+    final previous = DateTime(viewed.year, viewed.month - 1);
+    final next = DateTime(viewed.year, viewed.month + 1);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: MonoButton(
+              label: '‹ ${previous.month}월',
+              onPressed: onBack,
+            ),
+          ),
+        ),
+        Text(
+          '도장 $stampedCount일',
+          style: MasilPetType.metaMono,
+        ),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: MonoButton(
+              label: '${next.month}월 ›',
+              onPressed: onForward,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -254,20 +347,32 @@ class _TotalsRow extends StatelessWidget {
   }
 }
 
-/// The trail of recent visits, hung off a dashed spine.
+/// The trail of recent visits, hung off a dashed spine. Only the latest five
+/// stay on the page; the rest are one tap away.
 class _RecentWalks extends StatelessWidget {
   const _RecentWalks({required this.state});
+
+  static const _previewCount = 5;
 
   final MasilPetState state;
 
   @override
   Widget build(BuildContext context) {
-    final visits = state.recentCheckIns.take(5).toList();
+    final all = state.recentCheckIns;
+    final visits = all.take(_previewCount).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SectionEyebrow('최근 산책'),
+        SectionEyebrow(
+          '최근 산책',
+          trailing: all.length > _previewCount
+              ? MonoButton(
+                  label: '전체 ${all.length}회',
+                  onPressed: () => _showAllWalksSheet(context, state),
+                )
+              : null,
+        ),
         if (visits.isEmpty)
           Text(
             '아직 도장이 없어요. 지도에서 첫 산책지를 찍어보세요.',
@@ -307,10 +412,18 @@ class _RecentWalks extends StatelessWidget {
 }
 
 class _WalkEntry extends StatelessWidget {
-  const _WalkEntry({required this.checkIn, required this.placeLabel});
+  const _WalkEntry({
+    required this.checkIn,
+    required this.placeLabel,
+    this.onSpine = true,
+  });
 
   final CheckIn checkIn;
   final String placeLabel;
+
+  /// False in the full-history sheet, where entries are ruled off from each
+  /// other instead of hanging from a spine.
+  final bool onSpine;
 
   @override
   Widget build(BuildContext context) {
@@ -321,19 +434,20 @@ class _WalkEntry extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned(
-          left: -25,
-          top: 6,
-          child: Container(
-            width: 9,
-            height: 9,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: MasilPetPalette.stamp,
-              border: Border.all(color: MasilPetPalette.canvas, width: 2),
+        if (onSpine)
+          Positioned(
+            left: -25,
+            top: 6,
+            child: Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: MasilPetPalette.stamp,
+                border: Border.all(color: MasilPetPalette.canvas, width: 2),
+              ),
             ),
           ),
-        ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -360,6 +474,80 @@ class _WalkEntry extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Every stamp in the book, newest first. The page keeps the latest five; this
+/// is where the rest of the trail lives.
+Future<void> _showAllWalksSheet(BuildContext context, MasilPetState state) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => _AllWalksSheet(state: state),
+  );
+}
+
+class _AllWalksSheet extends StatelessWidget {
+  const _AllWalksSheet({required this.state});
+
+  final MasilPetState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final visits = state.recentCheckIns;
+
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 520,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text('산책 기록', style: MasilPetType.sectionTitle),
+                  ),
+                  MonoChip('${visits.length}회'),
+                ],
+              ),
+            ),
+            const SizedBox(height: MasilPetSpacing.md),
+            Flexible(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(22, 0, 22, 24),
+                itemCount: visits.length,
+                itemBuilder: (context, index) {
+                  final checkIn = visits[index];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: _WalkEntry(
+                          checkIn: checkIn,
+                          placeLabel: _placeLabel(state, checkIn),
+                          onSpine: false,
+                        ),
+                      ),
+                      if (index != visits.length - 1)
+                        const DashedRule(color: MasilPetPalette.hover),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1002,15 +1190,28 @@ List<_JourneyGoal> _journeyGoals({
   ];
 }
 
-Set<int> _stampedDaysThisMonth(MasilPetState state, DateTime now) {
+Set<int> _stampedDaysInMonth(MasilPetState state, DateTime month) {
   final days = <int>{};
   for (final checkIn in state.checkIns) {
     final at = checkIn.createdAt;
-    if (at.year == now.year && at.month == now.month) {
+    if (at.year == month.year && at.month == month.month) {
       days.add(at.day);
     }
   }
   return days;
+}
+
+/// The first month the notebook has a stamp in, or null while it is still
+/// blank — the back edge of how far the passport can be paged.
+DateTime? _earliestCheckInMonth(MasilPetState state) {
+  DateTime? earliest;
+  for (final checkIn in state.checkIns) {
+    final month = DateTime(checkIn.createdAt.year, checkIn.createdAt.month);
+    if (earliest == null || month.isBefore(earliest)) {
+      earliest = month;
+    }
+  }
+  return earliest;
 }
 
 String _placeLabel(MasilPetState state, CheckIn checkIn) {

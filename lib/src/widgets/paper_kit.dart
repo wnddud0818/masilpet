@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme.dart';
 
@@ -930,6 +930,128 @@ class _FilterPillRowState<T> extends State<FilterPillRow<T>> {
   }
 }
 
+/// A ruled line of the notebook you can write on, used to narrow a long list.
+///
+/// The parent owns [value] so a "reset filters" action elsewhere on the page
+/// can clear the line too.
+class PaperSearchField extends StatefulWidget {
+  const PaperSearchField({
+    super.key,
+    required this.label,
+    required this.hintText,
+    required this.value,
+    required this.onChanged,
+  });
+
+  /// The monospaced tag written in the left margin, e.g. `찾기`.
+  final String label;
+  final String hintText;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<PaperSearchField> createState() => _PaperSearchFieldState();
+}
+
+class _PaperSearchFieldState extends State<PaperSearchField> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.value);
+
+  @override
+  void didUpdateWidget(covariant PaperSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only follow the parent when it actually diverged, so typing never has
+    // its cursor yanked back.
+    if (widget.value != _controller.text) {
+      _controller.value = TextEditingValue(
+        text: widget.value,
+        selection: TextSelection.collapsed(offset: widget.value.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = widget.value.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 2),
+      decoration: BoxDecoration(
+        color: MasilPetPalette.paper,
+        border: Border.all(color: MasilPetPalette.outlineSoft),
+        borderRadius: MasilPetRadii.smallBorder,
+      ),
+      child: Row(
+        children: [
+          Text(
+            widget.label,
+            style: MasilPetType.microMono.copyWith(
+              fontSize: 10,
+              letterSpacing: 1.1,
+              color: MasilPetPalette.stamp,
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              onChanged: widget.onChanged,
+              textInputAction: TextInputAction.search,
+              cursorColor: MasilPetPalette.stamp,
+              cursorWidth: 1.5,
+              style: MasilPetType.bodySmall.copyWith(
+                fontSize: 14,
+                height: 1.3,
+                color: MasilPetPalette.ink,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                hintText: widget.hintText,
+                hintStyle: MasilPetType.bodySmall.copyWith(
+                  fontSize: 14,
+                  height: 1.3,
+                  color: MasilPetPalette.disabled,
+                ),
+              ),
+            ),
+          ),
+          if (hasText)
+            Semantics(
+              button: true,
+              label: '검색어 지우기',
+              child: ExcludeSemantics(
+                child: InkWell(
+                  onTap: () => widget.onChanged(''),
+                  borderRadius: MasilPetRadii.tightBorder,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      '지우기',
+                      style: MasilPetType.caption.copyWith(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// A soft fade to the page background, hinting that a horizontal list has
 /// more content just off-screen.
 class EdgeFade extends StatelessWidget {
@@ -1206,6 +1328,28 @@ class RoundStamp extends StatelessWidget {
   }
 }
 
+/// Touch feedback for the beats that are meant to feel physical: rubber
+/// meeting paper, a shell cracking, a hand on a pet.
+///
+/// Every call is a no-op on platforms without a vibrator (web, desktop), so
+/// callers never have to branch on the platform.
+abstract final class MasilPetHaptics {
+  /// A stamp landing or an egg opening — the loop's two loud moments.
+  static void stamp() {
+    unawaited(HapticFeedback.mediumImpact());
+  }
+
+  /// A hand on the pet, or a care action taking hold.
+  static void touch() {
+    unawaited(HapticFeedback.lightImpact());
+  }
+
+  /// Turning to another page of the notebook.
+  static void select() {
+    unawaited(HapticFeedback.selectionClick());
+  }
+}
+
 /// The full-screen stamp that lands when a visit is verified.
 class StampOverlay extends StatefulWidget {
   const StampOverlay({
@@ -1334,6 +1478,7 @@ void showStampOverlay(
   if (overlay == null) {
     return;
   }
+  MasilPetHaptics.stamp();
   final entry = OverlayEntry(
     builder: (context) => StampOverlay(dateLabel: dateLabel, title: title),
   );
@@ -2093,15 +2238,20 @@ class _GrainPainter extends CustomPainter {
 // ─────────────────────────────────────────────────────────────────  misc ──
 
 /// Onboarding progress dots: a 22×5 bar for the current step.
+///
+/// When [onSelected] is given the dots become taps back to a page the reader
+/// has already seen; pages ahead stay inert so the dots never skip the story.
 class StepDots extends StatelessWidget {
   const StepDots({
     super.key,
     required this.count,
     required this.index,
+    this.onSelected,
   });
 
   final int count;
   final int index;
+  final ValueChanged<int>? onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -2109,21 +2259,67 @@ class StepDots extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         for (var i = 0; i < count; i++)
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: i == index ? 3.5 : 8.5),
-            child: AnimatedContainer(
-              duration: MasilPetMotion.fast,
-              width: i == index ? 22 : 5,
-              height: 5,
-              decoration: BoxDecoration(
-                color: i == index
-                    ? MasilPetPalette.ink
-                    : MasilPetPalette.outlineFaint,
-                borderRadius: const BorderRadius.all(Radius.circular(3)),
-              ),
-            ),
+          _StepDot(
+            active: i == index,
+            // A dot is only a control while it points backwards.
+            onTap:
+                onSelected == null || i >= index ? null : () => onSelected!(i),
+            label: '${i + 1}단계로 돌아가기',
           ),
       ],
+    );
+  }
+}
+
+class _StepDot extends StatelessWidget {
+  const _StepDot({
+    required this.active,
+    required this.onTap,
+    required this.label,
+  });
+
+  /// A 5px dot is not a tap target; this padding around it is. Every dot
+  /// carries it, tappable or not, so the row keeps one height.
+  static const _touchInset = EdgeInsets.symmetric(vertical: 10);
+
+  final bool active;
+  final VoidCallback? onTap;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final dot = Padding(
+      padding: EdgeInsets.fromLTRB(
+        active ? 3.5 : 8.5,
+        _touchInset.vertical / 2,
+        active ? 3.5 : 8.5,
+        _touchInset.vertical / 2,
+      ),
+      child: AnimatedContainer(
+        duration: MasilPetMotion.fast,
+        width: active ? 22 : 5,
+        height: 5,
+        decoration: BoxDecoration(
+          color: active ? MasilPetPalette.ink : MasilPetPalette.outlineFaint,
+          borderRadius: const BorderRadius.all(Radius.circular(3)),
+        ),
+      ),
+    );
+
+    if (onTap == null) {
+      return dot;
+    }
+
+    return Semantics(
+      button: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: dot,
+        ),
+      ),
     );
   }
 }

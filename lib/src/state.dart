@@ -2714,6 +2714,8 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     return state.templates.firstWhere((template) => template.id == templateId);
   }
 
+  PetCareState? careForPet(String petId) => state.careForPet(petId);
+
   PetPersonality personalityFor(Pet pet) {
     return _careEngine.personalityFor(templateFor(pet.templateId));
   }

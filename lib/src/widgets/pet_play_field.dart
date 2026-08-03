@@ -166,8 +166,11 @@ class _PetPlayFieldState extends State<PetPlayField>
                       clipBehavior: Clip.none,
                       children: [
                         Positioned.fill(
-                          child: CustomPaint(
-                            painter: _PlayFieldPainter(t, scene: widget.scene),
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter:
+                                  _PlayFieldPainter(t, scene: widget.scene),
+                            ),
                           ),
                         ),
                         for (var i = 0; i < widget.eggs.take(2).length; i++)
@@ -466,111 +469,115 @@ class _PlayPetState extends State<_PlayPet> {
     return Positioned(
       left: pose.x,
       top: pose.y,
-      child: Semantics(
-        button: true,
-        label: '${widget.playmate.template.name} 캐릭터',
-        hint: '터치하면 캐릭터가 반응해요',
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (_) => _setPressed(true),
-            onTapCancel: () => _setPressed(false),
-            onTapUp: (_) => _setPressed(false),
-            onTap: _handleTap,
-            child: AnimatedScale(
-              scale: _pressed ? 0.94 : 1,
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 110),
-              curve: Curves.easeOutBack,
-              child: SizedBox(
-                width: size,
-                height: size,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      // The soft olive pool a sprite casts on the lawn.
-                      BoxShadow(
-                        color: const Color(0xFF46583C).withValues(alpha: 0.22),
-                        blurRadius: 10,
-                        spreadRadius: -6,
-                        offset: Offset(0, size * 0.42 + pose.shadowLift),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      Transform.rotate(
-                        angle: pose.rotation,
-                        child: Transform.scale(
-                          scaleX: (pose.isFacingLeft ? -1 : 1) * pose.scaleX,
-                          scaleY: pose.scaleY,
-                          child: _assetImage(
-                            context,
-                            imagePath,
-                            size,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _assetImage(
-                                context,
-                                PetAssets.action(
-                                  widget.playmate.template.assetKey,
-                                  _fallbackAction(activity),
-                                ),
-                                size,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _assetImage(
-                                    context,
-                                    PetAssets.growth(
-                                      widget.playmate.template.assetKey,
-                                      widget.playmate.stage,
-                                    ),
-                                    size,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: Color(widget
-                                                  .playmate.template.colorValue)
-                                              .withValues(alpha: 0.18),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            widget.playmate.template.initials,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(
-                                                  color: Color(widget.playmate
-                                                      .template.colorValue),
-                                                  fontWeight: FontWeight.w800,
-                                                ),
+      child: RepaintBoundary(
+        child: Semantics(
+          button: true,
+          label: '${widget.playmate.template.name} 캐릭터',
+          hint: '터치하면 캐릭터가 반응해요',
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (_) => _setPressed(true),
+              onTapCancel: () => _setPressed(false),
+              onTapUp: (_) => _setPressed(false),
+              onTap: _handleTap,
+              child: AnimatedScale(
+                scale: _pressed ? 0.94 : 1,
+                duration: reduceMotion
+                    ? Duration.zero
+                    : const Duration(milliseconds: 110),
+                curve: Curves.easeOutBack,
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        // The soft olive pool a sprite casts on the lawn.
+                        BoxShadow(
+                          color:
+                              const Color(0xFF46583C).withValues(alpha: 0.22),
+                          blurRadius: 10,
+                          spreadRadius: -6,
+                          offset: Offset(0, size * 0.42 + pose.shadowLift),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Transform.rotate(
+                          angle: pose.rotation,
+                          child: Transform.scale(
+                            scaleX: (pose.isFacingLeft ? -1 : 1) * pose.scaleX,
+                            scaleY: pose.scaleY,
+                            child: _assetImage(
+                              context,
+                              imagePath,
+                              size,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _assetImage(
+                                  context,
+                                  PetAssets.action(
+                                    widget.playmate.template.assetKey,
+                                    _fallbackAction(activity),
+                                  ),
+                                  size,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _assetImage(
+                                      context,
+                                      PetAssets.growth(
+                                        widget.playmate.template.assetKey,
+                                        widget.playmate.stage,
+                                      ),
+                                      size,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: Color(widget.playmate
+                                                    .template.colorValue)
+                                                .withValues(alpha: 0.18),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
-                                        ),
-                                      );
-                                    },
-                                  );
-                                },
-                              );
-                            },
+                                          child: Center(
+                                            child: Text(
+                                              widget.playmate.template.initials,
+                                              style: Theme.of(context)
+                                                  .textTheme
+                                                  .titleLarge
+                                                  ?.copyWith(
+                                                    color: Color(widget.playmate
+                                                        .template.colorValue),
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    );
+                                  },
+                                );
+                              },
+                            ),
                           ),
                         ),
-                      ),
-                      if (activity != PetFieldActivity.idle &&
-                          (isReacting ||
-                              (widget.playmate.isActive &&
-                                  widget.activeActivity !=
-                                      PetFieldActivity.idle)))
-                        _ActivityCue(
-                          activity: activity,
-                          t: widget.t,
-                          size: size,
-                        ),
-                    ],
+                        if (activity != PetFieldActivity.idle &&
+                            (isReacting ||
+                                (widget.playmate.isActive &&
+                                    widget.activeActivity !=
+                                        PetFieldActivity.idle)))
+                          _ActivityCue(
+                            activity: activity,
+                            t: widget.t,
+                            size: size,
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -907,31 +914,33 @@ class _PlayEgg extends StatelessWidget {
     return Positioned(
       left: left.clamp(8.0, leftUpper),
       top: top.clamp(40.0, topUpper),
-      child: Transform.rotate(
-        angle: wobble * 0.09,
-        child: Container(
-          width: size,
-          height: size * 1.12,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFF3E6C8), Color(0xFFE2CFA4)],
+      child: RepaintBoundary(
+        child: Transform.rotate(
+          angle: wobble * 0.09,
+          child: Container(
+            width: size,
+            height: size * 1.12,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF3E6C8), Color(0xFFE2CFA4)],
+              ),
+              border: Border.all(color: const Color(0xFFC2A97B), width: 1.5),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(size),
+                topRight: Radius.circular(size),
+                bottomLeft: Radius.circular(size * 0.9),
+                bottomRight: Radius.circular(size * 0.9),
+              ),
             ),
-            border: Border.all(color: const Color(0xFFC2A97B), width: 1.5),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(size),
-              topRight: Radius.circular(size),
-              bottomLeft: Radius.circular(size * 0.9),
-              bottomRight: Radius.circular(size * 0.9),
-            ),
-          ),
-          child: Text(
-            '?',
-            style: MasilPetType.hand.copyWith(
-              fontSize: size * 0.52,
-              color: const Color(0xFFB09A6E),
+            child: Text(
+              '?',
+              style: MasilPetType.hand.copyWith(
+                fontSize: size * 0.52,
+                color: const Color(0xFFB09A6E),
+              ),
             ),
           ),
         ),

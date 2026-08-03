@@ -12,13 +12,16 @@ class StatusBanner extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(masilPetControllerProvider);
-    final message = state.statusMessage;
+    final (message, isBusy, firebaseReady) = ref.watch(
+      masilPetControllerProvider.select(
+        (state) => (state.statusMessage, state.isBusy, state.firebaseReady),
+      ),
+    );
     final displayMessage = _friendlyStatusMessage(message);
     final tone = _statusTone(
       message: message,
-      isBusy: state.isBusy,
-      firebaseReady: state.firebaseReady,
+      isBusy: isBusy,
+      firebaseReady: firebaseReady,
     );
 
     return Semantics(

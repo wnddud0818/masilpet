@@ -39,7 +39,7 @@ class HouseScreen extends ConsumerWidget {
               const StatusBanner(),
               const SizedBox(height: MasilPetSpacing.xl),
               const SectionEyebrow('마당 · 친구를 누르고, 공과 밥그릇도 건드려보세요'),
-              _HouseYard(state: state),
+              const _HouseYard(),
               const SizedBox(height: MasilPetSpacing.xl),
               if (justHatched != null) ...[
                 _HatchedCard(
@@ -108,11 +108,9 @@ class HouseScreen extends ConsumerWidget {
 
 /// The yard, plus the popover that opens when you tap a friend standing in it.
 class _HouseYard extends ConsumerStatefulWidget {
-  const _HouseYard({required this.state});
+  const _HouseYard();
 
   static const _wideBreakpoint = 700.0;
-
-  final MasilPetState state;
 
   @override
   ConsumerState<_HouseYard> createState() => _HouseYardState();
@@ -122,23 +120,33 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
   String? _menuPetId;
 
   @override
-  void didUpdateWidget(covariant _HouseYard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final menuPetId = _menuPetId;
-    if (menuPetId != null &&
-        !widget.state.pets.any((pet) => pet.id == menuPetId)) {
-      _menuPetId = null;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final state = widget.state;
+    final (
+      templates,
+      pets,
+      eggs,
+      activePetId,
+      fieldActivity,
+      fieldActivityNonce,
+      isBusy,
+    ) = ref.watch(
+      masilPetControllerProvider.select(
+        (state) => (
+          state.templates,
+          state.pets,
+          state.eggs,
+          state.activePetId,
+          state.fieldActivity,
+          state.fieldActivityNonce,
+          state.isBusy,
+        ),
+      ),
+    );
     final controller = ref.read(masilPetControllerProvider.notifier);
-    final care = state.activePetCare;
+    final care = controller.careForPet(activePetId);
 
     Pet? menuPet;
-    for (final pet in state.pets) {
+    for (final pet in pets) {
       if (pet.id == _menuPetId) {
         menuPet = pet;
         break;
@@ -154,12 +162,12 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
           child: Stack(
             children: [
               PetPlayField(
-                templates: state.templates,
-                pets: state.pets,
-                eggs: state.eggs,
-                activePetId: state.activePetId,
-                activity: state.fieldActivity,
-                activityNonce: state.fieldActivityNonce,
+                templates: templates,
+                pets: pets,
+                eggs: eggs,
+                activePetId: activePetId,
+                activity: fieldActivity,
+                activityNonce: fieldActivityNonce,
                 height: height,
                 scene: PetPlayFieldScene.neighborhoodYard,
                 spriteScale: 1.16,
@@ -168,10 +176,12 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                 onPetTap: (petId) => setState(
                   () => _menuPetId = _menuPetId == petId ? null : petId,
                 ),
-                onKickBall:
-                    state.isBusy ? null : () => _kickBall(controller, state),
-                onFillBowl:
-                    state.isBusy ? null : () => _fillBowl(controller, state),
+                onKickBall: isBusy
+                    ? null
+                    : () => _kickBall(controller, activePetId),
+                onFillBowl: isBusy
+                    ? null
+                    : () => _fillBowl(controller, activePetId),
                 bowlFilled: (care?.feedCountToday ?? 0) > 0,
               ),
               if (menuPet != null) ...[
@@ -189,10 +199,11 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                   bottom: 10,
                   child: _YardPetMenu(
                     pet: menuPet,
-                    care: state.careForPet(menuPet.id),
-                    isBusy: state.isBusy,
+                    care: controller.careForPet(menuPet.id),
+                    isBusy: isBusy,
                     onClose: _closeMenu,
-                    onDetail: () => _openDetail(controller, menuPet!),
+                    onDetail: () =>
+                        _openDetail(controller, menuPet!, activePetId),
                     onFeed: () => _care(() => controller.feedPet(menuPet!.id)),
                     onPlay: () => _care(() => controller.playPet(menuPet!.id)),
                     onClean: () =>
@@ -215,26 +226,30 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
     _closeMenu();
   }
 
-  void _openDetail(MasilPetController controller, Pet pet) {
+  void _openDetail(
+    MasilPetController controller,
+    Pet pet,
+    String activePetId,
+  ) {
     _closeMenu();
     showPetDetailSheet(
       context: context,
       pet: pet,
       template: controller.templateFor(pet.templateId),
-      care: widget.state.careForPet(pet.id),
-      isActive: pet.id == widget.state.activePetId,
+      care: controller.careForPet(pet.id),
+      isActive: pet.id == activePetId,
       onSetMain: () => controller.selectPet(pet.id),
     );
   }
 
-  void _kickBall(MasilPetController controller, MasilPetState state) {
+  void _kickBall(MasilPetController controller, String activePetId) {
     _closeMenu();
-    controller.playPet(state.activePetId);
+    controller.playPet(activePetId);
   }
 
-  void _fillBowl(MasilPetController controller, MasilPetState state) {
+  void _fillBowl(MasilPetController controller, String activePetId) {
     _closeMenu();
-    controller.feedPet(state.activePetId);
+    controller.feedPet(activePetId);
   }
 }
 

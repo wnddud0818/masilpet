@@ -46,6 +46,8 @@ class _MapScreenState extends ConsumerState<MapScreen> {
           padding: kPaperBodyPadding,
           sliver: ResponsiveSliverList(
             children: [
+              const StatusBanner(),
+              const SizedBox(height: MasilPetSpacing.xl),
               _PaperMapFrame(state: state),
               const SizedBox(height: MasilPetSpacing.xl),
               _CategoryFilterBar(
@@ -73,8 +75,6 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   onUseStarterLocation:
                       state.isBusy ? null : controller.useStarterKoreaLocation,
                 ),
-              const SizedBox(height: MasilPetSpacing.xl),
-              const StatusBanner(),
               const SizedBox(height: MasilPetSpacing.xl),
               _NearbyList(
                 state: state,

@@ -805,7 +805,17 @@ class DeviceLocationService {
       throw const LocationUnavailableException('앱 설정에서 위치 권한을 허용해야 해요.');
     }
 
-    final position = await Geolocator.getCurrentPosition();
+    Position position;
+    try {
+      position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    } on TimeoutException {
+      throw const LocationUnavailableException('위치를 가져오지 못했어요.');
+    }
     return Coordinates(
       latitude: position.latitude,
       longitude: position.longitude,

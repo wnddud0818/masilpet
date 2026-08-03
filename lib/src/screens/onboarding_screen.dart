@@ -30,13 +30,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(masilPetControllerProvider);
+    final (firebaseStartupIssue, firebaseReady, templates, isBusy,
+        activeTemplateId) = ref.watch(
+      masilPetControllerProvider.select(
+        (state) => (
+          state.firebaseStartupIssue,
+          state.firebaseReady,
+          state.templates,
+          state.isBusy,
+          state.activePet?.templateId,
+        ),
+      ),
+    );
     final controller = ref.read(masilPetControllerProvider.notifier);
 
-    final template = _onboardingTemplate(state);
+    final template = _onboardingTemplate(templates, activeTemplateId);
     final petName = template?.name ?? '마실펫';
-    final fallbackMessage = state.firebaseStartupIssue.fallbackMessage;
-    final localOnlyNote = state.firebaseReady ? null : fallbackMessage;
+    final fallbackMessage = firebaseStartupIssue.fallbackMessage;
+    final localOnlyNote = firebaseReady ? null : fallbackMessage;
     final ctaLabels = [
       '${petCallName(petName)} 만나기',
       '좋아, 알겠어',
@@ -83,7 +94,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                                         step: _step,
                                         template: template,
                                         petName: petName,
-                                        templateCount: state.templates.length,
+                                        templateCount: templates.length,
                                         localOnlyNote: localOnlyNote,
                                       ),
                                       const SizedBox(
@@ -103,7 +114,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           step: _step,
                           stepCount: _stepCount,
                           ctaLabel: ctaLabels[_step],
-                          isBusy: state.isBusy,
+                          isBusy: isBusy,
                           onNext: () => _next(controller.completeOnboarding),
                           onSkip: controller.completeOnboarding,
                         ),
@@ -123,14 +134,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
 /// The pet that greets a new walker: whoever is already active, else the first
 /// starter template.
-PetTemplate? _onboardingTemplate(MasilPetState state) {
-  final activeTemplateId = state.activePet?.templateId;
-  for (final template in state.templates) {
+PetTemplate? _onboardingTemplate(
+  List<PetTemplate> templates,
+  String? activeTemplateId,
+) {
+  for (final template in templates) {
     if (template.id == activeTemplateId) {
       return template;
     }
   }
-  return state.templates.isEmpty ? null : state.templates.first;
+  return templates.isEmpty ? null : templates.first;
 }
 
 class _OnboardingStep extends StatelessWidget {

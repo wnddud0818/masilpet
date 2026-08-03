@@ -80,6 +80,7 @@ void _sizeView(WidgetTester tester, Size size) {
 const _phone = Size(390, 844);
 const _narrowPhone = Size(320, 740);
 const _desktop = Size(1180, 820);
+const _wideShort = Size(900, 360);
 
 /// Both the pet stage and the map pins animate forever, so `pumpAndSettle`
 /// would never return. Advance a fixed slice instead.
@@ -308,6 +309,35 @@ void main() {
     expect(find.text('연속 산책'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'home shell side rail scrolls its nav items on a wide but short viewport '
+    'instead of overflowing',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({});
+      _sizeView(tester, _wideShort);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            firebaseReadyProvider.overrideWithValue(false),
+            firebaseStartupIssueProvider.overrideWithValue(
+              FirebaseStartupIssue.missingWebConfiguration,
+            ),
+          ],
+          child: MaterialApp(
+            theme: buildMasilPetTheme(),
+            home: const HomeShell(),
+          ),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.byType(PaperNavRail), findsOneWidget);
+      expect(find.text('연속 산책'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('home shell header names the page and the day',
       (WidgetTester tester) async {

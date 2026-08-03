@@ -349,24 +349,35 @@ class PaperNavRail extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 8, right: 8, bottom: 22),
-            child: BrandMark(
-              showTagline: false,
-              sealSize: 30,
-              wordmarkSize: 16,
-            ),
-          ),
-          for (final (index, item) in items.indexed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: _RailItem(
-                item: item,
-                active: index == activeIndex,
-                onTap: () => onSelected(index),
+          // The nav items scroll on their own when the rail is wide but
+          // short (e.g. a landscape phone), so the footer below always
+          // stays visible instead of overflowing off the bottom.
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8, right: 8, bottom: 22),
+                    child: BrandMark(
+                      showTagline: false,
+                      sealSize: 30,
+                      wordmarkSize: 16,
+                    ),
+                  ),
+                  for (final (index, item) in items.indexed)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: _RailItem(
+                        item: item,
+                        active: index == activeIndex,
+                        onTap: () => onSelected(index),
+                      ),
+                    ),
+                ],
               ),
             ),
-          const Spacer(),
+          ),
           if (footerLabel != null && footerValue != null) ...[
             const DashedRule(color: MasilPetPalette.outlineStrong),
             Padding(

@@ -30,8 +30,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final (firebaseStartupIssue, firebaseReady, templates, isBusy,
-        activeTemplateId) = ref.watch(
+    final (
+      firebaseStartupIssue,
+      firebaseReady,
+      templates,
+      isBusy,
+      activeTemplateId
+    ) = ref.watch(
       masilPetControllerProvider.select(
         (state) => (
           state.firebaseStartupIssue,

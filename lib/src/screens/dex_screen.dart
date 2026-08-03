@@ -197,11 +197,14 @@ class _DexSummaryCard extends StatelessWidget {
                         letterSpacing: -0.56,
                       ),
                     ),
-                    Text(
-                      ' / $total종',
-                      style: MasilPetType.bodySmall.copyWith(
-                        fontSize: 17,
-                        color: MasilPetPalette.mutedWarm,
+                    Flexible(
+                      child: Text(
+                        ' / $total종',
+                        overflow: TextOverflow.ellipsis,
+                        style: MasilPetType.bodySmall.copyWith(
+                          fontSize: 17,
+                          color: MasilPetPalette.mutedWarm,
+                        ),
                       ),
                     ),
                   ],
@@ -406,6 +409,8 @@ class _DexDetailSheet extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           template.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: MasilPetType.heroTitle.copyWith(fontSize: 27),
                         ),
                       ],

@@ -548,6 +548,8 @@ class _PetLifeCard extends StatelessWidget {
                       children: [
                         Text(
                           need.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: MasilPetType.rowTitle.copyWith(fontSize: 17),
                         ),
                         const SizedBox(height: 5),
@@ -1078,6 +1080,8 @@ class _PetMemoryBook extends StatelessWidget {
                         children: [
                           Text(
                             memory.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: MasilPetType.rowTitle.copyWith(fontSize: 15),
                           ),
                           const SizedBox(height: 3),

@@ -513,6 +513,89 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('map frame grows on desktop width', (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _desktop);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    final box = tester.widget<SizedBox>(
+      find
+          .ancestor(
+              of: find.byType(FlutterMap), matching: find.byType(SizedBox))
+          .first,
+    );
+    expect(box.height, 320);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('map frame stays compact on phone width',
+      (WidgetTester tester) async {
+    final controller = _controller()..setTab(0);
+    _sizeView(tester, _phone);
+
+    await tester.pumpWidget(_hostScreen(controller, const MapScreen()));
+    await _settle(tester);
+
+    final box = tester.widget<SizedBox>(
+      find
+          .ancestor(
+              of: find.byType(FlutterMap), matching: find.byType(SizedBox))
+          .first,
+    );
+    expect(box.height, 250);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'FilterPillRow fades the trailing edge when overflowing and the '
+    'leading edge once scrolled',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildMasilPetTheme(),
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 200,
+                child: FilterPillRow<int>(
+                  values: List.generate(10, (index) => index),
+                  labelOf: (value) => '지역 $value',
+                  selected: 0,
+                  onSelected: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      // At rest: only the trailing edge fades, hinting more content follows.
+      expect(find.byType(EdgeFade), findsOneWidget);
+
+      await tester.drag(
+          find.byType(SingleChildScrollView), const Offset(-80, 0));
+      await tester.pump();
+
+      // Mid-scroll: both edges fade.
+      expect(find.byType(EdgeFade), findsNWidgets(2));
+
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(-2000, 0),
+      );
+      await tester.pump();
+
+      // Scrolled to the end: only the leading edge fades.
+      expect(find.byType(EdgeFade), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('map screen offers location confirmation when check-in is locked',
       (WidgetTester tester) async {
     final controller = _controller()..setTab(0);

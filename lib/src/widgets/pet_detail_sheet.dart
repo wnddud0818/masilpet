@@ -91,6 +91,8 @@ class PetDetailSheet extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             pet.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style:
                                 MasilPetType.heroTitle.copyWith(fontSize: 27),
                           ),

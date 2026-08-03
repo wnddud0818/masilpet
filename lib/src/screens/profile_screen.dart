@@ -201,8 +201,9 @@ class _PassportGrid extends StatelessWidget {
       builder: (context, constraints) {
         const columns = 7;
         const spacing = 6.0;
-        final cell = ((constraints.maxWidth - spacing * (columns - 1)) / columns)
-            .clamp(0.0, double.infinity);
+        final cell =
+            ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+                .clamp(0.0, double.infinity);
 
         return Wrap(
           spacing: spacing,
@@ -540,7 +541,13 @@ class _LedgerSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Text(row.$2, style: MasilPetType.metaMono),
+                      Flexible(
+                        child: Text(
+                          row.$2,
+                          textAlign: TextAlign.right,
+                          style: MasilPetType.metaMono,
+                        ),
+                      ),
                     ],
                   ),
                 ),

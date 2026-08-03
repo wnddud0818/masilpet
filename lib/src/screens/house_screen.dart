@@ -176,12 +176,10 @@ class _HouseYardState extends ConsumerState<_HouseYard> {
                 onPetTap: (petId) => setState(
                   () => _menuPetId = _menuPetId == petId ? null : petId,
                 ),
-                onKickBall: isBusy
-                    ? null
-                    : () => _kickBall(controller, activePetId),
-                onFillBowl: isBusy
-                    ? null
-                    : () => _fillBowl(controller, activePetId),
+                onKickBall:
+                    isBusy ? null : () => _kickBall(controller, activePetId),
+                onFillBowl:
+                    isBusy ? null : () => _fillBowl(controller, activePetId),
                 bowlFilled: (care?.feedCountToday ?? 0) > 0,
               ),
               if (menuPet != null) ...[
@@ -699,7 +697,12 @@ class _HatchedCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: MasilPetSpacing.sm),
-            Text(pet.name, style: MasilPetType.heroTitle),
+            Text(
+              pet.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MasilPetType.heroTitle,
+            ),
             const SizedBox(height: 4),
             Text(
               '${regionNameForId(pet.originRegionId)} · ${template.rarityLabel}',
@@ -967,7 +970,12 @@ Future<void> _hatchAndChooseCompanion(
               semanticLabel: pet.name,
             ),
             const SizedBox(height: MasilPetSpacing.sm),
-            Text(pet.name, style: MasilPetType.heroTitle),
+            Text(
+              pet.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MasilPetType.heroTitle,
+            ),
             const SizedBox(height: 8),
             Text(
               outcome.reunion

@@ -508,7 +508,12 @@ class _MapFocusPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(poi.title, style: MasilPetType.rowTitle),
+                Text(
+                  poi.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: MasilPetType.rowTitle,
+                ),
                 const SizedBox(height: 3),
                 Text(
                   '${poi.category.label}'
@@ -693,7 +698,12 @@ class _CheckInHero extends ConsumerWidget {
               '지금 여기 · ${distance == null ? '위치 확인 필요' : _distanceLabel(distance)}',
             ),
             const SizedBox(height: 7),
-            Text(focus.poi.title, style: MasilPetType.heroTitle),
+            Text(
+              focus.poi.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MasilPetType.heroTitle,
+            ),
             const SizedBox(height: 6),
             Text(
               focus.poi.shortDescription,
@@ -733,7 +743,12 @@ class _CheckInHero extends ConsumerWidget {
         children: [
           const Eyebrow('가장 가까운 산책지'),
           const SizedBox(height: 7),
-          Text(focus.poi.title, style: MasilPetType.heroTitle),
+          Text(
+            focus.poi.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: MasilPetType.heroTitle,
+          ),
           const SizedBox(height: 6),
           Text(
             focus.poi.shortDescription,
@@ -1070,7 +1085,12 @@ class _RouteStepCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(poi.title, style: MasilPetType.sectionTitle),
+                  Text(
+                    poi.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: MasilPetType.sectionTitle,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     '${poi.category.label} · '

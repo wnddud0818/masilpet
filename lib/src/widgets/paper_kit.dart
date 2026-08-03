@@ -829,7 +829,7 @@ class OutlineTag extends StatelessWidget {
 }
 
 /// A horizontally scrolling row of pill filters.
-class FilterPillRow<T> extends StatelessWidget {
+class FilterPillRow<T> extends StatefulWidget {
   const FilterPillRow({
     super.key,
     required this.values,
@@ -846,21 +846,111 @@ class FilterPillRow<T> extends StatelessWidget {
   final EdgeInsetsGeometry padding;
 
   @override
+  State<FilterPillRow<T>> createState() => _FilterPillRowState<T>();
+}
+
+class _FilterPillRowState<T> extends State<FilterPillRow<T>> {
+  static const _fadeWidth = 26.0;
+
+  final _controller = ScrollController();
+  bool _showLeadingFade = false;
+  bool _showTrailingFade = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_updateFadeVisibility);
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _updateFadeVisibility());
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_updateFadeVisibility);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _updateFadeVisibility() {
+    if (!_controller.hasClients) {
+      return;
+    }
+    final position = _controller.position;
+    final showLeading = position.pixels > 4;
+    final showTrailing = position.pixels < position.maxScrollExtent - 4;
+    if (showLeading == _showLeadingFade && showTrailing == _showTrailingFade) {
+      return;
+    }
+    setState(() {
+      _showLeadingFade = showLeading;
+      _showTrailingFade = showTrailing;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: padding,
-      child: Row(
-        children: [
-          for (final value in values) ...[
-            FilterPill(
-              label: labelOf(value),
-              selected: value == selected,
-              onTap: () => onSelected(value),
-            ),
-            if (value != values.last) const SizedBox(width: 7),
-          ],
-        ],
+    final values = widget.values;
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          padding: widget.padding,
+          child: Row(
+            children: [
+              for (final value in values) ...[
+                FilterPill(
+                  label: widget.labelOf(value),
+                  selected: value == widget.selected,
+                  onTap: () => widget.onSelected(value),
+                ),
+                if (value != values.last) const SizedBox(width: 7),
+              ],
+            ],
+          ),
+        ),
+        if (_showLeadingFade)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _fadeWidth,
+            child: const EdgeFade(alignEnd: false),
+          ),
+        if (_showTrailingFade)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: _fadeWidth,
+            child: const EdgeFade(alignEnd: true),
+          ),
+      ],
+    );
+  }
+}
+
+/// A soft fade to the page background, hinting that a horizontal list has
+/// more content just off-screen.
+class EdgeFade extends StatelessWidget {
+  const EdgeFade({required this.alignEnd, super.key});
+
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: alignEnd ? Alignment.centerLeft : Alignment.centerRight,
+            end: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+            colors: [
+              MasilPetPalette.canvas.withValues(alpha: 0),
+              MasilPetPalette.canvas,
+            ],
+          ),
+        ),
       ),
     );
   }

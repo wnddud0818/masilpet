@@ -45,7 +45,8 @@ class MetricGrid extends StatelessWidget {
 
         final columns = _columnCount(constraints.maxWidth, items.length);
         final itemWidth =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+            ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+                .clamp(0.0, double.infinity);
 
         return Wrap(
           spacing: spacing,

@@ -250,7 +250,8 @@ class _DexGrid extends StatelessWidget {
             .floor()
             .clamp(2, 8);
         final itemWidth =
-            (constraints.maxWidth - spacing * (columns - 1)) / columns;
+            ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+                .clamp(0.0, double.infinity);
 
         return Wrap(
           spacing: spacing,

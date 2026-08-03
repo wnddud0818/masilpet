@@ -1170,7 +1170,8 @@ class _RosterSection extends ConsumerWidget {
                     .floor()
                     .clamp(1, 4);
             final itemWidth =
-                (constraints.maxWidth - spacing * (columns - 1)) / columns;
+                ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+                    .clamp(0.0, double.infinity);
 
             return Wrap(
               spacing: spacing,

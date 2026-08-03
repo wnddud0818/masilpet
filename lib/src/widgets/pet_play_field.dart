@@ -656,10 +656,10 @@ class _PlayPetState extends State<_PlayPet> {
     };
     final groundRoll =
         activity == PetFieldActivity.walking ? strideWave * 0.35 : 0.0;
-    final x = (xRatio * widget.fieldSize.width)
-        .clamp(8.0, widget.fieldSize.width - size - 8);
-    final y = (yBase + groundRoll - lift)
-        .clamp(42.0, widget.fieldSize.height - size - 18);
+    final double xUpper = math.max(8.0, widget.fieldSize.width - size - 8);
+    final double yUpper = math.max(42.0, widget.fieldSize.height - size - 18);
+    final x = (xRatio * widget.fieldSize.width).clamp(8.0, xUpper);
+    final y = (yBase + groundRoll - lift).clamp(42.0, yUpper);
     final double rotation = switch (activity) {
       PetFieldActivity.walking =>
         (motion.facingLeft ? -1 : 1) * 0.014 * motion.speedEnvelope +
@@ -902,9 +902,11 @@ class _PlayEgg extends StatelessWidget {
     final left = fieldSize.width * (0.72 + index * 0.09);
     final top = fieldSize.height * (0.68 + index * 0.03);
 
+    final double leftUpper = math.max(8.0, fieldSize.width - size - 8);
+    final double topUpper = math.max(40.0, fieldSize.height - size - 10);
     return Positioned(
-      left: left.clamp(8.0, fieldSize.width - size - 8),
-      top: top.clamp(40.0, fieldSize.height - size - 10),
+      left: left.clamp(8.0, leftUpper),
+      top: top.clamp(40.0, topUpper),
       child: Transform.rotate(
         angle: wobble * 0.09,
         child: Container(

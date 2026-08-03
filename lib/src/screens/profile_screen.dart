@@ -201,7 +201,8 @@ class _PassportGrid extends StatelessWidget {
       builder: (context, constraints) {
         const columns = 7;
         const spacing = 6.0;
-        final cell = (constraints.maxWidth - spacing * (columns - 1)) / columns;
+        final cell = ((constraints.maxWidth - spacing * (columns - 1)) / columns)
+            .clamp(0.0, double.infinity);
 
         return Wrap(
           spacing: spacing,

@@ -22,6 +22,15 @@ cloudflare-worker/dist/
 cloudflare-worker/.wrangler/
 cloudflare-worker/.dev.vars*
 
+# Local secrets & signing (real files only — *.example templates stay tracked)
+android/key.properties
+*.jks
+*.keystore
+.env
+functions/.env
+**/google-services.json
+**/GoogleService-Info.plist
+
 # Python tooling
 __pycache__/
 *.pyc

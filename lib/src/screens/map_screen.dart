@@ -360,86 +360,96 @@ class _PaperPin extends StatelessWidget {
       label: '${poi.title}, ${poi.category.label}'
           '${stamped ? ', 오늘 방문 완료' : ''}',
       child: ExcludeSemantics(
-        child: GestureDetector(
-          onTap: onTap,
-          behavior: HitTestBehavior.opaque,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (hot)
-                SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: Stack(
+        // A pin label is a map tick anchored to a coordinate, not body copy:
+        // past a point it has to stop growing or it breaks out of the marker
+        // box. The same place name is fully scalable in the focus panel and
+        // the 주변 산책지 list below.
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.3,
+          child: GestureDetector(
+            onTap: onTap,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hot)
+                  SizedBox(
+                    width: 34,
+                    height: 34,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        const PulseRing(size: 34),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: MasilPetPalette.stamp,
+                            border: Border.all(
+                              color: MasilPetPalette.paper,
+                              width: 2,
+                            ),
+                          ),
+                          child: Text(
+                            mark,
+                            style: MasilPetType.rowTitle.copyWith(
+                              fontSize: 13,
+                              color: MasilPetPalette.paper,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    width: 26,
+                    height: 26,
                     alignment: Alignment.center,
-                    children: [
-                      const PulseRing(size: 34),
-                      Container(
-                        width: 34,
-                        height: 34,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: MasilPetPalette.stamp,
-                          border: Border.all(
-                            color: MasilPetPalette.paper,
-                            width: 2,
-                          ),
-                        ),
-                        child: Text(
-                          mark,
-                          style: MasilPetType.rowTitle.copyWith(
-                            fontSize: 13,
-                            color: MasilPetPalette.paper,
-                          ),
-                        ),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: MasilPetPalette.paper,
+                      border: Border.all(
+                        color: stamped
+                            ? MasilPetPalette.forest
+                            : (selected ? MasilPetPalette.ink : color),
+                        width: 1.5,
                       ),
-                    ],
-                  ),
-                )
-              else
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: MasilPetPalette.paper,
-                    border: Border.all(
-                      color: stamped
-                          ? MasilPetPalette.forest
-                          : (selected ? MasilPetPalette.ink : color),
-                      width: 1.5,
+                    ),
+                    child: Text(
+                      mark,
+                      style: MasilPetType.bodySmall.copyWith(
+                        fontSize: 11,
+                        height: 1,
+                        color: stamped ? MasilPetPalette.forest : color,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    mark,
-                    style: MasilPetType.bodySmall.copyWith(
-                      fontSize: 11,
-                      height: 1,
-                      color: stamped ? MasilPetPalette.forest : color,
+                const SizedBox(height: 3),
+                Flexible(
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: MasilPetPalette.paper.withValues(alpha: 0.82),
+                      borderRadius: MasilPetRadii.tightBorder,
+                    ),
+                    child: Text(
+                      poi.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: MasilPetType.bodySmall.copyWith(
+                        fontSize: 10.5,
+                        height: 1.1,
+                        color: MasilPetPalette.inkSoft,
+                      ),
                     ),
                   ),
                 ),
-              const SizedBox(height: 3),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: MasilPetPalette.paper.withValues(alpha: 0.82),
-                  borderRadius: MasilPetRadii.tightBorder,
-                ),
-                child: Text(
-                  poi.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: MasilPetType.bodySmall.copyWith(
-                    fontSize: 10.5,
-                    height: 1.1,
-                    color: MasilPetPalette.inkSoft,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

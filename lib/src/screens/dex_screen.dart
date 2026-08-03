@@ -75,6 +75,9 @@ class _DexScreenState extends ConsumerState<DexScreen> {
       // The shell owns this page's scroller so re-tapping 도감 returns to the
       // album cover.
       primary: true,
+      // Scrolling the album is how you leave the search line; the keyboard
+      // should not sit over the stickers you just asked to see.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPadding(
           padding: kPaperBodyPadding,

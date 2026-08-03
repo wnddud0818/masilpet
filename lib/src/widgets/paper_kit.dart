@@ -1291,35 +1291,44 @@ class RoundStamp extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: color),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  top,
-                  style: MasilPetType.microMono.copyWith(
-                    fontSize: 8,
-                    letterSpacing: 0.8,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  middle,
-                  style: MasilPetType.rowTitle.copyWith(
-                    fontSize: middleFontSize,
-                    height: 1.1,
-                    color: color,
-                  ),
-                ),
-                if (bottom != null)
-                  Text(
-                    bottom!,
-                    style: MasilPetType.microMono.copyWith(
-                      fontSize: 7.5,
-                      letterSpacing: 0,
-                      color: color,
+            // A rubber stamp is a fixed object: its ink follows the reader's
+            // text size up to the edge of the die, then stops rather than
+            // spilling over the ring.
+            child: Padding(
+              padding: EdgeInsets.all(size * 0.12),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      top,
+                      style: MasilPetType.microMono.copyWith(
+                        fontSize: 8,
+                        letterSpacing: 0.8,
+                        color: color,
+                      ),
                     ),
-                  ),
-              ],
+                    Text(
+                      middle,
+                      style: MasilPetType.rowTitle.copyWith(
+                        fontSize: middleFontSize,
+                        height: 1.1,
+                        color: color,
+                      ),
+                    ),
+                    if (bottom != null)
+                      Text(
+                        bottom!,
+                        style: MasilPetType.microMono.copyWith(
+                          fontSize: 7.5,
+                          letterSpacing: 0,
+                          color: color,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1349,6 +1358,9 @@ abstract final class MasilPetHaptics {
     unawaited(HapticFeedback.selectionClick());
   }
 }
+
+/// Where a hand-pressed stamp comes to rest: never quite square to the page.
+const _stampRestAngle = -9 * math.pi / 180;
 
 /// The full-screen stamp that lands when a visit is verified.
 class StampOverlay extends StatefulWidget {
@@ -1392,6 +1404,7 @@ class _StampOverlayState extends State<StampOverlay>
       parent: _controller,
       curve: MasilPetMotion.stampCurve,
     );
+    final muted = _motionMuted(context);
 
     return IgnorePointer(
       child: ColoredBox(
@@ -1401,10 +1414,19 @@ class _StampOverlayState extends State<StampOverlay>
             animation: progress,
             builder: (context, child) {
               final t = progress.value;
+              final opacity = t.clamp(0.0, 1.0);
+              // Reduced motion keeps the stamp — it is the reward — but lands
+              // it by fading, without the swing down from 1.9×.
+              if (muted) {
+                return Opacity(
+                  opacity: opacity,
+                  child: Transform.rotate(angle: _stampRestAngle, child: child),
+                );
+              }
               final scale = ui.lerpDouble(1.9, 1.0, t)!;
               final angle = ui.lerpDouble(-26, -9, t)! * math.pi / 180;
               return Opacity(
-                opacity: t.clamp(0.0, 1.0),
+                opacity: opacity,
                 child: Transform.rotate(
                   angle: angle,
                   child: Transform.scale(scale: scale, child: child),
@@ -1637,6 +1659,15 @@ class GroundShadow extends StatelessWidget {
   }
 }
 
+/// True when the platform's "reduce motion" setting is on.
+///
+/// Looping decoration holds still when it is; one-shot feedback (the stamp
+/// landing, a card rising in) still plays, because those animations carry
+/// meaning rather than atmosphere.
+bool _motionMuted(BuildContext context) {
+  return MediaQuery.maybeOf(context)?.disableAnimations ?? false;
+}
+
 /// `@keyframes bob` — a sprite floating in place.
 class BobbingSprite extends StatefulWidget {
   const BobbingSprite({
@@ -1657,14 +1688,21 @@ class BobbingSprite extends StatefulWidget {
 class _BobbingSpriteState extends State<BobbingSprite>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _muted = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.period,
-      vsync: this,
-    )..repeat();
+    // The ticker mode is only safe to read from didChangeDependencies, which
+    // runs next and starts the loop.
+    _controller = AnimationController(duration: widget.period, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _muted = _motionMuted(context);
+    _syncMotion();
   }
 
   @override
@@ -1672,9 +1710,16 @@ class _BobbingSpriteState extends State<BobbingSprite>
     super.didUpdateWidget(old);
     if (old.period != widget.period) {
       _controller.duration = widget.period;
-      _controller
-        ..reset()
-        ..repeat();
+      _controller.reset();
+      _syncMotion();
+    }
+  }
+
+  void _syncMotion() {
+    if (_muted) {
+      _controller.stop(canceled: false);
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
     }
   }
 
@@ -1686,6 +1731,10 @@ class _BobbingSpriteState extends State<BobbingSprite>
 
   @override
   Widget build(BuildContext context) {
+    // Standing still means standing on the ground, not frozen mid-float.
+    if (_muted) {
+      return widget.child;
+    }
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -1722,14 +1771,23 @@ class PulseRing extends StatefulWidget {
 class _PulseRingState extends State<PulseRing>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _muted = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: widget.period,
-      vsync: this,
-    )..repeat();
+    _controller = AnimationController(duration: widget.period, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _muted = _motionMuted(context);
+    if (_muted) {
+      _controller.stop(canceled: false);
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -1740,6 +1798,13 @@ class _PulseRingState extends State<PulseRing>
 
   @override
   Widget build(BuildContext context) {
+    // Held at the start of the pulse: still a halo marking the spot, just no
+    // longer breathing.
+    if (_muted) {
+      return IgnorePointer(
+        child: Opacity(opacity: 0.5, child: _ring()),
+      );
+    }
     return IgnorePointer(
       child: AnimatedBuilder(
         animation: _controller,
@@ -1750,16 +1815,20 @@ class _PulseRingState extends State<PulseRing>
             child: Transform.scale(scale: 1 + t * 1.8, child: child),
           );
         },
-        child: Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: widget.color,
-              width: widget.strokeWidth,
-            ),
-          ),
+        child: _ring(),
+      ),
+    );
+  }
+
+  Widget _ring() {
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: widget.color,
+          width: widget.strokeWidth,
         ),
       ),
     );
@@ -1904,6 +1973,9 @@ class ShakeLoop extends StatefulWidget {
 class _ShakeLoopState extends State<ShakeLoop>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _muted = false;
+
+  bool get _shaking => widget.active && !_muted;
 
   @override
   void initState() {
@@ -1914,17 +1986,25 @@ class _ShakeLoopState extends State<ShakeLoop>
       duration: widget.period,
       vsync: this,
     );
-    if (widget.active) {
-      _controller.repeat();
-    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _muted = _motionMuted(context);
+    _syncMotion();
   }
 
   @override
   void didUpdateWidget(ShakeLoop old) {
     super.didUpdateWidget(old);
-    if (widget.active && !_controller.isAnimating) {
+    _syncMotion();
+  }
+
+  void _syncMotion() {
+    if (_shaking && !_controller.isAnimating) {
       _controller.repeat();
-    } else if (!widget.active && _controller.isAnimating) {
+    } else if (!_shaking && _controller.isAnimating) {
       _controller
         ..stop()
         ..value = 0;
@@ -1939,7 +2019,7 @@ class _ShakeLoopState extends State<ShakeLoop>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.active) {
+    if (!_shaking) {
       return widget.child;
     }
     return AnimatedBuilder(

@@ -960,9 +960,15 @@ class _PetVitalsCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                'EXP ${pet.stats.exp} / $petEvolutionExpGoal',
-                style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+              const SizedBox(width: 10),
+              // Flexible, not rigid: at large text sizes the counter has to be
+              // allowed to wrap rather than push off the card.
+              Flexible(
+                child: Text(
+                  'EXP ${pet.stats.exp} / $petEvolutionExpGoal',
+                  textAlign: TextAlign.right,
+                  style: MasilPetType.rowTitle.copyWith(fontSize: 15),
+                ),
               ),
             ],
           ),

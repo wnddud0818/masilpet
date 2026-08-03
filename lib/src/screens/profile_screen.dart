@@ -198,14 +198,18 @@ class _PassportCardState extends State<_PassportCard> {
                 ),
               ),
               const SizedBox(width: 12),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: HandNote(
-                  isThisMonth
-                      ? (streak >= 3 ? '잘하고 있어!' : '한 걸음부터')
-                      : '${viewed.month}월의 기록',
-                  fontSize: 22,
-                  textAlign: TextAlign.right,
+              // The margin note gives way rather than pushing the heading off
+              // the card when the reader has text turned up.
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: HandNote(
+                    isThisMonth
+                        ? (streak >= 3 ? '잘하고 있어!' : '한 걸음부터')
+                        : '${viewed.month}월의 기록',
+                    fontSize: 22,
+                    textAlign: TextAlign.right,
+                  ),
                 ),
               ),
             ],

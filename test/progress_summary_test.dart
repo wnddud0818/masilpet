@@ -399,7 +399,7 @@ Future<MasilPetController> _controllerWithTwoPets(
   MasilPetBackend backend,
 ) async {
   final controller = _controller(backend: backend);
-  await controller.addStepProgress(2300);
+  await controller.addStepProgress(3500);
   await controller.hatchEgg('egg-harbor-maru');
   return controller;
 }
@@ -880,7 +880,7 @@ void main() {
     expect(pet.stats.affinity, 13);
     expect(pet.level, 3);
     expect(pet.stage, PetStage.grown);
-    expect(egg.progress, 1323);
+    expect(egg.progress, 123);
     expect(controller.state.todayCheckInCount, 1);
     expect(
       controller.state.todayCheckIns.single.reward?.summaryLabel,
@@ -961,7 +961,7 @@ void main() {
     final egg = controller.state.eggs.singleWhere(
       (item) => item.id == 'egg-harbor-maru',
     );
-    expect(egg.progress, 1600);
+    expect(egg.progress, 400);
     expect(controller.state.statusMessage, contains('400'));
   });
 
@@ -993,7 +993,7 @@ void main() {
       ),
     );
 
-    await controller.addStepProgress(2300);
+    await controller.addStepProgress(3500);
     final egg = controller.state.eggs.single;
     expect(egg.status, EggStatus.hatchable);
 

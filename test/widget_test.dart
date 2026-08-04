@@ -1448,7 +1448,7 @@ void main() {
 
     expect(find.byType(PetPlayField), findsOneWidget);
     expect(find.text('마당 · 친구를 누르고, 공과 밥그릇도 건드려보세요'), findsOneWidget);
-    expect(find.text('1200 / 3500 걸음'), findsOneWidget);
+    expect(find.text('0 / 3500 걸음'), findsOneWidget);
     expect(find.text('오늘의 돌봄'), findsOneWidget);
     expect(find.text('밥 주기'), findsOneWidget);
     expect(find.text('한 곳 체크인하기'), findsOneWidget);
@@ -1465,7 +1465,7 @@ void main() {
     await tester.pumpWidget(_hostScreen(controller, const HouseScreen()));
     await _settle(tester);
 
-    expect(find.textContaining('2300 걸음만 더!'), findsOneWidget);
+    expect(find.textContaining('3500 걸음만 더!'), findsOneWidget);
     expect(find.text('부화시키기'), findsNothing);
     expect(find.text('지도에서 걸음 모으기'), findsOneWidget);
     expect(tester.takeException(), isNull);

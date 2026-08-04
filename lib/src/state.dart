@@ -16,6 +16,10 @@ final firebaseReadyProvider = Provider<bool>((ref) => false);
 final firebaseStartupIssueProvider =
     Provider<FirebaseStartupIssue>((ref) => FirebaseStartupIssue.none);
 
+/// `main`이 `runApp` 뒤로 미뤄 둔 익명 로그인. 컨트롤러는 서버를 부르기 전에만
+/// 이 값을 기다리므로, 첫 프레임은 로그인 왕복을 기다리지 않습니다.
+final onlineAuthReadyProvider = Provider<Future<void>?>((ref) => null);
+
 const locationVerificationTtl = Duration(minutes: 15);
 
 final masilPetControllerProvider =
@@ -28,6 +32,7 @@ final masilPetControllerProvider =
         ref.watch(firebaseReadyProvider) ? FirestoreUserRepository() : null,
     localProgressRepository: const SharedPreferencesLocalProgressRepository(),
     locationService: const DeviceLocationService(),
+    onlineAuthReady: ref.watch(onlineAuthReadyProvider),
   );
 });
 
@@ -88,6 +93,7 @@ class MasilPetState {
     required this.dialogueCountToday,
     required this.dialogueDay,
     required this.isBusy,
+    this.startupRestored = false,
   });
 
   factory MasilPetState.initial({
@@ -96,6 +102,7 @@ class MasilPetState {
   }) {
     final now = DateTime.now();
     final starterTemplate = starterCompanionTemplate();
+    final starterEggTemplate = starterCompanionEggTemplate();
     return MasilPetState(
       firebaseReady: firebaseReady,
       firebaseStartupIssue: firebaseStartupIssue,
@@ -119,10 +126,12 @@ class MasilPetState {
       ],
       eggs: [
         Egg(
-          id: 'egg-harbor-maru',
-          templateId: 'harbor-maru',
-          originRegionId: starterTemplate.regionId,
-          progress: 1200,
+          id: starterCompanionEggId,
+          templateId: starterEggTemplate.id,
+          originRegionId: starterEggTemplate.regionId,
+          // 첫 알은 사용자가 직접 걸은 만큼만 차오릅니다. 미리 채워 두면
+          // 첫 산책의 진행감이 사라집니다.
+          progress: 0,
           requiredSteps: 3500,
           status: EggStatus.incubating,
           createdAt: now,
@@ -138,7 +147,7 @@ class MasilPetState {
       locationVerified: false,
       locationVerifiedAt: null,
       activePetId: starterCompanionPetId,
-      activeEggId: 'egg-harbor-maru',
+      activeEggId: starterCompanionEggId,
       selectedTab: 1,
       mapCategoryFocus: null,
       statusMessage: firebaseReady
@@ -150,6 +159,7 @@ class MasilPetState {
       dialogueCountToday: 0,
       dialogueDay: now,
       isBusy: false,
+      startupRestored: false,
     );
   }
 
@@ -182,6 +192,13 @@ class MasilPetState {
   final int dialogueCountToday;
   final DateTime dialogueDay;
   final bool isBusy;
+
+  /// 기기에 저장해 둔 진행도를 읽어 상태에 반영하기까지 끝났는지.
+  ///
+  /// 이 값이 `false`인 동안 [onboardingComplete]는 아직 기본값(`false`)일 뿐
+  /// 사용자의 실제 진행을 뜻하지 않습니다. 첫 화면은 이 값이 `true`가 될 때까지
+  /// 기다려야 재방문 사용자에게 온보딩이 깜빡이지 않습니다.
+  final bool startupRestored;
 
   Pet? get activePet {
     for (final pet in pets) {
@@ -636,6 +653,7 @@ class MasilPetState {
     int? dialogueCountToday,
     DateTime? dialogueDay,
     bool? isBusy,
+    bool? startupRestored,
   }) {
     return MasilPetState(
       firebaseReady: firebaseReady ?? this.firebaseReady,
@@ -677,6 +695,7 @@ class MasilPetState {
       dialogueCountToday: dialogueCountToday ?? this.dialogueCountToday,
       dialogueDay: dialogueDay ?? this.dialogueDay,
       isBusy: isBusy ?? this.isBusy,
+      startupRestored: startupRestored ?? this.startupRestored,
     );
   }
 }
@@ -701,11 +720,13 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     required FirestoreUserRepository? userRepository,
     LocalProgressRepository? localProgressRepository,
     DeviceStepService stepService = const DeviceStepService(),
+    Future<void>? onlineAuthReady,
   })  : _locationService = locationService,
         _backend = backend,
         _userRepository = userRepository,
         _localProgressRepository = localProgressRepository,
         _stepService = stepService,
+        _onlineAuthReady = onlineAuthReady,
         super(MasilPetState.initial(
           firebaseReady: firebaseReady,
           firebaseStartupIssue: firebaseStartupIssue,
@@ -714,11 +735,41 @@ class MasilPetController extends StateNotifier<MasilPetState> {
     _attachLifecycleListener();
     Future.microtask(() async {
       await _safeBootstrapLocalSession();
+      // 시작 절차는 화면보다 오래 살 수 있다. 컨트롤러가 이미 버려졌으면
+      // 남은 단계를 진행하지 않는다.
+      if (!mounted) {
+        return;
+      }
+      // 첫 화면을 여는 최소 조건은 여기까지다. 온라인 동기화와 걸음 재연결은
+      // 화면을 띄워 둔 채로 이어서 진행한다.
+      state = state.copyWith(startupRestored: true);
       if (firebaseReady) {
+        await _awaitOnlineAuth();
+        if (!mounted) {
+          return;
+        }
         await _bootstrapOnlineSession();
+        if (!mounted) {
+          return;
+        }
       }
       await _resumeStepTrackingIfEnabled();
     });
+  }
+
+  /// 익명 로그인은 `runApp` 뒤에서 이어지므로, 서버를 부르기 전에 그 결과를
+  /// 기다린다. 실패하거나 늦어지더라도 온라인 부트스트랩이 자체적으로
+  /// 실패를 처리하므로 여기서는 조용히 넘어간다.
+  Future<void> _awaitOnlineAuth() async {
+    final pending = _onlineAuthReady;
+    if (pending == null) {
+      return;
+    }
+    try {
+      await pending;
+    } on Object {
+      // 인증 실패는 _bootstrapOnlineSession이 상태 메시지로 알린다.
+    }
   }
 
   void _attachLifecycleListener() {
@@ -735,6 +786,7 @@ class MasilPetController extends StateNotifier<MasilPetState> {
   final FirestoreUserRepository? _userRepository;
   final LocalProgressRepository? _localProgressRepository;
   final DeviceStepService _stepService;
+  final Future<void>? _onlineAuthReady;
   final GrowthEngine _growthEngine = const GrowthEngine();
   final CareEngine _careEngine = const CareEngine();
   final StaticDialogueService _dialogueService = const StaticDialogueService();
@@ -1279,6 +1331,9 @@ class MasilPetController extends StateNotifier<MasilPetState> {
       firebaseReady: state.firebaseReady,
       firebaseStartupIssue: state.firebaseStartupIssue,
     ).copyWith(
+      // 초기화는 진행도를 비우는 것이지 앱을 다시 켜는 것이 아니다. 시작 복원
+      // 플래그까지 되돌리면 시작 화면에 갇힌다.
+      startupRestored: state.startupRestored,
       statusMessage: remoteDeleteFailed
           ? '서버 진행도를 지우지 못했어요. 기기 내 진행은 초기화했어요.'
           : _backend == null

@@ -3579,7 +3579,9 @@ function starterEggRuntimeDoc(): EggDoc {
   return {
     templateId: 'harbor-maru',
     originRegionId: 'korea',
-    progress: 1200,
+    // 첫 알은 사용자가 직접 걸은 만큼만 차오른다. 클라이언트
+    // (lib/src/state.dart의 MasilPetState.initial)와 반드시 같은 값이어야 한다.
+    progress: 0,
     requiredSteps: 3500,
     status: 'incubating',
   };

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱이 그리는 첫 화면(MasilPetPalette.canvas)과 같은 종이색.
+         실행 화면과 Flutter 첫 프레임 사이에서 색이 튀지 않게 한다. -->
+    <color name="masilpet_canvas">#FFF2E9D8</color>
+</resources>

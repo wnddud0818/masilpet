@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 앱은 다크 테마를 따로 두지 않고 언제나 종이 화면을 그린다. 어두운
+         실행 화면에서 밝은 첫 프레임으로 튀지 않도록 색을 그대로 맞춘다. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/masilpet_canvas</item>
+        <item name="android:windowBackground">@color/masilpet_canvas</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/masilpet_canvas</item>
+    </style>
+</resources>

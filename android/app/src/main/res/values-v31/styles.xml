@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12부터는 시스템이 앱 아이콘으로 실행 화면을 직접 그린다.
+         windowBackground에 비트맵을 또 얹으면 아이콘이 두 번 보이므로,
+         여기서는 배경색만 앱의 종이색과 맞춘다. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/masilpet_canvas</item>
+        <item name="android:windowBackground">@color/masilpet_canvas</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/masilpet_canvas</item>
+    </style>
+</resources>

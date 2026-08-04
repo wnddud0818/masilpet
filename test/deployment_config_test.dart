@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:masilpet/src/seed_data.dart';
+import 'package:masilpet/src/state.dart';
 
 Map<String, dynamic> _readJson(String path) {
   return jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
@@ -901,4 +903,61 @@ void main() {
     expect(checklist, contains('스타터 사용자 상태를 서버에서 보정'));
     expect(runbook, contains('스타터 사용자 상태를 같은 트랜잭션 안에서 보정'));
   });
+
+  // 서버와 클라이언트가 각자 스타터 값을 들고 있어서, 이름만 대조하면 값이
+  // 조용히 갈라진다. 실제로 알의 출신 지역과 시작 진행도가 서로 달랐다.
+  test('starter pet and egg match between the client and Functions', () {
+    final functionsSource = File('functions/src/index.ts').readAsStringSync();
+    final state = MasilPetState.initial(firebaseReady: false);
+    final egg = state.eggs.single;
+
+    expect(
+      _tsConst(functionsSource, 'starterPetId'),
+      starterCompanionPetId,
+      reason: '첫 동행 캐릭터의 펫 문서 id가 서버와 다릅니다.',
+    );
+    expect(
+      _tsConst(functionsSource, 'starterEggId'),
+      starterCompanionEggId,
+      reason: '함께 시작하는 알의 문서 id가 서버와 다릅니다.',
+    );
+
+    final serverPet = _tsFunctionBody(functionsSource, 'starterPetRuntimeDoc');
+    expect(_tsField(serverPet, 'templateId'), state.activePet!.templateId);
+    expect(_tsField(serverPet, 'name'), state.activePet!.name);
+
+    final serverEgg = _tsFunctionBody(functionsSource, 'starterEggRuntimeDoc');
+    expect(_tsField(serverEgg, 'templateId'), egg.templateId);
+    expect(_tsField(serverEgg, 'originRegionId'), egg.originRegionId);
+    expect(_tsField(serverEgg, 'progress'), '${egg.progress}');
+    expect(_tsField(serverEgg, 'requiredSteps'), '${egg.requiredSteps}');
+  });
+}
+
+/// `const name = 'value';` 에서 값만 뽑아낸다.
+String _tsConst(String source, String name) {
+  final match = RegExp("const $name = '([^']*)';").firstMatch(source);
+  if (match == null) {
+    throw StateError('functions/src/index.ts에서 const $name을 찾지 못했습니다.');
+  }
+  return match.group(1)!;
+}
+
+/// `function name(...) { ... }` 의 본문을 첫 번째 닫는 중괄호까지 잘라낸다.
+String _tsFunctionBody(String source, String name) {
+  final start = source.indexOf('function $name(');
+  if (start < 0) {
+    throw StateError('functions/src/index.ts에서 function $name을 찾지 못했습니다.');
+  }
+  final end = source.indexOf('\n}', start);
+  return source.substring(start, end < 0 ? source.length : end);
+}
+
+/// 객체 리터럴 한 줄(`field: value,`)에서 값을 따옴표 없이 돌려준다.
+String _tsField(String body, String field) {
+  final match = RegExp("$field: '?([^',\n]*)'?,").firstMatch(body);
+  if (match == null) {
+    throw StateError('$field 항목을 찾지 못했습니다.');
+  }
+  return match.group(1)!;
 }

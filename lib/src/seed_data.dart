@@ -437,8 +437,25 @@ const starterCompanionTemplateId = 'busan-paranguri';
 /// 첫 동행 캐릭터 템플릿. 시드에서 사라진 경우에도 앱이 뜨도록 첫 템플릿으로
 /// 되돌립니다.
 PetTemplate starterCompanionTemplate() {
+  return _templateById(starterCompanionTemplateId);
+}
+
+/// 함께 시작하는 알의 문서 id. 서버(`functions/src/index.ts`)의 `starterEggId`와
+/// 반드시 같아야 합니다.
+const starterCompanionEggId = 'egg-harbor-maru';
+
+/// 함께 시작하는 알의 템플릿 id — 포구리(전국 공용)입니다.
+const starterCompanionEggTemplateId = 'harbor-maru';
+
+/// 함께 시작하는 알의 템플릿. 알의 출신 지역은 이 템플릿의 `regionId`를 따르며,
+/// 첫 동행 캐릭터의 지역과는 무관합니다.
+PetTemplate starterCompanionEggTemplate() {
+  return _templateById(starterCompanionEggTemplateId);
+}
+
+PetTemplate _templateById(String templateId) {
   for (final template in starterPetTemplates) {
-    if (template.id == starterCompanionTemplateId) {
+    if (template.id == templateId) {
       return template;
     }
   }
